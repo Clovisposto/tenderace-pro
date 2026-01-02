@@ -130,6 +130,16 @@ const Admin = () => {
   return (
     <MainLayout title="Painel Administrativo">
       <div className="space-y-6">
+        {/* Admin Temporário Banner */}
+        <div className="bg-warning/20 border border-warning/50 rounded-lg p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning" />
+          <div>
+            <p className="font-medium text-warning">ADMIN TEMPORÁRIO</p>
+            <p className="text-sm text-muted-foreground">Acesso liberado para validação. Sistema 24x7 ativo com captura automática a cada hora.</p>
+          </div>
+          <Badge className="ml-auto bg-success/20 text-success border-success/30">CRON ATIVO</Badge>
+        </div>
+        
         {/* Header Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card">
