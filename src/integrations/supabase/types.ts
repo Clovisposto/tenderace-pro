@@ -14,16 +14,622 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analise_editais: {
+        Row: {
+          analisado_por: string | null
+          condicoes_pagamento: string | null
+          created_at: string
+          criterios: Json | null
+          exigencias: Json | null
+          id: string
+          licitacao_id: string
+          local_entrega: string | null
+          observacoes: string | null
+          penalidades: Json | null
+          prazo_entrega: string | null
+          riscos: Json | null
+          updated_at: string
+        }
+        Insert: {
+          analisado_por?: string | null
+          condicoes_pagamento?: string | null
+          created_at?: string
+          criterios?: Json | null
+          exigencias?: Json | null
+          id?: string
+          licitacao_id: string
+          local_entrega?: string | null
+          observacoes?: string | null
+          penalidades?: Json | null
+          prazo_entrega?: string | null
+          riscos?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          analisado_por?: string | null
+          condicoes_pagamento?: string | null
+          created_at?: string
+          criterios?: Json | null
+          exigencias?: Json | null
+          id?: string
+          licitacao_id?: string
+          local_entrega?: string | null
+          observacoes?: string | null
+          penalidades?: Json | null
+          prazo_entrega?: string | null
+          riscos?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analise_editais_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: true
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_empresas: {
+        Row: {
+          checklist: Json | null
+          created_at: string
+          empresa_id: string
+          id: string
+          licitacao_id: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["compliance_status"]
+          verificado_em: string | null
+        }
+        Insert: {
+          checklist?: Json | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          licitacao_id: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["compliance_status"]
+          verificado_em?: string | null
+        }
+        Update: {
+          checklist?: Json | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          licitacao_id?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["compliance_status"]
+          verificado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_empresas_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configuracoes: {
+        Row: {
+          captacao_continua: boolean | null
+          created_at: string
+          id: string
+          lance_automatico: boolean | null
+          margem_minima: number | null
+          notificacoes_email: boolean | null
+          notificacoes_push: boolean | null
+          prioridade_interior: boolean | null
+          ufs_priorizadas: string[] | null
+          updated_at: string
+          user_id: string
+          valor_maximo: number | null
+          valor_minimo: number | null
+        }
+        Insert: {
+          captacao_continua?: boolean | null
+          created_at?: string
+          id?: string
+          lance_automatico?: boolean | null
+          margem_minima?: number | null
+          notificacoes_email?: boolean | null
+          notificacoes_push?: boolean | null
+          prioridade_interior?: boolean | null
+          ufs_priorizadas?: string[] | null
+          updated_at?: string
+          user_id: string
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+        }
+        Update: {
+          captacao_continua?: boolean | null
+          created_at?: string
+          id?: string
+          lance_automatico?: boolean | null
+          margem_minima?: number | null
+          notificacoes_email?: boolean | null
+          notificacoes_push?: boolean | null
+          prioridade_interior?: boolean | null
+          ufs_priorizadas?: string[] | null
+          updated_at?: string
+          user_id?: string
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+        }
+        Relationships: []
+      }
+      cotacoes: {
+        Row: {
+          created_at: string
+          custo_logistica: number | null
+          empresa_id: string
+          icms_uf: number | null
+          id: string
+          licitacao_id: string
+          margem_final: number | null
+          margem_minima: number | null
+          preco_final: number | null
+          preco_referencia: number
+          preco_sugerido: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custo_logistica?: number | null
+          empresa_id: string
+          icms_uf?: number | null
+          id?: string
+          licitacao_id: string
+          margem_final?: number | null
+          margem_minima?: number | null
+          preco_final?: number | null
+          preco_referencia: number
+          preco_sugerido?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custo_logistica?: number | null
+          empresa_id?: string
+          icms_uf?: number | null
+          id?: string
+          licitacao_id?: string
+          margem_final?: number | null
+          margem_minima?: number | null
+          preco_final?: number | null
+          preco_referencia?: number
+          preco_sugerido?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresas: {
+        Row: {
+          certidoes_validas: boolean | null
+          cnpj: string
+          created_at: string
+          email: string | null
+          endereco: string | null
+          id: string
+          licenca_farmaceutica: boolean | null
+          municipio: string
+          nome: string
+          razao_social: string | null
+          segmento: Database["public"]["Enums"]["segmento_type"]
+          sicaf_status: string | null
+          telefone: string | null
+          uf: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          certidoes_validas?: boolean | null
+          cnpj: string
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          licenca_farmaceutica?: boolean | null
+          municipio: string
+          nome: string
+          razao_social?: string | null
+          segmento?: Database["public"]["Enums"]["segmento_type"]
+          sicaf_status?: string | null
+          telefone?: string | null
+          uf: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          certidoes_validas?: boolean | null
+          cnpj?: string
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          licenca_farmaceutica?: boolean | null
+          municipio?: string
+          nome?: string
+          razao_social?: string | null
+          segmento?: Database["public"]["Enums"]["segmento_type"]
+          sicaf_status?: string | null
+          telefone?: string | null
+          uf?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      historico_disputas: {
+        Row: {
+          competidores: number | null
+          created_at: string
+          detalhes: Json | null
+          empresa_id: string
+          evento: string
+          id: string
+          licitacao_id: string
+          menor_lance: number | null
+          posicao: number | null
+          proposta_id: string
+          valor_lance: number | null
+        }
+        Insert: {
+          competidores?: number | null
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id: string
+          evento: string
+          id?: string
+          licitacao_id: string
+          menor_lance?: number | null
+          posicao?: number | null
+          proposta_id: string
+          valor_lance?: number | null
+        }
+        Update: {
+          competidores?: number | null
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id?: string
+          evento?: string
+          id?: string
+          licitacao_id?: string
+          menor_lance?: number | null
+          posicao?: number | null
+          proposta_id?: string
+          valor_lance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_disputas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_disputas_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_disputas_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      licitacoes: {
+        Row: {
+          created_at: string
+          data_abertura: string
+          data_limite: string
+          edital_analisado: boolean | null
+          edital_url: string | null
+          id: string
+          modalidade: Database["public"]["Enums"]["modalidade_type"]
+          municipio: string
+          numero: string
+          objeto: string
+          objeto_resumido: string | null
+          orgao: string
+          portal: Database["public"]["Enums"]["portal_type"]
+          risco_score: number | null
+          roi_score: number | null
+          segmento: Database["public"]["Enums"]["segmento_type"]
+          status: Database["public"]["Enums"]["licitacao_status"]
+          uasg: string | null
+          uf: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data_abertura: string
+          data_limite: string
+          edital_analisado?: boolean | null
+          edital_url?: string | null
+          id?: string
+          modalidade: Database["public"]["Enums"]["modalidade_type"]
+          municipio: string
+          numero: string
+          objeto: string
+          objeto_resumido?: string | null
+          orgao: string
+          portal: Database["public"]["Enums"]["portal_type"]
+          risco_score?: number | null
+          roi_score?: number | null
+          segmento: Database["public"]["Enums"]["segmento_type"]
+          status?: Database["public"]["Enums"]["licitacao_status"]
+          uasg?: string | null
+          uf: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data_abertura?: string
+          data_limite?: string
+          edital_analisado?: boolean | null
+          edital_url?: string | null
+          id?: string
+          modalidade?: Database["public"]["Enums"]["modalidade_type"]
+          municipio?: string
+          numero?: string
+          objeto?: string
+          objeto_resumido?: string | null
+          orgao?: string
+          portal?: Database["public"]["Enums"]["portal_type"]
+          risco_score?: number | null
+          roi_score?: number | null
+          segmento?: Database["public"]["Enums"]["segmento_type"]
+          status?: Database["public"]["Enums"]["licitacao_status"]
+          uasg?: string | null
+          uf?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      logs_auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          empresa_id: string | null
+          entidade: string
+          entidade_id: string | null
+          id: string
+          ip_address: string | null
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          empresa_id?: string | null
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          empresa_id?: string | null
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_auditoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      propostas: {
+        Row: {
+          autorizado_em: string | null
+          autorizado_por: string | null
+          cotacao_id: string | null
+          created_at: string
+          documentos: Json | null
+          empresa_id: string
+          enviado_em: string | null
+          id: string
+          licitacao_id: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["proposta_status"]
+          updated_at: string
+          valor_proposta: number
+        }
+        Insert: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          documentos?: Json | null
+          empresa_id: string
+          enviado_em?: string | null
+          id?: string
+          licitacao_id: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["proposta_status"]
+          updated_at?: string
+          valor_proposta: number
+        }
+        Update: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          documentos?: Json | null
+          empresa_id?: string
+          enviado_em?: string | null
+          id?: string
+          licitacao_id?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["proposta_status"]
+          updated_at?: string
+          valor_proposta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operador" | "viewer"
+      compliance_status: "Apta" | "Apta c/ Ressalva" | "Inapta"
+      licitacao_status:
+        | "Nova"
+        | "Em Análise"
+        | "Aguardando Autorização"
+        | "Autorizada"
+        | "Em Disputa"
+        | "Vencida"
+        | "Perdida"
+        | "Cancelada"
+      modalidade_type:
+        | "Dispensa com Disputa"
+        | "Dispensa sem Disputa"
+        | "Compra Direta"
+      portal_type:
+        | "PNCP"
+        | "ComprasNet"
+        | "ComprasPublicas"
+        | "BLL"
+        | "Caixa"
+        | "BB"
+        | "Portal Estadual"
+        | "Portal Municipal"
+      proposta_status:
+        | "Rascunho"
+        | "Enviada"
+        | "Em Disputa"
+        | "Vencedora"
+        | "Perdedora"
+        | "Cancelada"
+      segmento_type: "Medicamentos" | "Empreendimentos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +756,43 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operador", "viewer"],
+      compliance_status: ["Apta", "Apta c/ Ressalva", "Inapta"],
+      licitacao_status: [
+        "Nova",
+        "Em Análise",
+        "Aguardando Autorização",
+        "Autorizada",
+        "Em Disputa",
+        "Vencida",
+        "Perdida",
+        "Cancelada",
+      ],
+      modalidade_type: [
+        "Dispensa com Disputa",
+        "Dispensa sem Disputa",
+        "Compra Direta",
+      ],
+      portal_type: [
+        "PNCP",
+        "ComprasNet",
+        "ComprasPublicas",
+        "BLL",
+        "Caixa",
+        "BB",
+        "Portal Estadual",
+        "Portal Municipal",
+      ],
+      proposta_status: [
+        "Rascunho",
+        "Enviada",
+        "Em Disputa",
+        "Vencedora",
+        "Perdedora",
+        "Cancelada",
+      ],
+      segmento_type: ["Medicamentos", "Empreendimentos"],
+    },
   },
 } as const
