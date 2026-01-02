@@ -27,11 +27,13 @@ import {
   Wifi,
   Play,
   Pause,
-  RotateCcw
+  RotateCcw,
+  Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
 
 const Admin = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
@@ -179,8 +181,12 @@ const Admin = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="services" className="space-y-4">
+        <Tabs defaultValue="realtime" className="space-y-4">
           <TabsList className="bg-secondary/50">
+            <TabsTrigger value="realtime" className="gap-2">
+              <Radio className="w-4 h-4" />
+              Tempo Real
+            </TabsTrigger>
             <TabsTrigger value="services" className="gap-2">
               <Server className="w-4 h-4" />
               Serviços
@@ -198,6 +204,11 @@ const Admin = () => {
               Segurança
             </TabsTrigger>
           </TabsList>
+
+          {/* Realtime Tab */}
+          <TabsContent value="realtime">
+            <RealtimeMonitor />
+          </TabsContent>
 
           {/* Services Tab */}
           <TabsContent value="services" className="space-y-4">
