@@ -1,11 +1,10 @@
 import { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
-import { StatusIndicator } from '@/components/dashboard/StatusIndicator';
-import { Bell, User, LogOut, Menu, X } from 'lucide-react';
+import { Bell, User, LogOut, Menu, Bot, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
@@ -47,7 +46,7 @@ export function MainLayout({ children, title }: MainLayoutProps) {
       
       <main className={isMobile ? '' : 'ml-64'}>
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <header className="sticky top-0 z-40 bg-card border-b border-border">
           <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4">
             <div className="flex items-center gap-3 md:gap-4">
               {/* Mobile Menu Button */}
@@ -61,14 +60,39 @@ export function MainLayout({ children, title }: MainLayoutProps) {
                   <Menu className="w-5 h-5" />
                 </Button>
               )}
-              {title && <h1 className="text-lg md:text-2xl font-bold truncate">{title}</h1>}
-              {!isMobile && <StatusIndicator />}
+              
+              {/* Header Title */}
+              <div className="flex items-center gap-3">
+                {isMobile && (
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
+                <div>
+                  {title ? (
+                    <h1 className="text-lg md:text-xl font-bold text-foreground">{title}</h1>
+                  ) : (
+                    <h1 className="text-lg md:text-xl font-bold text-foreground">LicitaIA — Robô de Capital</h1>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Indicator - Desktop */}
+              {!isMobile && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
+                  <div className="relative">
+                    <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  </div>
+                  <Activity className="w-3.5 h-3.5 text-success" />
+                  <span className="text-xs font-medium text-success">24/7</span>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-1 md:gap-2">
               <Button variant="ghost" size="icon" className="relative h-9 w-9">
                 <Bell className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
                   3
                 </span>
               </Button>
@@ -79,13 +103,13 @@ export function MainLayout({ children, title }: MainLayoutProps) {
                     <User className="w-4 h-4 md:w-5 md:h-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 bg-card border-border">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium truncate">{user?.email}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
                     <p className="text-xs text-muted-foreground">Conectado</p>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                  <DropdownMenuSeparator className="bg-border" />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sair
                   </DropdownMenuItem>
