@@ -14,6 +14,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Licitacoes = lazy(() => import("./pages/Licitacoes"));
 const LicitacoesPortal = lazy(() => import("./pages/LicitacoesPortal"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Manual = lazy(() => import("./pages/Manual"));
 const Medicamentos = lazy(() => import("./pages/Medicamentos"));
 const Empreendimentos = lazy(() => import("./pages/Empreendimentos"));
 const Empresas = lazy(() => import("./pages/Empresas"));
@@ -58,6 +59,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<AuthRoute />} />
     <Route path="/admin" element={<Admin />} />
+    <Route path="/manual" element={<ProtectedRoute><Manual /></ProtectedRoute>} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/licitacoes" element={<ProtectedRoute><Licitacoes /></ProtectedRoute>} />
     <Route path="/portal" element={<ProtectedRoute><LicitacoesPortal /></ProtectedRoute>} />
