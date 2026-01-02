@@ -10,12 +10,16 @@ import {
   Zap,
   DollarSign,
   Clock,
-  Save
+  Save,
+  RefreshCw
 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
+import { useConfiguracoes, useUpdateConfiguracoes } from '@/hooks/useConfiguracoes';
 
 const Configuracoes = () => {
+  const { data: savedConfig, isLoading } = useConfiguracoes();
+  const updateConfig = useUpdateConfiguracoes();
+  
   const [configs, setConfigs] = useState({
     valorMinimo: 1000,
     valorMaximo: 35000,
@@ -27,8 +31,32 @@ const Configuracoes = () => {
     prioridadeInterior: true,
   });
 
+  useEffect(() => {
+    if (savedConfig) {
+      setConfigs({
+        valorMinimo: savedConfig.valor_minimo || 1000,
+        valorMaximo: savedConfig.valor_maximo || 35000,
+        margemMinima: savedConfig.margem_minima || 8,
+        lanceAutomatico: savedConfig.lance_automatico ?? true,
+        notificacoesEmail: savedConfig.notificacoes_email ?? true,
+        notificacoesPush: savedConfig.notificacoes_push ?? true,
+        captacaoContinua: savedConfig.captacao_continua ?? true,
+        prioridadeInterior: savedConfig.prioridade_interior ?? true,
+      });
+    }
+  }, [savedConfig]);
+
   const handleSave = () => {
-    toast.success('Configurações salvas com sucesso!');
+    updateConfig.mutate({
+      valor_minimo: configs.valorMinimo,
+      valor_maximo: configs.valorMaximo,
+      margem_minima: configs.margemMinima,
+      lance_automatico: configs.lanceAutomatico,
+      notificacoes_email: configs.notificacoesEmail,
+      notificacoes_push: configs.notificacoesPush,
+      captacao_continua: configs.captacaoContinua,
+      prioridade_interior: configs.prioridadeInterior,
+    });
   };
 
   return (
@@ -199,8 +227,8 @@ const Configuracoes = () => {
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="w-4 h-4" />
+          <Button onClick={handleSave} className="gap-2" disabled={updateConfig.isPending}>
+            {updateConfig.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Salvar Configurações
           </Button>
         </div>
