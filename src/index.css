@@ -6,83 +6,63 @@
 
 @layer base {
   :root {
-    /* Light theme - BLL Portal Style */
+    /* Professional Light Theme */
     --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --foreground: 220 20% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 20% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 20% 20%;
 
-    --primary: 217 91% 45%;
+    --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 220 20% 20%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 50%;
 
     --accent: 217 91% 55%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 142 76% 40%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 45%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 217 91% 50%;
 
     --radius: 0.5rem;
 
-    /* BLL-style tokens */
-    --header-bg: 217 91% 25%;
+    /* Professional tokens */
+    --header-bg: 0 0% 100%;
     --table-header: 220 14% 96%;
     --table-stripe: 220 14% 98%;
-    --link-color: 217 91% 45%;
+    --link-color: 217 91% 50%;
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 
-    /* Sidebar - Darker for contrast */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
+    /* Sidebar - Professional Light */
+    --sidebar-background: 220 20% 18%;
+    --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 217 91% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 20%;
+    --sidebar-accent: 220 20% 25%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 220 20% 25%;
     --sidebar-ring: 217 91% 55%;
-  }
-
-  .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 222 47% 14%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 30% 18%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 199 89% 48%;
-    --accent-foreground: 0 0% 100%;
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --sidebar-background: 222 47% 7%;
   }
 }
 
@@ -98,16 +78,25 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', system-ui, sans-serif;
-    @apply font-semibold tracking-tight;
+    @apply font-semibold tracking-tight text-foreground;
   }
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  /* Remove dark focus/active states */
+  *:focus {
+    @apply outline-none;
+  }
+
+  *:focus-visible {
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-background outline-none;
+  }
 }
 
 @layer components {
-  /* BLL Portal Card Style */
+  /* Professional Card Style */
   .bll-card {
     @apply bg-card border border-border rounded-lg shadow-sm;
   }
@@ -172,7 +161,7 @@
     @apply bg-muted text-muted-foreground border border-border;
   }
 
-  /* Legacy glass-card for backwards compatibility */
+  /* Glass card for backwards compatibility */
   .glass-card {
     @apply bg-card border border-border rounded-lg shadow-sm;
   }
@@ -200,6 +189,16 @@
 
   .badge-inapta {
     @apply bg-destructive/10 text-destructive border border-destructive/30;
+  }
+
+  /* Gradient text utility */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Professional button states - always light */
+  .btn-professional {
+    @apply bg-card border border-border text-foreground hover:bg-secondary active:bg-secondary/80;
   }
 }
 
@@ -272,4 +271,9 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
+}
+
+/* Override any dark mode artifacts */
+.dark {
+  /* Force light theme - no dark mode */
 }

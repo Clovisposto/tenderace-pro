@@ -83,9 +83,9 @@ export function RealtimeMonitor() {
 
   const getEventColor = (type: string) => {
     switch (type) {
-      case 'INSERT': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      case 'UPDATE': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'DELETE': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'INSERT': return 'bg-success/20 text-success border-success/30';
+      case 'UPDATE': return 'bg-warning/20 text-warning border-warning/30';
+      case 'DELETE': return 'bg-destructive/20 text-destructive border-destructive/30';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -109,7 +109,7 @@ export function RealtimeMonitor() {
   };
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur">
+    <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -122,7 +122,7 @@ export function RealtimeMonitor() {
               <span>Última hora: <strong className="text-foreground">{stats.lastHour}</strong></span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+              <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-destructive'}`} />
               <span className="text-sm text-muted-foreground">
                 {isConnected ? 'Conectado' : 'Desconectado'}
               </span>
@@ -143,7 +143,7 @@ export function RealtimeMonitor() {
               {events.map((event, index) => (
                 <div
                   key={`${event.id}-${index}`}
-                  className="group relative rounded-lg border border-border/50 bg-background/50 p-4 transition-all hover:bg-accent/30 hover:border-border"
+                  className="group relative rounded-lg border border-border bg-secondary/30 p-4 transition-all hover:bg-secondary/50 hover:border-border"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -172,7 +172,7 @@ export function RealtimeMonitor() {
                           <MapPin className="h-3 w-3" />
                           {event.municipio}/{event.uf}
                         </span>
-                        <span className="flex items-center gap-1 text-emerald-400">
+                        <span className="flex items-center gap-1 text-success">
                           <Banknote className="h-3 w-3" />
                           {formatCurrency(event.valor)}
                         </span>
