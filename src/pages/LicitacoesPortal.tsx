@@ -2,11 +2,14 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { BLLFiltersBar, BLLFiltersState } from '@/components/licitacao/BLLFiltersBar';
 import { BLLTable } from '@/components/licitacao/BLLTable';
+import { BLLMobileList } from '@/components/licitacao/BLLMobileList';
+import { BLLMobileFiltersDrawer } from '@/components/licitacao/BLLMobileFiltersDrawer';
 import { BLLDetailPanel } from '@/components/licitacao/BLLDetailPanel';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   RefreshCw, 
   Download, 
@@ -36,11 +39,13 @@ const INITIAL_FILTERS: BLLFiltersState = {
 const PAGE_SIZE = 20;
 
 const LicitacoesPortal = () => {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<TabType>('processos');
   const [filters, setFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [page, setPage] = useState(1);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { setupRealtime } = useLicitacoesRealtime();
@@ -51,17 +56,29 @@ const LicitacoesPortal = () => {
     return cleanup;
   }, []);
 
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (appliedFilters.promotor) count++;
+    if (appliedFilters.numero) count++;
+    if (appliedFilters.cidade) count++;
+    if (appliedFilters.uf && appliedFilters.uf !== 'all') count++;
+    if (appliedFilters.modalidade && appliedFilters.modalidade !== 'all') count++;
+    if (appliedFilters.situacao && appliedFilters.situacao !== 'all') count++;
+    if (appliedFilters.pubInicio) count++;
+    if (appliedFilters.pubFim) count++;
+    return count;
+  }, [appliedFilters]);
+
   // Apply tab presets
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab as TabType);
     setPage(1);
     
-    // Reset filters based on tab
     if (tab === 'compra_direta') {
       setFilters({ ...INITIAL_FILTERS, modalidade: 'Compra Direta' });
       setAppliedFilters({ ...INITIAL_FILTERS, modalidade: 'Compra Direta' });
     } else if (tab === 'localizacao') {
-      // Keep UF/Cidade as primary, clear others
       setFilters({ ...INITIAL_FILTERS });
       setAppliedFilters({ ...INITIAL_FILTERS });
     } else {
@@ -75,12 +92,10 @@ const LicitacoesPortal = () => {
     if (!licitacoes) return [];
     let result = [...licitacoes];
 
-    // Tab preset filtering
     if (activeTab === 'compra_direta') {
       result = result.filter(l => l.modalidade === 'Compra Direta');
     }
 
-    // Applied filters
     if (appliedFilters.promotor) {
       const busca = appliedFilters.promotor.toLowerCase();
       result = result.filter(l => l.orgao.toLowerCase().includes(busca));
@@ -170,28 +185,33 @@ const LicitacoesPortal = () => {
     <MainLayout title="Portal de Licitações">
       <div className="space-y-4">
         {/* Header with Tabs */}
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="bg-secondary/50">
-                <TabsTrigger value="processos" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Processos
-                </TabsTrigger>
-                <TabsTrigger value="compra_direta" className="gap-2">
-                  <ShoppingCart className="w-4 h-4" />
-                  Compra Direta
-                </TabsTrigger>
-                <TabsTrigger value="localizacao" className="gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Busca por Localização
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <div className="bg-card border border-border rounded-lg p-3 md:p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            {/* Tabs - Scrollable on mobile */}
+            <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList className="bg-secondary/50 min-w-max">
+                  <TabsTrigger value="processos" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                    <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">Processos</span>
+                    <span className="sm:hidden">Proc.</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="compra_direta" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                    <ShoppingCart className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">Compra Direta</span>
+                    <span className="sm:hidden">C. Direta</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="localizacao" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                    <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">Busca por Localização</span>
+                    <span className="sm:hidden">Local</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-            {/* Stats */}
-            <div className="flex items-center gap-4 text-sm">
+            {/* Stats - Hidden on mobile, visible on larger screens */}
+            <div className="hidden lg:flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 <span>Online</span>
@@ -216,62 +236,116 @@ const LicitacoesPortal = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              {/* Mobile Filters Button */}
+              {isMobile && (
+                <BLLMobileFiltersDrawer
+                  filters={filters}
+                  onFilterChange={setFilters}
+                  onBuscar={handleBuscar}
+                  onLimpar={handleLimpar}
+                  open={mobileFiltersOpen}
+                  onOpenChange={setMobileFiltersOpen}
+                  activeFiltersCount={activeFiltersCount}
+                />
+              )}
+              
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportCSV}
-                className="gap-2"
+                className="gap-1.5 md:gap-2"
               >
                 <Download className="w-4 h-4" />
-                Exportar
+                <span className="hidden sm:inline">Exportar</span>
               </Button>
               <Button
                 variant="default"
                 size="sm"
                 onClick={() => capturarPNCP.mutate()}
                 disabled={capturarPNCP.isPending}
-                className="gap-2"
+                className="gap-1.5 md:gap-2"
               >
                 <RefreshCw className={`w-4 h-4 ${capturarPNCP.isPending ? 'animate-spin' : ''}`} />
-                Capturar PNCP
+                <span className="hidden sm:inline">Capturar PNCP</span>
+                <span className="sm:hidden">Capturar</span>
               </Button>
+            </div>
+          </div>
+
+          {/* Mobile Stats Row */}
+          <div className="flex lg:hidden items-center gap-3 mt-3 pt-3 border-t border-border overflow-x-auto text-xs">
+            <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <div className="w-1.5 h-1.5 rounded-full bg-success" />
+              Online
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <AlertCircle className="w-3 h-3 text-accent" />
+              {stats.novas}
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <Clock className="w-3 h-3 text-warning" />
+              {stats.aguardando}
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <Zap className="w-3 h-3 text-primary" />
+              {stats.disputa}
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <CheckCircle className="w-3 h-3 text-success" />
+              {stats.vencidas}
             </div>
           </div>
         </div>
 
-        {/* Filters Bar */}
-        <BLLFiltersBar
-          filters={filters}
-          onFilterChange={setFilters}
-          onBuscar={handleBuscar}
-          onLimpar={handleLimpar}
-        />
+        {/* Desktop Filters Bar - Hidden on mobile */}
+        {!isMobile && (
+          <BLLFiltersBar
+            filters={filters}
+            onFilterChange={setFilters}
+            onBuscar={handleBuscar}
+            onLimpar={handleLimpar}
+          />
+        )}
 
         {/* Results count */}
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-          <span>{licitacoesFiltradas.length} processos encontrados</span>
-          {activeTab === 'compra_direta' && (
-            <Badge variant="outline" className="text-xs">
-              Filtro: Compra Direta
-            </Badge>
-          )}
-          {activeTab === 'localizacao' && appliedFilters.uf && appliedFilters.uf !== 'all' && (
-            <Badge variant="outline" className="text-xs">
-              Filtro: {appliedFilters.uf}
-            </Badge>
-          )}
+          <span>{licitacoesFiltradas.length} processos</span>
+          <div className="flex items-center gap-2">
+            {activeTab === 'compra_direta' && (
+              <Badge variant="outline" className="text-xs">
+                Compra Direta
+              </Badge>
+            )}
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {activeFiltersCount} filtros ativos
+              </Badge>
+            )}
+          </div>
         </div>
 
-        {/* Table */}
-        <BLLTable
-          licitacoes={paginatedLicitacoes}
-          onSelectDetail={setSelectedLicitacao}
-          isLoading={isLoading}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={licitacoesFiltradas.length}
-          onPageChange={setPage}
-        />
+        {/* Table / List */}
+        {isMobile ? (
+          <BLLMobileList
+            licitacoes={paginatedLicitacoes}
+            onSelectDetail={setSelectedLicitacao}
+            isLoading={isLoading}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={licitacoesFiltradas.length}
+            onPageChange={setPage}
+          />
+        ) : (
+          <BLLTable
+            licitacoes={paginatedLicitacoes}
+            onSelectDetail={setSelectedLicitacao}
+            isLoading={isLoading}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={licitacoesFiltradas.length}
+            onPageChange={setPage}
+          />
+        )}
       </div>
 
       {/* Detail Panel */}
