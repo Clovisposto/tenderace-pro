@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Licitacoes from "./pages/Licitacoes";
+import LicitacoesPortal from "./pages/LicitacoesPortal";
+import Admin from "./pages/Admin";
 import Medicamentos from "./pages/Medicamentos";
 import Empreendimentos from "./pages/Empreendimentos";
 import Empresas from "./pages/Empresas";
@@ -47,6 +49,8 @@ const App = () => (
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/licitacoes" element={<ProtectedRoute><Licitacoes /></ProtectedRoute>} />
+            <Route path="/portal" element={<ProtectedRoute><LicitacoesPortal /></ProtectedRoute>} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
             <Route path="/empreendimentos" element={<ProtectedRoute><Empreendimentos /></ProtectedRoute>} />
             <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
