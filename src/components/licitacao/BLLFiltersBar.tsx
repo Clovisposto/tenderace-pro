@@ -56,7 +56,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
   }, [filters, onFilterChange]);
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3">
+    <div className="bll-filter-bar">
       <div className="flex flex-wrap items-end gap-2">
         {/* Promotor (Órgão) */}
         <div className="flex flex-col gap-1 min-w-[140px]">
@@ -65,7 +65,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
             placeholder="Órgão/Entidade"
             value={filters.promotor}
             onChange={(e) => updateFilter('promotor', e.target.value)}
-            className="h-8 text-sm bg-secondary/50"
+            className="h-8 text-sm bg-background border-border"
           />
         </div>
 
@@ -76,7 +76,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
             placeholder="Número"
             value={filters.numero}
             onChange={(e) => updateFilter('numero', e.target.value)}
-            className="h-8 text-sm bg-secondary/50"
+            className="h-8 text-sm bg-background border-border"
           />
         </div>
 
@@ -87,7 +87,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
             placeholder="Município"
             value={filters.cidade}
             onChange={(e) => updateFilter('cidade', e.target.value)}
-            className="h-8 text-sm bg-secondary/50"
+            className="h-8 text-sm bg-background border-border"
           />
         </div>
 
@@ -95,7 +95,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
         <div className="flex flex-col gap-1 min-w-[80px]">
           <label className="text-xs text-muted-foreground font-medium">Estado</label>
           <Select value={filters.uf} onValueChange={(v) => updateFilter('uf', v)}>
-            <SelectTrigger className="h-8 text-sm bg-secondary/50 w-[80px]">
+            <SelectTrigger className="h-8 text-sm bg-background border-border w-[80px]">
               <SelectValue placeholder="UF" />
             </SelectTrigger>
             <SelectContent>
@@ -111,7 +111,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
         <div className="flex flex-col gap-1 min-w-[150px]">
           <label className="text-xs text-muted-foreground font-medium">Modalidade</label>
           <Select value={filters.modalidade} onValueChange={(v) => updateFilter('modalidade', v)}>
-            <SelectTrigger className="h-8 text-sm bg-secondary/50">
+            <SelectTrigger className="h-8 text-sm bg-background border-border">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -127,7 +127,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
         <div className="flex flex-col gap-1 min-w-[120px]">
           <label className="text-xs text-muted-foreground font-medium">Situação</label>
           <Select value={filters.situacao} onValueChange={(v) => updateFilter('situacao', v)}>
-            <SelectTrigger className="h-8 text-sm bg-secondary/50">
+            <SelectTrigger className="h-8 text-sm bg-background border-border">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -147,7 +147,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
               <Button
                 variant="outline"
                 className={cn(
-                  "h-8 w-[110px] justify-start text-left font-normal text-sm bg-secondary/50",
+                  "h-8 w-[110px] justify-start text-left font-normal text-sm bg-background border-border",
                   !filters.pubInicio && "text-muted-foreground"
                 )}
               >
@@ -175,7 +175,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
               <Button
                 variant="outline"
                 className={cn(
-                  "h-8 w-[110px] justify-start text-left font-normal text-sm bg-secondary/50",
+                  "h-8 w-[110px] justify-start text-left font-normal text-sm bg-background border-border",
                   !filters.pubFim && "text-muted-foreground"
                 )}
               >

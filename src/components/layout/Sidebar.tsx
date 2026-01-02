@@ -8,7 +8,8 @@ import {
   Briefcase,
   Bot,
   BarChart3,
-  Globe
+  Globe,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Empreendimentos', href: '/empreendimentos', icon: Briefcase },
   { name: 'Empresas', href: '/empresas', icon: Building2 },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
+  { name: 'Manual', href: '/manual', icon: BookOpen },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 

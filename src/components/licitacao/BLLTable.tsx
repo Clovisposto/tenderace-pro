@@ -22,14 +22,14 @@ type SortField = 'orgao' | 'numero' | 'status' | 'modalidade' | 'data_abertura' 
 type SortDir = 'asc' | 'desc';
 
 const statusColors: Record<string, string> = {
-  'Nova': 'bg-accent/20 text-accent border-accent/30',
-  'Em Análise': 'bg-warning/20 text-warning border-warning/30',
-  'Aguardando Autorização': 'bg-warning/20 text-warning border-warning/30',
-  'Autorizada': 'bg-primary/20 text-primary border-primary/30',
-  'Em Disputa': 'bg-primary/20 text-primary border-primary/30',
-  'Vencida': 'bg-success/20 text-success border-success/30',
-  'Perdida': 'bg-destructive/20 text-destructive border-destructive/30',
-  'Cancelada': 'bg-muted text-muted-foreground border-muted',
+  'Nova': 'badge-nova',
+  'Em Análise': 'badge-analise',
+  'Aguardando Autorização': 'badge-aguardando',
+  'Autorizada': 'badge-autorizada',
+  'Em Disputa': 'badge-disputa',
+  'Vencida': 'badge-vencida',
+  'Perdida': 'badge-perdida',
+  'Cancelada': 'badge-cancelada',
 };
 
 export function BLLTable({ 
@@ -112,10 +112,10 @@ export function BLLTable({
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="bll-card overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableRow className="bll-table-header">
               <TableHead className="w-[50px]"></TableHead>
               <TableHead>Promotor</TableHead>
               <TableHead>Nº/Processo</TableHead>
@@ -145,7 +145,7 @@ export function BLLTable({
 
   if (sortedLicitacoes.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-lg p-12 text-center">
+      <div className="bll-card p-12 text-center">
         <p className="text-muted-foreground">Nenhum processo encontrado com os filtros selecionados.</p>
       </div>
     );
@@ -220,21 +220,20 @@ export function BLLTable({
             {sortedLicitacoes.map((lic) => (
               <TableRow 
                 key={lic.id} 
-                className="hover:bg-secondary/50 transition-colors cursor-pointer"
+                className="bll-table-row"
                 onClick={() => onSelectDetail(lic)}
               >
                 <TableCell className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-primary/20"
+                  <button
+                    className="bll-info-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectDetail(lic);
                     }}
+                    aria-label="Ver detalhes"
                   >
-                    <Info className="w-4 h-4 text-primary" />
-                  </Button>
+                    i
+                  </button>
                 </TableCell>
                 <TableCell className="font-medium max-w-[200px] truncate" title={lic.orgao}>
                   {lic.orgao}
