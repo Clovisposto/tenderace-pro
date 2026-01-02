@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.notificar]
 verify_jwt = false
+
+[functions.sicaf-connector]
+verify_jwt = false

@@ -9,7 +9,8 @@ import {
   Bot,
   BarChart3,
   Globe,
-  BookOpen
+  BookOpen,
+  Plug
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Medicamentos', href: '/medicamentos', icon: Pill },
   { name: 'Empreendimentos', href: '/empreendimentos', icon: Briefcase },
   { name: 'Empresas', href: '/empresas', icon: Building2 },
+  { name: 'Conectores', href: '/conectores', icon: Plug },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
   { name: 'Manual', href: '/manual', icon: BookOpen },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
