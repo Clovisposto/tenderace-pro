@@ -70,6 +70,27 @@ export type Database = {
           },
         ]
       }
+      captura_jobs_log: {
+        Row: {
+          details: Json | null
+          id: number
+          ran_at: string
+          status: string
+        }
+        Insert: {
+          details?: Json | null
+          id?: number
+          ran_at?: string
+          status?: string
+        }
+        Update: {
+          details?: Json | null
+          id?: number
+          ran_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       compliance_empresas: {
         Row: {
           checklist: Json | null
@@ -596,6 +617,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      run_captura_licitacoes: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "operador" | "viewer"
