@@ -1,21 +1,32 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FiltrosLicitacao } from '@/components/licitacao/FiltrosLicitacao';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
 import { LicitacaoDetalhe } from '@/components/licitacao/LicitacaoDetalhe';
-import { mockLicitacoes } from '@/data/mockData';
-import { Licitacao } from '@/types/licitacao';
+import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, Download } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Licitacoes = () => {
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [filtros, setFiltros] = useState<any>({});
   const [activeTab, setActiveTab] = useState('todas');
 
-  const licitacoesFiltradas = useMemo(() => {
-    let result = [...mockLicitacoes];
+  const { data: licitacoes, isLoading, refetch } = useLicitacoes();
+  const { setupRealtime } = useLicitacoesRealtime();
+  const capturarPNCP = useCapturarPNCP();
 
-    // Filter by tab
+  useEffect(() => {
+    const cleanup = setupRealtime();
+    return cleanup;
+  }, []);
+
+  const licitacoesFiltradas = useMemo(() => {
+    if (!licitacoes) return [];
+    let result = [...licitacoes];
+
     if (activeTab === 'novas') {
       result = result.filter(l => l.status === 'Nova');
     } else if (activeTab === 'analise') {
@@ -26,7 +37,6 @@ const Licitacoes = () => {
       result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
     }
 
-    // Apply filters
     if (filtros.busca) {
       const busca = filtros.busca.toLowerCase();
       result = result.filter(l =>
@@ -49,20 +59,56 @@ const Licitacoes = () => {
     }
 
     return result;
-  }, [activeTab, filtros]);
+  }, [activeTab, filtros, licitacoes]);
 
   const counts = useMemo(() => ({
-    todas: mockLicitacoes.length,
-    novas: mockLicitacoes.filter(l => l.status === 'Nova').length,
-    analise: mockLicitacoes.filter(l => l.status === 'Em Análise').length,
-    aguardando: mockLicitacoes.filter(l => l.status === 'Aguardando Autorização').length,
-    disputa: mockLicitacoes.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
-  }), []);
+    todas: licitacoes?.length || 0,
+    novas: licitacoes?.filter(l => l.status === 'Nova').length || 0,
+    analise: licitacoes?.filter(l => l.status === 'Em Análise').length || 0,
+    aguardando: licitacoes?.filter(l => l.status === 'Aguardando Autorização').length || 0,
+    disputa: licitacoes?.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length || 0,
+  }), [licitacoes]);
+
+  const mapToLegacyFormat = (l: Licitacao) => ({
+    id: l.id,
+    portal: l.portal,
+    numero: l.numero,
+    orgao: l.orgao,
+    uasg: l.uasg || undefined,
+    municipio: l.municipio,
+    uf: l.uf,
+    objeto: l.objeto,
+    objetoResumido: l.objeto_resumido || l.objeto.substring(0, 60) + '...',
+    valor: l.valor,
+    modalidade: l.modalidade,
+    dataAbertura: new Date(l.data_abertura),
+    dataLimite: new Date(l.data_limite),
+    status: l.status,
+    segmento: l.segmento,
+    compliance: 'Apta' as const,
+    roiScore: l.roi_score || 70,
+    riscoScore: l.risco_score || 20,
+    createdAt: new Date(l.created_at),
+    updatedAt: new Date(l.updated_at),
+  });
 
   return (
     <MainLayout title="Licitações">
       <div className="space-y-6">
-        <FiltrosLicitacao onFilterChange={setFiltros} />
+        <div className="flex items-center justify-between">
+          <FiltrosLicitacao onFilterChange={setFiltros} />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => capturarPNCP.mutate()}
+              disabled={capturarPNCP.isPending}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${capturarPNCP.isPending ? 'animate-spin' : ''}`} />
+              Capturar PNCP
+            </Button>
+          </div>
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-secondary/50">
@@ -84,12 +130,18 @@ const Licitacoes = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
-            {licitacoesFiltradas.length > 0 ? (
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
+            ) : licitacoesFiltradas.length > 0 ? (
               <div className="space-y-4">
                 {licitacoesFiltradas.map((licitacao, index) => (
                   <LicitacaoCard
                     key={licitacao.id}
-                    licitacao={licitacao}
+                    licitacao={mapToLegacyFormat(licitacao)}
                     onClick={() => setSelectedLicitacao(licitacao)}
                     delay={index * 50}
                   />
@@ -97,7 +149,15 @@ const Licitacoes = () => {
               </div>
             ) : (
               <div className="glass-card p-12 text-center">
-                <p className="text-muted-foreground">Nenhuma licitação encontrada com os filtros selecionados.</p>
+                <p className="text-muted-foreground">Nenhuma licitação encontrada.</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => capturarPNCP.mutate()}
+                  disabled={capturarPNCP.isPending}
+                >
+                  Capturar novas licitações
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -106,7 +166,7 @@ const Licitacoes = () => {
 
       {selectedLicitacao && (
         <LicitacaoDetalhe
-          licitacao={selectedLicitacao}
+          licitacao={mapToLegacyFormat(selectedLicitacao)}
           onClose={() => setSelectedLicitacao(null)}
           onAutorizar={() => setSelectedLicitacao(null)}
         />
