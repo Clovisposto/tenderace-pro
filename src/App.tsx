@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load pages for better performance
@@ -59,7 +60,7 @@ const AuthRoute = () => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<AuthRoute />} />
-    <Route path="/admin" element={<Admin />} />
+    <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
     <Route path="/manual" element={<ProtectedRoute><Manual /></ProtectedRoute>} />
     <Route path="/conectores" element={<ProtectedRoute><Conectores /></ProtectedRoute>} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
