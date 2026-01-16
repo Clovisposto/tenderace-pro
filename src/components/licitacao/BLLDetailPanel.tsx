@@ -127,12 +127,12 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
   };
 
   const checklistItems = [
-    { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026' },
-    { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular' },
-    { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026' },
-    { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026' },
-    { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/05/2026' },
-    { label: 'Receita Municipal', ok: false, detail: 'Vencida em 13/01/2026 (*)' },
+    { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026', vencimento: new Date('2026-08-24') },
+    { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular', vencimento: null },
+    { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026', vencimento: new Date('2026-03-30') },
+    { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026', vencimento: new Date('2026-01-22') },
+    { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/05/2026', vencimento: new Date('2026-05-05') },
+    { label: 'Receita Municipal', ok: false, detail: 'Vencida em 13/01/2026 (*)', vencimento: new Date('2026-01-13') },
   ];
 
   return (
@@ -324,23 +324,48 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
                 </div>
 
                 <div className="space-y-2">
-                  {checklistItems.map((item, i) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${item.ok ? 'bg-success/5 border border-success/20' : 'bg-destructive/5 border border-destructive/20'}`}>
-                      <div className="flex items-center gap-2">
-                        {item.ok ? (
-                          <CheckCircle2 className="w-4 h-4 text-success" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-destructive" />
-                        )}
-                        <span className={`text-sm font-medium ${item.ok ? '' : 'text-destructive'}`}>
-                          {item.label}
-                        </span>
+                  {checklistItems.map((item, i) => {
+                    const hoje = new Date();
+                    const diasParaVencer = item.vencimento ? Math.ceil((item.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+                    const vencendo = diasParaVencer > 0 && diasParaVencer <= 15;
+                    const vencido = diasParaVencer <= 0;
+                    
+                    return (
+                      <div key={i} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                        vencido ? 'bg-destructive/10 border-destructive/30' : 
+                        vencendo ? 'bg-warning/10 border-warning/30' : 
+                        'bg-success/5 border-success/20'
+                      } ${vencendo || vencido ? 'animate-pulse' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          {vencido ? (
+                            <XCircle className="w-4 h-4 text-destructive animate-bounce" />
+                          ) : vencendo ? (
+                            <AlertTriangle className="w-4 h-4 text-warning animate-pulse" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                          )}
+                          <span className={`text-sm font-medium ${vencido ? 'text-destructive' : vencendo ? 'text-warning' : ''}`}>
+                            {item.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {vencendo && (
+                            <Badge variant="outline" className="bg-warning/20 text-warning border-warning/50 animate-pulse text-xs">
+                              ⚠️ {diasParaVencer}d
+                            </Badge>
+                          )}
+                          {vencido && (
+                            <Badge variant="destructive" className="animate-pulse text-xs">
+                              🔴 VENCIDO
+                            </Badge>
+                          )}
+                          <span className={`text-xs ${vencido ? 'text-destructive' : vencendo ? 'text-warning' : 'text-muted-foreground'}`}>
+                            {item.detail}
+                          </span>
+                        </div>
                       </div>
-                      <span className={`text-xs ${item.ok ? 'text-muted-foreground' : 'text-destructive'}`}>
-                        {item.detail}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </TabsContent>
 
