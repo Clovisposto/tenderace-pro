@@ -77,6 +77,53 @@ function calculateRisco(compliance: boolean, prazo: number): number {
   return Math.min(80, Math.max(5, base + Math.floor(Math.random() * 10)));
 }
 
+// Authentication and authorization helper
+async function authenticateAndAuthorize(req: Request, supabase: any): Promise<{ authorized: boolean; error?: string; userId?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Check if it's a service role token (for cron jobs)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (token === serviceRoleKey) {
+    console.log('[PNCP Capture] Service role authentication');
+    return { authorized: true, userId: 'service_role' };
+  }
+
+  // Verify user token
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error('[PNCP Capture] Auth error:', authError?.message);
+    return { authorized: false, error: 'Invalid authentication token' };
+  }
+
+  // Check if user has admin role
+  const { data: roleData, error: roleError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  if (roleError) {
+    console.error('[PNCP Capture] Role check error:', roleError.message);
+    return { authorized: false, error: 'Error checking permissions' };
+  }
+
+  if (!roleData) {
+    console.warn('[PNCP Capture] Access denied for user:', user.id);
+    return { authorized: false, error: 'Admin access required' };
+  }
+
+  console.log('[PNCP Capture] Admin authenticated:', user.id);
+  return { authorized: true, userId: user.id };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -87,7 +134,21 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('[PNCP Capture] Starting capture process...');
+    // Authenticate and authorize the request
+    const authResult = await authenticateAndAuthorize(req, supabase);
+    
+    if (!authResult.authorized) {
+      console.warn('[PNCP Capture] Unauthorized access attempt');
+      return new Response(JSON.stringify({
+        success: false,
+        error: authResult.error || 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[PNCP Capture] Starting capture process (user: ${authResult.userId})...`);
 
     // Get current date range (last 30 days to capture recent tenders)
     const hoje = new Date();

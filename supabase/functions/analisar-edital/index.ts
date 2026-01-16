@@ -6,30 +6,146 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Authentication and authorization helper
+async function authenticateAndAuthorize(req: Request, supabase: any): Promise<{ authorized: boolean; error?: string; userId?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Check if it's a service role token (for internal calls)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (token === serviceRoleKey) {
+    console.log('[Edital Analysis] Service role authentication');
+    return { authorized: true, userId: 'service_role' };
+  }
+
+  // Verify user token
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error('[Edital Analysis] Auth error:', authError?.message);
+    return { authorized: false, error: 'Invalid authentication token' };
+  }
+
+  // Check if user has admin or operador role
+  const { data: roleData, error: roleError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .in('role', ['admin', 'operador'])
+    .maybeSingle();
+
+  if (roleError) {
+    console.error('[Edital Analysis] Role check error:', roleError.message);
+    return { authorized: false, error: 'Error checking permissions' };
+  }
+
+  if (!roleData) {
+    console.warn('[Edital Analysis] Access denied for user:', user.id);
+    return { authorized: false, error: 'Insufficient permissions. Admin or Operador role required.' };
+  }
+
+  console.log('[Edital Analysis] User authenticated:', user.id);
+  return { authorized: true, userId: user.id };
+}
+
+// Input validation helper
+function validateInput(body: unknown): { valid: boolean; error?: string; data?: { licitacao_id: string; objeto: string; edital_url?: string } } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const { licitacao_id, objeto, edital_url } = body as Record<string, unknown>;
+
+  if (!licitacao_id || typeof licitacao_id !== 'string') {
+    return { valid: false, error: 'licitacao_id is required and must be a string' };
+  }
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(licitacao_id)) {
+    return { valid: false, error: 'licitacao_id must be a valid UUID' };
+  }
+
+  if (!objeto || typeof objeto !== 'string') {
+    return { valid: false, error: 'objeto is required and must be a string' };
+  }
+
+  if (objeto.length > 10000) {
+    return { valid: false, error: 'objeto exceeds maximum length of 10000 characters' };
+  }
+
+  if (edital_url !== undefined && typeof edital_url !== 'string') {
+    return { valid: false, error: 'edital_url must be a string if provided' };
+  }
+
+  return { 
+    valid: true, 
+    data: { 
+      licitacao_id, 
+      objeto, 
+      edital_url: typeof edital_url === 'string' ? edital_url : undefined 
+    } 
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { licitacao_id, objeto, edital_url } = await req.json();
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (!licitacao_id || !objeto) {
+    // Authenticate and authorize the request
+    const authResult = await authenticateAndAuthorize(req, supabase);
+    
+    if (!authResult.authorized) {
+      console.warn('[Edital Analysis] Unauthorized access attempt');
       return new Response(JSON.stringify({
         success: false,
-        error: 'licitacao_id and objeto are required'
+        error: authResult.error || 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Parse and validate input
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid JSON body'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const validation = validateInput(body);
+    if (!validation.valid || !validation.data) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: validation.error
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    console.log(`[Edital Analysis] Starting analysis for licitacao: ${licitacao_id}`);
+    const { licitacao_id, objeto, edital_url } = validation.data;
+
+    console.log(`[Edital Analysis] Starting analysis for licitacao: ${licitacao_id} (user: ${authResult.userId})`);
 
     let analysisResult;
 
