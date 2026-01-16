@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Building2, 
   MapPin, 
@@ -20,9 +23,19 @@ import {
   Truck,
   ShieldCheck,
   Zap,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Globe,
+  Scale,
+  FileCheck,
+  Download,
+  Timer,
+  Copy,
+  X,
+  Info,
+  Gavel,
+  Shield
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { Licitacao } from '@/hooks/useLicitacoes';
@@ -32,15 +45,15 @@ interface BLLDetailPanelProps {
   onClose: () => void;
 }
 
-const statusColors: Record<string, string> = {
-  'Nova': 'bg-accent/20 text-accent border-accent/30',
-  'Em Análise': 'bg-warning/20 text-warning border-warning/30',
-  'Aguardando Autorização': 'bg-warning/20 text-warning border-warning/30',
-  'Autorizada': 'bg-primary/20 text-primary border-primary/30',
-  'Em Disputa': 'bg-primary/20 text-primary border-primary/30',
-  'Vencida': 'bg-success/20 text-success border-success/30',
-  'Perdida': 'bg-destructive/20 text-destructive border-destructive/30',
-  'Cancelada': 'bg-muted text-muted-foreground border-muted',
+const statusColors: Record<string, { bg: string; text: string }> = {
+  'Nova': { bg: 'bg-blue-100', text: 'text-blue-800' },
+  'Em Análise': { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+  'Aguardando Autorização': { bg: 'bg-orange-100', text: 'text-orange-800' },
+  'Autorizada': { bg: 'bg-green-100', text: 'text-green-800' },
+  'Em Disputa': { bg: 'bg-purple-100', text: 'text-purple-800' },
+  'Vencida': { bg: 'bg-emerald-100', text: 'text-emerald-800' },
+  'Perdida': { bg: 'bg-red-100', text: 'text-red-800' },
+  'Cancelada': { bg: 'bg-gray-100', text: 'text-gray-800' },
 };
 
 export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
@@ -53,6 +66,13 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
   const precoSugerido = valor * 0.92;
   const margemCalculada = precoFinal > 0 ? ((valor - precoFinal) / valor) * 100 : 0;
   const margemMinima = 8;
+
+  // Calculate time remaining
+  const dataLimite = new Date(licitacao.data_limite);
+  const daysRemaining = differenceInDays(dataLimite, new Date());
+  const hoursRemaining = differenceInHours(dataLimite, new Date()) % 24;
+  const isUrgent = daysRemaining < 3 && daysRemaining >= 0;
+  const isExpired = daysRemaining < 0;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -69,6 +89,19 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     }
   };
 
+  const formatDateOnly = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return '-';
+    }
+  };
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(licitacao.numero);
+    toast.success('ID copiado para a área de transferência');
+  };
+
   const handleAutorizar = () => {
     setAutorizando(true);
     setTimeout(() => {
@@ -80,219 +113,370 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     }, 1500);
   };
 
-  // Simulated ICMS by UF
-  const icmsUf = licitacao.uf === 'SP' ? 18 : licitacao.uf === 'RJ' ? 20 : 17;
+  // Simulated data
+  const icmsUf = licitacao.uf === 'SP' ? 18 : licitacao.uf === 'RJ' ? 20 : licitacao.uf === 'PA' ? 17 : 17;
   const custoLogistica = valor * 0.03;
 
-  // Checklist items (simulated)
+  const analiseEdital = {
+    amparoLegal: 'Lei 14.133/2021, Art. 75, II',
+    tipo: 'Edital',
+    modoDisputa: licitacao.modalidade.includes('Disputa') ? 'Aberto' : 'Fechado',
+    registroPreco: 'Não',
+    fonteOrcamentaria: 'Orçamento Municipal',
+    situacao: isExpired ? 'Encerrado' : 'Recebendo Propostas',
+  };
+
   const checklistItems = [
-    { label: 'SICAF Regularizado', ok: true },
-    { label: 'Certidões Válidas', ok: true },
-    { label: 'Qualificação Técnica', ok: true },
-    { label: 'Habilitação Jurídica', ok: true },
+    { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026' },
+    { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular' },
+    { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026' },
+    { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026' },
+    { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/05/2026' },
+    { label: 'Receita Municipal', ok: false, detail: 'Vencida em 13/01/2026 (*)' },
   ];
 
   return (
-    <Dialog open={!!licitacao} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4 border-b border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className="text-xs">
-              {licitacao.portal}
-            </Badge>
-            <Badge className={statusColors[licitacao.status]}>
-              {licitacao.status}
-            </Badge>
-            <span className="text-sm text-muted-foreground font-mono">
-              {licitacao.numero || `Proc_${new Date().getFullYear()}_${licitacao.id.slice(0,6)}`}
-            </span>
+    <Sheet open={!!licitacao} onOpenChange={() => onClose()}>
+      <SheetContent className="w-full sm:max-w-2xl lg:max-w-4xl p-0">
+        <SheetHeader className="p-4 md:p-6 border-b bg-card sticky top-0 z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Globe className="w-3 h-3" />
+                  {licitacao.portal}
+                </Badge>
+                <Badge className={`${statusColors[licitacao.status]?.bg} ${statusColors[licitacao.status]?.text} text-xs`}>
+                  {licitacao.status}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">{licitacao.segmento}</Badge>
+                {isExpired ? (
+                  <Badge variant="destructive" className="text-xs">Encerrado</Badge>
+                ) : isUrgent ? (
+                  <Badge variant="destructive" className="animate-pulse text-xs">
+                    <Timer className="w-3 h-3 mr-1" />
+                    Urgente
+                  </Badge>
+                ) : null}
+              </div>
+              <SheetTitle className="text-lg md:text-xl leading-tight pr-8">
+                {licitacao.objeto_resumido || licitacao.objeto?.substring(0, 80)}
+              </SheetTitle>
+            </div>
           </div>
-          <DialogTitle className="text-xl">
-            {licitacao.objeto_resumido || licitacao.objeto?.substring(0, 80) + '...'}
-          </DialogTitle>
-        </DialogHeader>
+        </SheetHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Links Oficiais */}
-          {licitacao.edital_url && (
-            <div className="flex items-center gap-4 p-3 bg-secondary/30 rounded-lg">
-              <LinkIcon className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Links Oficiais:</span>
-              <a 
-                href={licitacao.edital_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm text-primary hover:underline flex items-center gap-1"
-              >
-                Edital/Documentos <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          )}
-
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">Órgão:</span>
-                <span className="font-medium">{licitacao.orgao}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">Local:</span>
-                <span className="font-medium">{licitacao.municipio}/{licitacao.uf}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">Publicação:</span>
-                <span className="font-medium">{formatDate(licitacao.data_abertura)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">Encerramento:</span>
-                <span className="font-medium">{formatDate(licitacao.data_limite)}</span>
-              </div>
-            </div>
+        <ScrollArea className="h-[calc(100vh-120px)]">
+          <div className="p-4 md:p-6 space-y-6">
             
-            <div className="flex flex-col justify-center items-center p-4 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20">
-              <p className="text-sm text-muted-foreground mb-1">Valor Estimado</p>
-              <p className="text-3xl font-bold gradient-text">{formatCurrency(valor)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {licitacao.modalidade}
-              </p>
-            </div>
-          </div>
+            {/* Main Info Card - PNCP Style */}
+            <Card>
+              <CardContent className="p-4 md:p-6 space-y-4">
+                {/* Row 1 */}
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <span className="font-semibold">Local:</span>{' '}
+                    <span className="text-muted-foreground">{licitacao.municipio}/{licitacao.uf}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Órgão:</span>{' '}
+                    <span className="text-muted-foreground uppercase">{licitacao.orgao}</span>
+                  </div>
+                </div>
 
-          {/* Objeto */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">Objeto da Licitação</h3>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed bg-secondary/30 p-4 rounded-lg">
-              {licitacao.objeto}
-            </p>
-          </div>
+                {/* Row 2 */}
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <span className="font-semibold">Modalidade:</span>{' '}
+                    <span className="text-muted-foreground">{licitacao.modalidade}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Amparo legal:</span>{' '}
+                    <span className="text-muted-foreground">{analiseEdital.amparoLegal}</span>
+                  </div>
+                </div>
 
-          <Separator />
+                {/* Row 3 */}
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <span className="font-semibold">Tipo:</span>{' '}
+                    <span className="text-muted-foreground">{analiseEdital.tipo}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Modo de disputa:</span>{' '}
+                    <span className="text-muted-foreground">{analiseEdital.modoDisputa}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Registro de preço:</span>{' '}
+                    <span className="text-muted-foreground">{analiseEdital.registroPreco}</span>
+                  </div>
+                </div>
 
-          {/* Checklist */}
-          <div className="space-y-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-              Checklist de Compliance
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {checklistItems.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-secondary/30">
-                  {item.ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-success" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-destructive" />
+                <Separator />
+
+                {/* Dates */}
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-semibold">Data de divulgação:</span>{' '}
+                    <span className="text-muted-foreground">{formatDateOnly(licitacao.created_at)}</span>
+                    <span className="mx-4 font-semibold">Situação:</span>{' '}
+                    <span className="text-muted-foreground">{analiseEdital.situacao}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Início de recebimento de propostas:</span>{' '}
+                    <span className="text-primary">{formatDate(licitacao.data_abertura)} (horário de Brasília)</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Fim de recebimento de propostas:</span>{' '}
+                    <span className="text-primary">{formatDate(licitacao.data_limite)} (horário de Brasília)</span>
+                  </div>
+                </div>
+
+                {/* ID */}
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold">Id contratação:</span>{' '}
+                  <code className="text-primary bg-primary/10 px-2 py-1 rounded text-xs font-mono">
+                    {licitacao.numero}
+                  </code>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+
+                {/* Time Remaining + Value */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  {!isExpired && (
+                    <div className={`p-4 rounded-lg border ${isUrgent ? 'bg-destructive/10 border-destructive/30' : 'bg-secondary/50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Timer className={`w-4 h-4 ${isUrgent ? 'text-destructive' : 'text-muted-foreground'}`} />
+                        <span className="text-sm font-semibold">Tempo Restante</span>
+                      </div>
+                      <p className={`text-xl font-bold ${isUrgent ? 'text-destructive' : 'text-foreground'}`}>
+                        {daysRemaining}d {hoursRemaining}h
+                      </p>
+                    </div>
                   )}
-                  <span>{item.label}</span>
+
+                  <div className="p-4 rounded-lg bg-cyan-50 border border-cyan-200">
+                    <p className="text-xs font-semibold text-cyan-800 uppercase tracking-wide mb-1">
+                      VALOR TOTAL ESTIMADO
+                    </p>
+                    <p className="text-2xl font-bold text-cyan-900">
+                      {formatCurrency(valor)}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Scores */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-success/10 border border-success/30">
+                    <p className="text-xs text-success font-medium">Score ROI</p>
+                    <p className="text-lg font-bold text-success">{licitacao.roi_score || 70}%</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                    <p className="text-xs text-warning font-medium">Score Risco</p>
+                    <p className="text-lg font-bold text-warning">{licitacao.risco_score || 20}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Object */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="w-4 h-4" />
+                  Objeto da Licitação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {licitacao.objeto}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Tabs */}
+            <Tabs defaultValue="compliance" className="w-full">
+              <TabsList className="w-full justify-start">
+                <TabsTrigger value="compliance" className="gap-1 text-xs">
+                  <Shield className="w-3 h-3" />
+                  Compliance
+                </TabsTrigger>
+                <TabsTrigger value="cotacao" className="gap-1 text-xs">
+                  <Calculator className="w-3 h-3" />
+                  Cotação
+                </TabsTrigger>
+                <TabsTrigger value="documentos" className="gap-1 text-xs">
+                  <FileText className="w-3 h-3" />
+                  Documentos
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Compliance Tab */}
+              <TabsContent value="compliance" className="mt-4 space-y-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-warning/10 border border-warning/30">
+                  <AlertTriangle className="w-6 h-6 text-warning" />
+                  <div>
+                    <p className="font-semibold text-warning">Apta com Ressalva</p>
+                    <p className="text-sm text-muted-foreground">Pendência na Certidão Municipal</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {checklistItems.map((item, i) => (
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${item.ok ? 'bg-success/5 border border-success/20' : 'bg-destructive/5 border border-destructive/20'}`}>
+                      <div className="flex items-center gap-2">
+                        {item.ok ? (
+                          <CheckCircle2 className="w-4 h-4 text-success" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-destructive" />
+                        )}
+                        <span className={`text-sm font-medium ${item.ok ? '' : 'text-destructive'}`}>
+                          {item.label}
+                        </span>
+                      </div>
+                      <span className={`text-xs ${item.ok ? 'text-muted-foreground' : 'text-destructive'}`}>
+                        {item.detail}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Cotação Tab */}
+              <TabsContent value="cotacao" className="mt-4 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg bg-secondary/50 border">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <DollarSign className="w-3 h-3" />
+                      Referência
+                    </div>
+                    <p className="text-sm font-bold">{formatCurrency(valor)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-secondary/50 border">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <Percent className="w-3 h-3" />
+                      ICMS {licitacao.uf}
+                    </div>
+                    <p className="text-sm font-bold">{icmsUf}%</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-secondary/50 border">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <Truck className="w-3 h-3" />
+                      Logística
+                    </div>
+                    <p className="text-sm font-bold">{formatCurrency(custoLogistica)}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold">Preço Final</label>
+                    <Badge className={margemCalculada >= margemMinima ? 'bg-success' : 'bg-destructive'}>
+                      Margem: {margemCalculada.toFixed(1)}%
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                      <Input
+                        type="number"
+                        value={precoFinal || ''}
+                        onChange={(e) => setPrecoFinal(parseFloat(e.target.value) || 0)}
+                        placeholder={precoSugerido.toFixed(2)}
+                        className="pl-10 font-bold"
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setPrecoFinal(precoSugerido)}>
+                      Sugerido
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Preço sugerido: {formatCurrency(precoSugerido)}
+                  </p>
+                </div>
+              </TabsContent>
+
+              {/* Documentos Tab */}
+              <TabsContent value="documentos" className="mt-4 space-y-3">
+                {[
+                  { nome: 'Edital Completo', tipo: 'PDF', tamanho: '2.4 MB' },
+                  { nome: 'Termo de Referência', tipo: 'PDF', tamanho: '1.1 MB' },
+                  { nome: 'Anexo I - Especificações', tipo: 'PDF', tamanho: '856 KB' },
+                ].map((doc, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <FileCheck className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">{doc.nome}</p>
+                        <p className="text-xs text-muted-foreground">{doc.tipo} • {doc.tamanho}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="gap-1">
+                      <Download className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                {licitacao.edital_url && (
+                  <Button variant="outline" className="w-full gap-2" asChild>
+                    <a href={licitacao.edital_url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4" />
+                      Acessar Portal Original
+                    </a>
+                  </Button>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Authorization */}
+            <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+              <CardContent className="p-6 text-center space-y-4">
+                <Zap className="w-10 h-10 text-primary mx-auto" />
+                <div>
+                  <h4 className="font-bold text-lg">Autorizar Participação</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {precoFinal > 0 
+                      ? `Proposta: ${formatCurrency(precoFinal)}`
+                      : 'Defina o preço na aba Cotação'}
+                  </p>
+                </div>
+                
+                {isExpired ? (
+                  <Button variant="destructive" size="lg" disabled className="w-full">
+                    <Timer className="w-4 h-4 mr-2" />
+                    Prazo Encerrado
+                  </Button>
+                ) : (
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-success hover:bg-success/90"
+                    onClick={handleAutorizar}
+                    disabled={autorizando || precoFinal <= 0}
+                  >
+                    {autorizando ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                        Autorizando...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        AUTORIZAR PARTICIPAÇÃO
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                  <Scale className="w-3 h-3" />
+                  Lei 14.133/2021 • Proposta vinculante
+                </p>
+              </CardContent>
+            </Card>
           </div>
-
-          <Separator />
-
-          {/* Cotação */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Calculator className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">Calculadora de Cotação</h3>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg bg-secondary/30 space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <DollarSign className="w-3 h-3" />
-                  Preço Referência
-                </div>
-                <p className="text-lg font-bold">{formatCurrency(valor)}</p>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-secondary/30 space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Percent className="w-3 h-3" />
-                  ICMS {licitacao.uf}
-                </div>
-                <p className="text-lg font-bold">{icmsUf}%</p>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-secondary/30 space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Truck className="w-3 h-3" />
-                  Logística
-                </div>
-                <p className="text-lg font-bold">{formatCurrency(custoLogistica)}</p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Preço Final da Proposta</label>
-                <span className={`text-sm font-medium ${margemCalculada >= margemMinima ? 'text-success' : 'text-destructive'}`}>
-                  Margem: {margemCalculada.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <Input
-                  type="number"
-                  value={precoFinal || ''}
-                  onChange={(e) => setPrecoFinal(parseFloat(e.target.value) || 0)}
-                  placeholder={formatCurrency(precoSugerido)}
-                  className="text-lg font-bold bg-background"
-                />
-                <Button variant="outline" onClick={() => setPrecoFinal(precoSugerido)}>
-                  Sugerido
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Margem mínima: {margemMinima}% | Sugerido: {formatCurrency(precoSugerido)}
-              </p>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Autorização */}
-          <div className="p-6 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 text-center space-y-4">
-            <Zap className="w-10 h-10 text-primary mx-auto" />
-            <div>
-              <h4 className="font-bold text-lg">Autorização de Participação</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Ao clicar, você autoriza a IA a enviar proposta e participar da disputa
-              </p>
-            </div>
-            
-            <Button 
-              size="lg" 
-              className="w-full max-w-sm"
-              onClick={handleAutorizar}
-              disabled={autorizando}
-            >
-              {autorizando ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
-                  Autorizando...
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  AUTORIZAR PARTICIPAÇÃO
-                </>
-              )}
-            </Button>
-
-            <p className="text-xs text-muted-foreground">
-              Lei 14.133/2021 • Proposta vinculante após autorização
-            </p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 }
