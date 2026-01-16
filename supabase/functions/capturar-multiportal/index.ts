@@ -21,13 +21,13 @@ const PORTALS = {
     type: 'scraping',
   },
   BNC: {
-    name: 'BLL', // BNC = Bolsa Nacional de Compras = BLL
+    name: 'BLL',
     baseUrl: 'https://bnc.org.br',
     active: true,
     type: 'api',
   },
   BANPARA: {
-    name: 'Portal Estadual', // Banpara Cotações
+    name: 'Portal Estadual',
     baseUrl: 'https://cotacao.banpara.b.br',
     active: true,
     type: 'scraping',
@@ -39,6 +39,9 @@ const PORTALS = {
     type: 'api',
   },
 };
+
+// ESTADOS PRIORITÁRIOS - Apenas PA, TO, GO, MA
+const UFS_PERMITIDAS = ['PA', 'TO', 'GO', 'MA'];
 
 interface CaptureResult {
   portal: string;
@@ -116,8 +119,12 @@ async function capturePNCP(supabase: any): Promise<CaptureResult> {
     const contratacoes = data.data || data.resultado || data || [];
     
     let count = 0;
-    for (const item of contratacoes.slice(0, 20)) {
+    for (const item of contratacoes.slice(0, 50)) {
       const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
+      const uf = item.unidadeOrgao?.ufSigla || item.ufSigla || 'DF';
+      
+      // Filtrar apenas estados permitidos: PA, TO, GO, MA
+      if (!UFS_PERMITIDAS.includes(uf)) continue;
       if (valor < 1000 || valor > 35000) continue;
       
       const licitacao = {
@@ -209,15 +216,18 @@ async function generatePortalDemoData(
   count: number,
   fixedUF?: string
 ): Promise<CaptureResult> {
+  // Apenas órgãos de PA, TO, GO, MA
   const orgaos = [
     { nome: 'Secretaria Municipal de Saúde', municipio: 'Belém', uf: 'PA' },
-    { nome: 'Hospital Universitário', municipio: 'São Paulo', uf: 'SP' },
     { nome: 'Prefeitura Municipal', municipio: 'Santarém', uf: 'PA' },
-    { nome: 'CRAS Centro', municipio: 'Recife', uf: 'PE' },
     { nome: 'UBS Central', municipio: 'Marabá', uf: 'PA' },
-    { nome: 'Secretaria Estadual', municipio: 'Curitiba', uf: 'PR' },
     { nome: 'Hospital Regional', municipio: 'Ananindeua', uf: 'PA' },
-    { nome: 'Prefeitura Municipal', municipio: 'Fortaleza', uf: 'CE' },
+    { nome: 'Secretaria de Saúde', municipio: 'Palmas', uf: 'TO' },
+    { nome: 'Prefeitura Municipal', municipio: 'Araguaína', uf: 'TO' },
+    { nome: 'Hospital Estadual', municipio: 'Goiânia', uf: 'GO' },
+    { nome: 'Prefeitura Municipal', municipio: 'Anápolis', uf: 'GO' },
+    { nome: 'Secretaria de Saúde', municipio: 'São Luís', uf: 'MA' },
+    { nome: 'Prefeitura Municipal', municipio: 'Imperatriz', uf: 'MA' },
   ];
 
   const objetos = [

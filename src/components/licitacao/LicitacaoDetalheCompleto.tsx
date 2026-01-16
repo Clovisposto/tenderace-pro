@@ -356,31 +356,56 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
-                        { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026' },
-                        { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular' },
-                        { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026' },
-                        { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026' },
-                        { label: 'Certidão Trabalhista (TST)', ok: true, detail: 'Válida até 05/05/2026' },
-                        { label: 'Receita Estadual/Distrital', ok: true, detail: 'Válida até 28/02/2026' },
-                        { label: 'Receita Municipal', ok: licitacao.compliance === 'Apta', detail: licitacao.compliance === 'Apta' ? 'Válida' : 'Vencida em 13/01/2026 (*)' },
-                        { label: 'Qualificação Econômico-Financeira', ok: true, detail: 'Válida até 30/06/2026' },
-                      ].map((item, i) => (
-                        <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${item.ok ? 'bg-success/5' : 'bg-destructive/5'} border ${item.ok ? 'border-success/20' : 'border-destructive/20'}`}>
-                          <div className="flex items-center gap-2">
-                            {item.ok ? (
-                              <CheckCircle2 className="w-5 h-5 text-success" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-destructive" />
-                            )}
-                            <span className={`font-medium ${item.ok ? 'text-foreground' : 'text-destructive'}`}>
-                              {item.label}
-                            </span>
+                        { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026', vencimento: new Date('2026-08-24') },
+                        { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular', vencimento: null },
+                        { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026', vencimento: new Date('2026-03-30') },
+                        { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026', vencimento: new Date('2026-01-22') },
+                        { label: 'Certidão Trabalhista (TST)', ok: true, detail: 'Válida até 05/05/2026', vencimento: new Date('2026-05-05') },
+                        { label: 'Receita Estadual/Distrital', ok: true, detail: 'Válida até 28/02/2026', vencimento: new Date('2026-02-28') },
+                        { label: 'Receita Municipal', ok: licitacao.compliance === 'Apta', detail: licitacao.compliance === 'Apta' ? 'Válida' : 'Vencida em 13/01/2026 (*)', vencimento: new Date('2026-01-13') },
+                        { label: 'Qualificação Econômico-Financeira', ok: true, detail: 'Válida até 30/06/2026', vencimento: new Date('2026-06-30') },
+                      ].map((item, i) => {
+                        const hoje = new Date();
+                        const diasParaVencer = item.vencimento ? Math.ceil((item.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+                        const vencendo = diasParaVencer > 0 && diasParaVencer <= 15;
+                        const vencido = diasParaVencer <= 0;
+                        
+                        return (
+                          <div key={i} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                            vencido ? 'bg-destructive/10 border-destructive/30' : 
+                            vencendo ? 'bg-warning/10 border-warning/30' : 
+                            'bg-success/5 border-success/20'
+                          } ${vencendo || vencido ? 'animate-pulse' : ''}`}>
+                            <div className="flex items-center gap-2">
+                              {vencido ? (
+                                <XCircle className="w-5 h-5 text-destructive animate-bounce" />
+                              ) : vencendo ? (
+                                <AlertTriangle className="w-5 h-5 text-warning animate-pulse" />
+                              ) : (
+                                <CheckCircle2 className="w-5 h-5 text-success" />
+                              )}
+                              <span className={`font-medium ${vencido ? 'text-destructive' : vencendo ? 'text-warning' : 'text-foreground'}`}>
+                                {item.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {vencendo && (
+                                <Badge variant="outline" className="bg-warning/20 text-warning border-warning/50 animate-pulse text-xs">
+                                  ⚠️ {diasParaVencer}d
+                                </Badge>
+                              )}
+                              {vencido && (
+                                <Badge variant="destructive" className="animate-pulse text-xs">
+                                  🔴 VENCIDO
+                                </Badge>
+                              )}
+                              <span className={`text-sm ${vencido ? 'text-destructive' : vencendo ? 'text-warning' : 'text-muted-foreground'}`}>
+                                {item.detail}
+                              </span>
+                            </div>
                           </div>
-                          <span className={`text-sm ${item.ok ? 'text-muted-foreground' : 'text-destructive'}`}>
-                            {item.detail}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
