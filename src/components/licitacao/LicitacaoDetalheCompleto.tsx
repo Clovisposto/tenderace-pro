@@ -485,12 +485,141 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
               </TabsContent>
 
               {/* Documentos Tab */}
-              <TabsContent value="documentos" className="mt-4">
+              <TabsContent value="documentos" className="mt-4 space-y-4">
+                {/* Documentação de Habilitação Exigida */}
+                <Card className="border-2 border-warning/30 bg-warning/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-warning">
+                      <FileCheck className="w-5 h-5" />
+                      Documentação de Habilitação Exigida pelo Edital
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Habilitação Jurídica */}
+                      <div className="p-4 rounded-lg bg-card border">
+                        <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Scale className="w-4 h-4 text-primary" />
+                          Habilitação Jurídica
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          {[
+                            'Ato constitutivo, estatuto ou contrato social em vigor',
+                            'Documento de eleição de administradores',
+                            'Cédula de identidade dos sócios/representantes',
+                            'Procuração (se representante)',
+                          ].map((doc, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                              <span className="text-muted-foreground">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Regularidade Fiscal */}
+                      <div className="p-4 rounded-lg bg-card border">
+                        <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          Regularidade Fiscal e Trabalhista
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          {[
+                            'Prova de inscrição no CNPJ',
+                            'Certidão Conjunta RFB/PGFN (Dívida Ativa)',
+                            'Certidão de Regularidade do FGTS (CRF)',
+                            'Certidão Negativa de Débitos Trabalhistas (CNDT)',
+                            'Certidão de Regularidade Estadual',
+                            'Certidão de Regularidade Municipal',
+                          ].map((doc, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                              <span className="text-muted-foreground">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Qualificação Técnica */}
+                      <div className="p-4 rounded-lg bg-card border">
+                        <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          Qualificação Técnica
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          {(licitacao.segmento === 'Medicamentos' ? [
+                            'Autorização de Funcionamento ANVISA',
+                            'Licença de Funcionamento Sanitário',
+                            'Autorização Especial ANVISA (se controlados)',
+                            'Responsável Técnico com CRF ativo',
+                            'Atestado de Capacidade Técnica',
+                          ] : [
+                            'Registro ou inscrição no órgão profissional competente',
+                            'Atestado de Capacidade Técnica',
+                            'Comprovação de aptidão para desempenho',
+                            'Declaração de disponibilidade de equipamentos',
+                          ]).map((doc, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                              <span className="text-muted-foreground">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Qualificação Econômico-Financeira */}
+                      <div className="p-4 rounded-lg bg-card border">
+                        <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-primary" />
+                          Qualificação Econômico-Financeira
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          {[
+                            'Balanço patrimonial do último exercício',
+                            'Certidão negativa de falência/recuperação judicial',
+                            'Demonstração de Índices Contábeis (ILC, ILG, SG)',
+                            'Capital social mínimo (se exigido)',
+                          ].map((doc, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                              <span className="text-muted-foreground">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Declarações Obrigatórias */}
+                    <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-primary" />
+                        Declarações Obrigatórias
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        {[
+                          'Declaração de inexistência de fato impeditivo',
+                          'Declaração de cumprimento do Art. 7º, XXXIII da CF',
+                          'Declaração de enquadramento como ME/EPP (se aplicável)',
+                          'Declaração de elaboração independente de proposta',
+                          'Declaração de cumprimento das normas de acessibilidade',
+                          'Declaração de reserva de cargos PCD e reabilitados',
+                        ].map((doc, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <FileCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                            <span className="text-muted-foreground">{doc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Documentos do Edital para Download */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <FileText className="w-5 h-5" />
-                      Documentos do Edital
+                      Documentos do Edital para Download
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
