@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FiltrosLicitacao } from '@/components/licitacao/FiltrosLicitacao';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
-import { LicitacaoDetalhe } from '@/components/licitacao/LicitacaoDetalhe';
+import { LicitacaoDetalheCompleto } from '@/components/licitacao/LicitacaoDetalheCompleto';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -165,7 +165,7 @@ const Licitacoes = () => {
       </div>
 
       {selectedLicitacao && (
-        <LicitacaoDetalhe
+        <LicitacaoDetalheCompleto
           licitacao={mapToLegacyFormat(selectedLicitacao)}
           onClose={() => setSelectedLicitacao(null)}
           onAutorizar={() => setSelectedLicitacao(null)}
