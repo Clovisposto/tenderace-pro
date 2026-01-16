@@ -21,30 +21,51 @@ const conectoresDisponiveis = [
     status: 'ativo',
     tipo: 'API Pública',
     icon: Globe,
-  },
-  {
-    id: 'sicaf',
-    nome: 'SICAF',
-    descricao: 'Sistema de Cadastramento Unificado de Fornecedores',
-    status: 'pronto',
-    tipo: 'Certificado Digital',
-    icon: Shield,
+    url: 'https://pncp.gov.br/app/editais',
   },
   {
     id: 'comprasnet',
     nome: 'ComprasNet',
     descricao: 'Portal de Compras do Governo Federal',
-    status: 'planejado',
-    tipo: 'API Autenticada',
+    status: 'ativo',
+    tipo: 'API Gov.br',
     icon: Database,
+    url: 'https://www.gov.br/compras/pt-br/sistemas/conheca-o-compras',
   },
   {
     id: 'bll',
-    nome: 'BLL',
-    descricao: 'Bolsa de Licitações e Leilões',
-    status: 'planejado',
+    nome: 'BNC/BLL',
+    descricao: 'Bolsa Nacional de Compras',
+    status: 'ativo',
     tipo: 'API Autenticada',
     icon: Database,
+    url: 'https://bnc.org.br',
+  },
+  {
+    id: 'compraspublicas',
+    nome: 'Compras Públicas',
+    descricao: 'Portal de Compras Públicas',
+    status: 'ativo',
+    tipo: 'Web Scraping',
+    icon: Globe,
+    url: 'https://www.portaldecompraspublicas.com.br',
+  },
+  {
+    id: 'banpara',
+    nome: 'Banpara Cotações',
+    descricao: 'Sistema de Cotações do Banco do Pará',
+    status: 'ativo',
+    tipo: 'Portal Regional PA',
+    icon: Database,
+    url: 'https://cotacao.banpara.b.br/Default.aspx',
+  },
+  {
+    id: 'sicaf',
+    nome: 'SICAF',
+    descricao: 'Sistema de Cadastramento Unificado de Fornecedores',
+    status: 'ativo',
+    tipo: 'Certificado Digital',
+    icon: Shield,
   },
 ];
 
@@ -75,33 +96,28 @@ const Conectores = () => {
         </div>
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {conectoresDisponiveis.map((conector) => (
             <Card key={conector.id} className="bll-card">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      conector.status === 'ativo' ? 'bg-success/10' :
-                      conector.status === 'pronto' ? 'bg-warning/10' :
-                      'bg-secondary'
-                    }`}>
-                      <conector.icon className={`w-5 h-5 ${
-                        conector.status === 'ativo' ? 'text-success' :
-                        conector.status === 'pronto' ? 'text-warning' :
-                        'text-muted-foreground'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="font-medium">{conector.nome}</p>
-                      <p className="text-xs text-muted-foreground">{conector.tipo}</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    conector.status === 'ativo' ? 'bg-success/10' :
+                    conector.status === 'pronto' ? 'bg-warning/10' :
+                    'bg-secondary'
+                  }`}>
+                    <conector.icon className={`w-5 h-5 ${
+                      conector.status === 'ativo' ? 'text-success' :
+                      conector.status === 'pronto' ? 'text-warning' :
+                      'text-muted-foreground'
+                    }`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{conector.nome}</p>
+                    <p className="text-xs text-muted-foreground truncate">{conector.tipo}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground truncate flex-1 mr-2">
-                    {conector.descricao}
-                  </p>
                   {getStatusBadge(conector.status)}
                 </div>
               </CardContent>

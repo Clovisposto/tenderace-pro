@@ -1,5 +1,11 @@
 project_id = "ccsmnqqwobrsvepwacrg"
 
+[functions.capturar-multiportal]
+verify_jwt = false
+
+[functions.verificar-sicaf]
+verify_jwt = false
+
 [api]
 enabled = true
 port = 54321
