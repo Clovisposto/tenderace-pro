@@ -3,8 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
+import type { Json } from '@/integrations/supabase/types';
 
 export type Configuracao = Tables<'configuracoes'>;
+
+// Tipo para municípios priorizados: { "PA": ["Belém", "Santarém"], "GO": ["Goiânia"] }
+export type MunicipiosPriorizados = Record<string, string[]>;
 
 export function useConfiguracoes() {
   const { user } = useAuth();
@@ -34,10 +38,14 @@ export function useConfiguracoes() {
           captacao_continua: true,
           prioridade_interior: true,
           ufs_priorizadas: [],
-        } as Partial<Configuracao>;
+          municipios_priorizados: {} as MunicipiosPriorizados,
+        } as Partial<Configuracao> & { municipios_priorizados: MunicipiosPriorizados };
       }
       
-      return data;
+      return {
+        ...data,
+        municipios_priorizados: (data as any).municipios_priorizados as MunicipiosPriorizados || {},
+      };
     },
     enabled: !!user,
   });
@@ -49,7 +57,18 @@ export function useUpdateConfiguracoes() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (config: TablesUpdate<'configuracoes'>) => {
+    mutationFn: async (config: Partial<{
+      valor_minimo: number | null;
+      valor_maximo: number | null;
+      margem_minima: number | null;
+      lance_automatico: boolean | null;
+      notificacoes_email: boolean | null;
+      notificacoes_push: boolean | null;
+      captacao_continua: boolean | null;
+      prioridade_interior: boolean | null;
+      ufs_priorizadas: string[] | null;
+      municipios_priorizados: MunicipiosPriorizados;
+    }>) => {
       if (!user) throw new Error('User not authenticated');
 
       // Check if config exists
@@ -62,7 +81,7 @@ export function useUpdateConfiguracoes() {
       if (existing) {
         const { data, error } = await supabase
           .from('configuracoes')
-          .update(config)
+          .update(config as any)
           .eq('user_id', user.id)
           .select()
           .single();
@@ -71,7 +90,7 @@ export function useUpdateConfiguracoes() {
       } else {
         const { data, error } = await supabase
           .from('configuracoes')
-          .insert({ ...config, user_id: user.id })
+          .insert({ ...config, user_id: user.id } as any)
           .select()
           .single();
         if (error) throw error;
