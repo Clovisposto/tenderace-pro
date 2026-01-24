@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Settings as SettingsIcon,
   Bell,
@@ -16,10 +17,16 @@ import {
   RefreshCw,
   MapPin,
   Globe,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useConfiguracoes, useUpdateConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes, useUpdateConfiguracoes, type MunicipiosPriorizados } from '@/hooks/useConfiguracoes';
+import { MUNICIPIOS_POR_UF, getMunicipiosUF } from '@/data/municipiosBrasil';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // Todos os 27 estados brasileiros
 const TODOS_ESTADOS = [
@@ -67,8 +74,11 @@ const Configuracoes = () => {
     notificacoesPush: true,
     captacaoContinua: true,
     prioridadeInterior: true,
-    ufsPriorizadas: ['PA', 'TO', 'GO', 'MA'] as string[],
+    ufsPriorizadas: [] as string[],
+    municipiosPriorizados: {} as MunicipiosPriorizados,
   });
+
+  const [expandedUFs, setExpandedUFs] = useState<string[]>([]);
 
   useEffect(() => {
     if (savedConfig) {
@@ -81,18 +91,77 @@ const Configuracoes = () => {
         notificacoesPush: savedConfig.notificacoes_push ?? true,
         captacaoContinua: savedConfig.captacao_continua ?? true,
         prioridadeInterior: savedConfig.prioridade_interior ?? true,
-        ufsPriorizadas: savedConfig.ufs_priorizadas || ['PA', 'TO', 'GO', 'MA'],
+        ufsPriorizadas: savedConfig.ufs_priorizadas || [],
+        municipiosPriorizados: (savedConfig as any).municipios_priorizados || {},
       });
     }
   }, [savedConfig]);
 
   const handleToggleUF = (uf: string) => {
+    setConfigs(prev => {
+      const isAdding = !prev.ufsPriorizadas.includes(uf);
+      const newUFs = isAdding
+        ? [...prev.ufsPriorizadas, uf]
+        : prev.ufsPriorizadas.filter(u => u !== uf);
+      
+      // Se removendo UF, remover também os municípios
+      const newMunicipios = { ...prev.municipiosPriorizados };
+      if (!isAdding) {
+        delete newMunicipios[uf];
+      }
+      
+      return {
+        ...prev,
+        ufsPriorizadas: newUFs,
+        municipiosPriorizados: newMunicipios,
+      };
+    });
+  };
+
+  const handleToggleMunicipio = (uf: string, municipio: string) => {
+    setConfigs(prev => {
+      const municipiosUF = prev.municipiosPriorizados[uf] || [];
+      const isAdding = !municipiosUF.includes(municipio);
+      
+      const newMunicipios = {
+        ...prev.municipiosPriorizados,
+        [uf]: isAdding
+          ? [...municipiosUF, municipio]
+          : municipiosUF.filter(m => m !== municipio),
+      };
+      
+      // Remover UF do objeto se não tiver mais municípios
+      if (newMunicipios[uf].length === 0) {
+        delete newMunicipios[uf];
+      }
+      
+      return {
+        ...prev,
+        municipiosPriorizados: newMunicipios,
+      };
+    });
+  };
+
+  const handleSelectAllMunicipiosUF = (uf: string) => {
+    const todosMunicipios = getMunicipiosUF(uf);
     setConfigs(prev => ({
       ...prev,
-      ufsPriorizadas: prev.ufsPriorizadas.includes(uf)
-        ? prev.ufsPriorizadas.filter(u => u !== uf)
-        : [...prev.ufsPriorizadas, uf]
+      municipiosPriorizados: {
+        ...prev.municipiosPriorizados,
+        [uf]: todosMunicipios,
+      },
     }));
+  };
+
+  const handleClearMunicipiosUF = (uf: string) => {
+    setConfigs(prev => {
+      const newMunicipios = { ...prev.municipiosPriorizados };
+      delete newMunicipios[uf];
+      return {
+        ...prev,
+        municipiosPriorizados: newMunicipios,
+      };
+    });
   };
 
   const handleToggleRegiao = (regiao: string) => {
@@ -100,10 +169,15 @@ const Configuracoes = () => {
     const todasSelecionadas = ufsRegiao.every(uf => configs.ufsPriorizadas.includes(uf));
     
     if (todasSelecionadas) {
-      setConfigs(prev => ({
-        ...prev,
-        ufsPriorizadas: prev.ufsPriorizadas.filter(uf => !ufsRegiao.includes(uf))
-      }));
+      setConfigs(prev => {
+        const newMunicipios = { ...prev.municipiosPriorizados };
+        ufsRegiao.forEach(uf => delete newMunicipios[uf]);
+        return {
+          ...prev,
+          ufsPriorizadas: prev.ufsPriorizadas.filter(uf => !ufsRegiao.includes(uf)),
+          municipiosPriorizados: newMunicipios,
+        };
+      });
     } else {
       setConfigs(prev => ({
         ...prev,
@@ -122,8 +196,19 @@ const Configuracoes = () => {
   const handleClearAll = () => {
     setConfigs(prev => ({
       ...prev,
-      ufsPriorizadas: []
+      ufsPriorizadas: [],
+      municipiosPriorizados: {},
     }));
+  };
+
+  const toggleExpandUF = (uf: string) => {
+    setExpandedUFs(prev => 
+      prev.includes(uf) ? prev.filter(u => u !== uf) : [...prev, uf]
+    );
+  };
+
+  const getTotalMunicipiosSelecionados = () => {
+    return Object.values(configs.municipiosPriorizados).reduce((acc, arr) => acc + arr.length, 0);
   };
 
   const handleSave = () => {
@@ -137,6 +222,7 @@ const Configuracoes = () => {
       captacao_continua: configs.captacaoContinua,
       prioridade_interior: configs.prioridadeInterior,
       ufs_priorizadas: configs.ufsPriorizadas,
+      municipios_priorizados: configs.municipiosPriorizados,
     });
   };
 
@@ -150,22 +236,39 @@ const Configuracoes = () => {
               <MapPin className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Estados Prioritários para Captação</h3>
-              <p className="text-sm text-muted-foreground">Selecione os estados onde deseja participar de licitações</p>
+              <h3 className="font-semibold">Estados e Municípios para Captação</h3>
+              <p className="text-sm text-muted-foreground">Selecione os estados e opcionalmente filtre por municípios específicos</p>
             </div>
-            <Badge variant="outline" className="gap-1">
-              <CheckCircle2 className="w-3 h-3" />
-              {configs.ufsPriorizadas.length} selecionados
-            </Badge>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="gap-1">
+                <MapPin className="w-3 h-3" />
+                {configs.ufsPriorizadas.length} UFs
+              </Badge>
+              {getTotalMunicipiosSelecionados() > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Building2 className="w-3 h-3" />
+                  {getTotalMunicipiosSelecionados()} cidades
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              Selecionar Todos
+              <Globe className="w-4 h-4 mr-1" />
+              Todos os Estados
             </Button>
             <Button variant="outline" size="sm" onClick={handleClearAll}>
-              Limpar Seleção
+              <X className="w-4 h-4 mr-1" />
+              Limpar Tudo
             </Button>
+          </div>
+
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <strong>Dica:</strong> Clique em um estado para selecioná-lo. Clique na seta para expandir e escolher municípios específicos.
+              Se nenhum município for selecionado, todas as licitações do estado serão captadas.
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -175,7 +278,7 @@ const Configuracoes = () => {
               const todosRegiao = selecionados === estadosRegiao.length;
               
               return (
-                <div key={regiao} className="space-y-2">
+                <div key={regiao} className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Checkbox 
                       checked={todosRegiao}
@@ -186,21 +289,98 @@ const Configuracoes = () => {
                       {selecionados}/{estadosRegiao.length}
                     </Badge>
                   </div>
-                  <div className="flex flex-wrap gap-2 ml-6">
-                    {estadosRegiao.map(estado => (
-                      <Badge
-                        key={estado.uf}
-                        variant={configs.ufsPriorizadas.includes(estado.uf) ? "default" : "outline"}
-                        className={`cursor-pointer transition-all hover:scale-105 ${
-                          configs.ufsPriorizadas.includes(estado.uf) 
-                            ? 'bg-primary hover:bg-primary/80' 
-                            : 'hover:bg-primary/20'
-                        }`}
-                        onClick={() => handleToggleUF(estado.uf)}
-                      >
-                        {estado.uf}
-                      </Badge>
-                    ))}
+                  
+                  <div className="ml-6 space-y-2">
+                    {estadosRegiao.map(estado => {
+                      const isSelected = configs.ufsPriorizadas.includes(estado.uf);
+                      const isExpanded = expandedUFs.includes(estado.uf);
+                      const municipiosDisponiveis = getMunicipiosUF(estado.uf);
+                      const municipiosSelecionados = configs.municipiosPriorizados[estado.uf] || [];
+                      
+                      return (
+                        <Collapsible key={estado.uf} open={isExpanded && isSelected}>
+                          <div className="flex items-center gap-2">
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => toggleExpandUF(estado.uf)}
+                                disabled={!isSelected}
+                              >
+                                {isExpanded && isSelected ? (
+                                  <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                            
+                            <Badge
+                              variant={isSelected ? "default" : "outline"}
+                              className={`cursor-pointer transition-all hover:scale-105 ${
+                                isSelected 
+                                  ? 'bg-primary hover:bg-primary/80' 
+                                  : 'hover:bg-primary/20'
+                              }`}
+                              onClick={() => handleToggleUF(estado.uf)}
+                            >
+                              {estado.uf} - {estado.nome}
+                            </Badge>
+                            
+                            {isSelected && municipiosSelecionados.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {municipiosSelecionados.length} cidades
+                              </Badge>
+                            )}
+                            
+                            {isSelected && municipiosSelecionados.length === 0 && (
+                              <span className="text-xs text-muted-foreground">Todos os municípios</span>
+                            )}
+                          </div>
+                          
+                          <CollapsibleContent className="ml-8 mt-2">
+                            <div className="p-3 rounded-lg bg-secondary/30 space-y-3">
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleSelectAllMunicipiosUF(estado.uf)}
+                                >
+                                  Selecionar Todas
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleClearMunicipiosUF(estado.uf)}
+                                >
+                                  Limpar (Captar Todos)
+                                </Button>
+                              </div>
+                              
+                              <ScrollArea className="h-40">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {municipiosDisponiveis.map(municipio => (
+                                    <Badge
+                                      key={municipio}
+                                      variant={municipiosSelecionados.includes(municipio) ? "default" : "outline"}
+                                      className={`cursor-pointer text-xs transition-all ${
+                                        municipiosSelecionados.includes(municipio)
+                                          ? 'bg-accent hover:bg-accent/80'
+                                          : 'hover:bg-accent/20'
+                                      }`}
+                                      onClick={() => handleToggleMunicipio(estado.uf, municipio)}
+                                    >
+                                      {municipio}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    })}
                   </div>
                 </div>
               );
