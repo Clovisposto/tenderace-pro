@@ -35,6 +35,14 @@ export function useConfiguracoes() {
           lance_automatico: true,
           notificacoes_email: true,
           notificacoes_push: true,
+          notificacoes_telefone: false,
+          telefone_notificacao: '',
+          notificacoes_vitoria: true,
+          notificacoes_derrota: true,
+          notificacoes_nova_licitacao: true,
+          notificacoes_prazo_urgente: true,
+          notificacoes_disputa: true,
+          som_notificacao: true,
           captacao_continua: true,
           prioridade_interior: true,
           ufs_priorizadas: [],
@@ -45,6 +53,14 @@ export function useConfiguracoes() {
           municipios_priorizados: MunicipiosPriorizados; 
           tipos_licitacao: string[];
           modalidades_permitidas: string[];
+          notificacoes_telefone: boolean;
+          telefone_notificacao: string;
+          notificacoes_vitoria: boolean;
+          notificacoes_derrota: boolean;
+          notificacoes_nova_licitacao: boolean;
+          notificacoes_prazo_urgente: boolean;
+          notificacoes_disputa: boolean;
+          som_notificacao: boolean;
         };
       }
       
@@ -72,6 +88,14 @@ export function useUpdateConfiguracoes() {
       lance_automatico: boolean | null;
       notificacoes_email: boolean | null;
       notificacoes_push: boolean | null;
+      notificacoes_telefone: boolean | null;
+      telefone_notificacao: string | null;
+      notificacoes_vitoria: boolean | null;
+      notificacoes_derrota: boolean | null;
+      notificacoes_nova_licitacao: boolean | null;
+      notificacoes_prazo_urgente: boolean | null;
+      notificacoes_disputa: boolean | null;
+      som_notificacao: boolean | null;
       captacao_continua: boolean | null;
       prioridade_interior: boolean | null;
       ufs_priorizadas: string[] | null;
