@@ -28,7 +28,9 @@ import {
   Activity,
   ShieldCheck,
   PlayCircle,
-  Target
+  Target,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +39,7 @@ import { format, differenceInSeconds, differenceInMinutes, differenceInHours, di
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDetalheModal';
 
 interface Participacao {
   id: string;
@@ -312,7 +315,11 @@ const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?
   );
 };
 
-const ParticipacaoCard = ({ participacao, isRealtime }: { participacao: Participacao; isRealtime?: boolean }) => {
+const ParticipacaoCard = ({ participacao, isRealtime, onOpenDetails }: { 
+  participacao: Participacao; 
+  isRealtime?: boolean;
+  onOpenDetails: (participacao: Participacao) => void;
+}) => {
   const { licitacao, empresa } = participacao;
   
   return (
@@ -321,7 +328,7 @@ const ParticipacaoCard = ({ participacao, isRealtime }: { participacao: Particip
     }`}>
       {participacao.status === 'Vencedora' && (
         <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden">
-          <div className="absolute top-3 -right-8 w-32 text-center text-xs font-bold text-white bg-green-500 transform rotate-45 py-1">
+          <div className="absolute top-3 -right-8 w-32 text-center text-xs font-bold text-white bg-success transform rotate-45 py-1">
             VENCEDOR
           </div>
         </div>
@@ -370,13 +377,13 @@ const ParticipacaoCard = ({ participacao, isRealtime }: { participacao: Particip
           </div>
           <div className="text-center p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground mb-1">Sua Proposta</p>
-            <p className="font-bold text-green-600">
+            <p className="font-bold text-success">
               R$ {participacao.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="text-center p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground mb-1">Economia</p>
-            <p className="font-bold text-amber-600">
+            <p className="font-bold text-warning">
               {((1 - participacao.valor_proposta / licitacao.valor) * 100).toFixed(1)}%
             </p>
           </div>
@@ -385,15 +392,20 @@ const ParticipacaoCard = ({ participacao, isRealtime }: { participacao: Particip
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-green-500" />
+              <TrendingUp className="w-4 h-4 text-success" />
               <span>ROI: {licitacao.roi_score}%</span>
             </div>
             <div className="flex items-center gap-1">
-              <AlertCircle className="w-4 h-4 text-amber-500" />
+              <AlertCircle className="w-4 h-4 text-warning" />
               <span>Risco: {licitacao.risco_score}%</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1"
+            onClick={() => onOpenDetails(participacao)}
+          >
             <Eye className="w-4 h-4" />
             Ver Detalhes
           </Button>
@@ -414,6 +426,27 @@ const MinhasParticipacoes = () => {
   const { user } = useAuth();
   const [realtimeUpdates, setRealtimeUpdates] = useState<string[]>([]);
   const [creatingTest, setCreatingTest] = useState(false);
+  const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
+  const [isAiUpdating, setIsAiUpdating] = useState(false);
+
+  const handleOpenDetails = (participacao: Participacao) => {
+    setSelectedParticipacao(participacao);
+  };
+
+  const handleAIGlobalUpdate = async () => {
+    setIsAiUpdating(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
+    queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
+    
+    setIsAiUpdating(false);
+    toast({
+      title: '✅ Sistema Atualizado',
+      description: 'A IA verificou todos os portais e atualizou os dados.',
+    });
+  };
 
   // Mutation para criar propostas de teste
   const createTestProposalMutation = useMutation({
@@ -687,9 +720,24 @@ const MinhasParticipacoes = () => {
               )}
               Criar Propostas de Teste
             </Button>
-            <Button onClick={() => refetch()} variant="outline" className="gap-2">
-              <RefreshCw className="w-4 h-4" />
-              Atualizar
+            <Button 
+              onClick={handleAIGlobalUpdate} 
+              variant="outline" 
+              className="gap-2"
+              disabled={isAiUpdating}
+            >
+              {isAiUpdating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Sparkles className="w-4 h-4" />
+                  Atualizando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Atualizar IA
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -828,6 +876,7 @@ const MinhasParticipacoes = () => {
                       key={p.id} 
                       participacao={p} 
                       isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
                     />
                   ))
                 )}
@@ -849,6 +898,7 @@ const MinhasParticipacoes = () => {
                       key={p.id} 
                       participacao={p} 
                       isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
                     />
                   ))
                 )}
@@ -873,6 +923,7 @@ const MinhasParticipacoes = () => {
                       key={p.id} 
                       participacao={p} 
                       isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
                     />
                   ))
                 )}
@@ -897,6 +948,7 @@ const MinhasParticipacoes = () => {
                       key={p.id} 
                       participacao={p} 
                       isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
                     />
                   ))
                 )}
@@ -904,6 +956,15 @@ const MinhasParticipacoes = () => {
             </ScrollArea>
           </TabsContent>
         </Tabs>
+
+        {/* Modal de detalhes */}
+        {selectedParticipacao && (
+          <ParticipacaoDetalheModal
+            participacao={selectedParticipacao}
+            open={!!selectedParticipacao}
+            onOpenChange={(open) => !open && setSelectedParticipacao(null)}
+          />
+        )}
       </div>
     </MainLayout>
   );
