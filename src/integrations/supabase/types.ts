@@ -146,6 +146,7 @@ export type Database = {
           id: string
           lance_automatico: boolean | null
           margem_minima: number | null
+          modalidades_permitidas: string[] | null
           municipios_priorizados: Json | null
           notificacoes_email: boolean | null
           notificacoes_push: boolean | null
@@ -163,6 +164,7 @@ export type Database = {
           id?: string
           lance_automatico?: boolean | null
           margem_minima?: number | null
+          modalidades_permitidas?: string[] | null
           municipios_priorizados?: Json | null
           notificacoes_email?: boolean | null
           notificacoes_push?: boolean | null
@@ -180,6 +182,7 @@ export type Database = {
           id?: string
           lance_automatico?: boolean | null
           margem_minima?: number | null
+          modalidades_permitidas?: string[] | null
           municipios_priorizados?: Json | null
           notificacoes_email?: boolean | null
           notificacoes_push?: boolean | null

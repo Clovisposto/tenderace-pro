@@ -23,8 +23,19 @@ import {
   ChevronRight,
   X,
   ShoppingCart,
-  Wrench
+  Wrench,
+  Gavel,
+  FileText
 } from 'lucide-react';
+
+// Modalidades disponíveis
+const MODALIDADES_DISPONIVEIS = [
+  { id: 'Dispensa com Disputa', nome: 'Dispensa com Disputa', descricao: 'Compras até R$ 50.000 com competição' },
+  { id: 'Dispensa sem Disputa', nome: 'Dispensa sem Disputa', descricao: 'Compras diretas sem licitação' },
+  { id: 'Compra Direta', nome: 'Compra Direta', descricao: 'Aquisições de pequeno valor' },
+  { id: 'Pregão Eletrônico', nome: 'Pregão Eletrônico', descricao: 'Licitação eletrônica aberta' },
+  { id: 'Concorrência', nome: 'Concorrência', descricao: 'Licitações de maior valor' },
+];
 import { useState, useEffect } from 'react';
 import { useConfiguracoes, useUpdateConfiguracoes, type MunicipiosPriorizados } from '@/hooks/useConfiguracoes';
 import { MUNICIPIOS_POR_UF, getMunicipiosUF } from '@/data/municipiosBrasil';
@@ -79,6 +90,7 @@ const Configuracoes = () => {
     ufsPriorizadas: [] as string[],
     municipiosPriorizados: {} as MunicipiosPriorizados,
     tiposLicitacao: ['compra', 'servico'] as string[],
+    modalidadesPermitidas: ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'] as string[],
   });
 
   const [expandedUFs, setExpandedUFs] = useState<string[]>([]);
@@ -97,9 +109,26 @@ const Configuracoes = () => {
         ufsPriorizadas: savedConfig.ufs_priorizadas || [],
         municipiosPriorizados: (savedConfig as any).municipios_priorizados || {},
         tiposLicitacao: (savedConfig as any).tipos_licitacao || ['compra', 'servico'],
+        modalidadesPermitidas: (savedConfig as any).modalidades_permitidas || ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'],
       });
     }
   }, [savedConfig]);
+
+  const handleToggleModalidade = (modalidade: string) => {
+    setConfigs(prev => {
+      const isAdding = !prev.modalidadesPermitidas.includes(modalidade);
+      // Garantir que pelo menos uma modalidade esteja selecionada
+      if (!isAdding && prev.modalidadesPermitidas.length === 1) {
+        return prev;
+      }
+      return {
+        ...prev,
+        modalidadesPermitidas: isAdding
+          ? [...prev.modalidadesPermitidas, modalidade]
+          : prev.modalidadesPermitidas.filter(m => m !== modalidade),
+      };
+    });
+  };
 
   const handleToggleTipoLicitacao = (tipo: string) => {
     setConfigs(prev => {
@@ -244,6 +273,7 @@ const Configuracoes = () => {
       ufs_priorizadas: configs.ufsPriorizadas,
       municipios_priorizados: configs.municipiosPriorizados,
       tipos_licitacao: configs.tiposLicitacao,
+      modalidades_permitidas: configs.modalidadesPermitidas,
     });
   };
 
@@ -540,6 +570,75 @@ const Configuracoes = () => {
               {configs.tiposLicitacao.length === 2 ? 'Todos os tipos' : 
                configs.tiposLicitacao.includes('compra') ? 'Apenas Compra' : 'Apenas Serviço'}
             </Badge>
+          </div>
+        </div>
+
+        {/* Modalidades de Licitação */}
+        <div className="glass-card p-6 space-y-6 animate-slide-up opacity-0" style={{ animationDelay: '175ms', animationFillMode: 'forwards' }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Gavel className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Modalidades de Licitação</h3>
+              <p className="text-sm text-muted-foreground">Escolha as modalidades que deseja monitorar</p>
+            </div>
+            <Badge variant="outline" className="gap-1">
+              <FileText className="w-3 h-3" />
+              {configs.modalidadesPermitidas.length} selecionadas
+            </Badge>
+          </div>
+
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <strong>Dica:</strong> Selecione as modalidades que sua empresa está habilitada a participar. 
+              Dispensas são ideais para empresas menores, enquanto Pregões e Concorrências exigem mais documentação.
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            {MODALIDADES_DISPONIVEIS.map(modalidade => (
+              <div 
+                key={modalidade.id}
+                onClick={() => handleToggleModalidade(modalidade.id)}
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  configs.modalidadesPermitidas.includes(modalidade.id)
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Checkbox 
+                    checked={configs.modalidadesPermitidas.includes(modalidade.id)}
+                    onCheckedChange={() => handleToggleModalidade(modalidade.id)}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{modalidade.nome}</p>
+                    <p className="text-sm text-muted-foreground">{modalidade.descricao}</p>
+                  </div>
+                  {configs.modalidadesPermitidas.includes(modalidade.id) && (
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setConfigs(prev => ({ ...prev, modalidadesPermitidas: MODALIDADES_DISPONIVEIS.map(m => m.id) }))}
+            >
+              Selecionar Todas
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setConfigs(prev => ({ ...prev, modalidadesPermitidas: ['Dispensa com Disputa'] }))}
+            >
+              Apenas Dispensas
+            </Button>
           </div>
         </div>
 

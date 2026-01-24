@@ -737,6 +737,32 @@ async function getUserTiposLicitacao(supabase: any, userId?: string): Promise<st
   return ['compra', 'servico'];
 }
 
+// Get user's preferred modalidades from configuracoes
+async function getUserModalidades(supabase: any, userId?: string): Promise<string[]> {
+  if (userId) {
+    const { data } = await supabase
+      .from('configuracoes')
+      .select('modalidades_permitidas')
+      .eq('user_id', userId)
+      .single();
+    
+    if (data?.modalidades_permitidas && data.modalidades_permitidas.length > 0) {
+      return data.modalidades_permitidas;
+    }
+  }
+  
+  // Default: todas as modalidades básicas
+  return ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'];
+}
+
+// Verifica se a modalidade passa no filtro
+function passaModalidadeFiltro(modalidade: string, modalidadesPermitidas: string[]): boolean {
+  if (!modalidadesPermitidas || modalidadesPermitidas.length === 0) {
+    return true;
+  }
+  return modalidadesPermitidas.some(m => modalidade.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(modalidade.toLowerCase()));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -752,6 +778,7 @@ serve(async (req) => {
     let segmento: string | undefined;
     let userId: string | undefined;
     let tiposLicitacao: string[] | undefined;
+    let modalidadesReq: string[] | undefined;
 
     try {
       const body = await req.json();
@@ -759,6 +786,7 @@ serve(async (req) => {
       segmento = body.segmento;
       userId = body.user_id;
       tiposLicitacao = body.tipos_licitacao;
+      modalidadesReq = body.modalidades;
     } catch {
       // No body, use defaults
     }
@@ -773,8 +801,14 @@ serve(async (req) => {
       ? tiposLicitacao
       : await getUserTiposLicitacao(supabase, userId);
 
+    // Get modalidades to use (from request, user config, or default)
+    let modalidadesPermitidas = modalidadesReq && modalidadesReq.length > 0
+      ? modalidadesReq
+      : await getUserModalidades(supabase, userId);
+
     console.log('[MultiPortal] Starting capture for UFs:', ufsPermitidas.join(', '));
     console.log('[MultiPortal] Tipos de licitação:', tiposPermitidos.join(', '));
+    console.log('[MultiPortal] Modalidades:', modalidadesPermitidas.join(', '));
     if (segmento) console.log('[MultiPortal] Filtering by segment:', segmento);
 
     // Log job start
@@ -786,6 +820,7 @@ serve(async (req) => {
           portals: Object.keys(PORTALS),
           ufs: ufsPermitidas,
           tipos_licitacao: tiposPermitidos,
+          modalidades: modalidadesPermitidas,
           segmento: segmento || 'all',
           timestamp: new Date().toISOString()
         } 
@@ -804,28 +839,32 @@ serve(async (req) => {
       captureBancoBrasil(supabase, ufsPermitidas),
     ]);
 
-    // Filtrar licitações por tipo após inserção (remover as que não passam no filtro)
-    if (tiposPermitidos.length === 1) {
-      console.log('[MultiPortal] Aplicando filtro de tipo:', tiposPermitidos[0]);
-      
-      // Buscar licitações recentes e filtrar
-      const { data: licitacoesRecentes } = await supabase
-        .from('licitacoes')
-        .select('id, objeto')
-        .gte('created_at', new Date(Date.now() - 60000).toISOString()); // Últimas 60 segundos
-      
-      if (licitacoesRecentes) {
-        for (const lic of licitacoesRecentes) {
-          if (!passaTipoFiltro(lic.objeto, tiposPermitidos)) {
-            await supabase
-              .from('licitacoes')
-              .delete()
-              .eq('id', lic.id);
-            console.log(`[MultiPortal] Removida licitação ${lic.id} (tipo incompatível)`);
-          }
+    // Filtrar licitações por tipo e modalidade após inserção
+    console.log('[MultiPortal] Aplicando filtros pós-captura...');
+    
+    // Buscar licitações recentes e filtrar
+    const { data: licitacoesRecentes } = await supabase
+      .from('licitacoes')
+      .select('id, objeto, modalidade')
+      .gte('created_at', new Date(Date.now() - 120000).toISOString()); // Últimos 2 minutos
+    
+    let removidas = 0;
+    if (licitacoesRecentes) {
+      for (const lic of licitacoesRecentes) {
+        const passaTipo = passaTipoFiltro(lic.objeto, tiposPermitidos);
+        const passaModalidade = passaModalidadeFiltro(lic.modalidade, modalidadesPermitidas);
+        
+        if (!passaTipo || !passaModalidade) {
+          await supabase
+            .from('licitacoes')
+            .delete()
+            .eq('id', lic.id);
+          removidas++;
+          console.log(`[MultiPortal] Removida licitação ${lic.id} - tipo: ${passaTipo}, modalidade: ${passaModalidade}`);
         }
       }
     }
+    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas`);
 
     const totalCount = results.reduce((sum, r) => sum + r.count, 0);
     const successCount = results.filter(r => r.success).length;
@@ -839,9 +878,11 @@ serve(async (req) => {
           details: {
             results,
             total: totalCount,
+            removidas,
             successfulPortals: successCount,
             ufs: ufsPermitidas,
             tipos_licitacao: tiposPermitidos,
+            modalidades: modalidadesPermitidas,
             completedAt: new Date().toISOString(),
           }
         })
