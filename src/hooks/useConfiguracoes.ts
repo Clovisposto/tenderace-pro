@@ -40,13 +40,19 @@ export function useConfiguracoes() {
           ufs_priorizadas: [],
           municipios_priorizados: {} as MunicipiosPriorizados,
           tipos_licitacao: ['compra', 'servico'] as string[],
-        } as Partial<Configuracao> & { municipios_priorizados: MunicipiosPriorizados; tipos_licitacao: string[] };
+          modalidades_permitidas: ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'] as string[],
+        } as Partial<Configuracao> & { 
+          municipios_priorizados: MunicipiosPriorizados; 
+          tipos_licitacao: string[];
+          modalidades_permitidas: string[];
+        };
       }
       
       return {
         ...data,
         municipios_priorizados: (data as any).municipios_priorizados as MunicipiosPriorizados || {},
         tipos_licitacao: (data as any).tipos_licitacao as string[] || ['compra', 'servico'],
+        modalidades_permitidas: (data as any).modalidades_permitidas as string[] || ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'],
       };
     },
     enabled: !!user,
@@ -71,6 +77,7 @@ export function useUpdateConfiguracoes() {
       ufs_priorizadas: string[] | null;
       municipios_priorizados: MunicipiosPriorizados;
       tipos_licitacao: string[] | null;
+      modalidades_permitidas: string[] | null;
     }>) => {
       if (!user) throw new Error('User not authenticated');
 
