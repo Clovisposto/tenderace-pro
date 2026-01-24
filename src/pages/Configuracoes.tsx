@@ -25,7 +25,8 @@ import {
   ShoppingCart,
   Wrench,
   Gavel,
-  FileText
+  FileText,
+  Search
 } from 'lucide-react';
 
 // Modalidades disponíveis
@@ -94,6 +95,7 @@ const Configuracoes = () => {
   });
 
   const [expandedUFs, setExpandedUFs] = useState<string[]>([]);
+  const [cidadeSearch, setCidadeSearch] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (savedConfig) {
@@ -447,9 +449,22 @@ const Configuracoes = () => {
                                 Se nenhuma for selecionada, captaremos todas as licitações do estado.
                               </div>
                               
+                              {/* Campo de busca de cidades */}
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Buscar cidade..."
+                                  value={cidadeSearch[estado.uf] || ''}
+                                  onChange={(e) => setCidadeSearch(prev => ({ ...prev, [estado.uf]: e.target.value }))}
+                                  className="pl-9 h-9"
+                                />
+                              </div>
+                              
                               <ScrollArea className="h-48">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                  {municipiosDisponiveis.map(municipio => (
+                                  {municipiosDisponiveis
+                                    .filter(m => m.toLowerCase().includes((cidadeSearch[estado.uf] || '').toLowerCase()))
+                                    .map(municipio => (
                                     <div
                                       key={municipio}
                                       onClick={() => handleToggleMunicipio(estado.uf, municipio)}
