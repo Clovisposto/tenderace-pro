@@ -21,7 +21,9 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
-  X
+  X,
+  ShoppingCart,
+  Wrench
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useConfiguracoes, useUpdateConfiguracoes, type MunicipiosPriorizados } from '@/hooks/useConfiguracoes';
@@ -76,6 +78,7 @@ const Configuracoes = () => {
     prioridadeInterior: true,
     ufsPriorizadas: [] as string[],
     municipiosPriorizados: {} as MunicipiosPriorizados,
+    tiposLicitacao: ['compra', 'servico'] as string[],
   });
 
   const [expandedUFs, setExpandedUFs] = useState<string[]>([]);
@@ -93,9 +96,26 @@ const Configuracoes = () => {
         prioridadeInterior: savedConfig.prioridade_interior ?? true,
         ufsPriorizadas: savedConfig.ufs_priorizadas || [],
         municipiosPriorizados: (savedConfig as any).municipios_priorizados || {},
+        tiposLicitacao: (savedConfig as any).tipos_licitacao || ['compra', 'servico'],
       });
     }
   }, [savedConfig]);
+
+  const handleToggleTipoLicitacao = (tipo: string) => {
+    setConfigs(prev => {
+      const isAdding = !prev.tiposLicitacao.includes(tipo);
+      // Garantir que pelo menos um tipo esteja selecionado
+      if (!isAdding && prev.tiposLicitacao.length === 1) {
+        return prev;
+      }
+      return {
+        ...prev,
+        tiposLicitacao: isAdding
+          ? [...prev.tiposLicitacao, tipo]
+          : prev.tiposLicitacao.filter(t => t !== tipo),
+      };
+    });
+  };
 
   const handleToggleUF = (uf: string) => {
     setConfigs(prev => {
@@ -223,6 +243,7 @@ const Configuracoes = () => {
       prioridade_interior: configs.prioridadeInterior,
       ufs_priorizadas: configs.ufsPriorizadas,
       municipios_priorizados: configs.municipiosPriorizados,
+      tipos_licitacao: configs.tiposLicitacao,
     });
   };
 
@@ -438,6 +459,87 @@ const Configuracoes = () => {
               checked={configs.prioridadeInterior}
               onCheckedChange={(checked) => setConfigs({ ...configs, prioridadeInterior: checked })}
             />
+          </div>
+        </div>
+
+        {/* Tipo de Licitação */}
+        <div className="glass-card p-6 space-y-6 animate-slide-up opacity-0" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ShoppingCart className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Tipo de Licitação</h3>
+              <p className="text-sm text-muted-foreground">Escolha os tipos de licitações que deseja captar</p>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <strong>Dica:</strong> Selecione <strong>Compra</strong> para licitações de produtos (medicamentos, materiais, equipamentos) 
+              ou <strong>Serviço</strong> para licitações de serviços (obras, manutenção, consultoria). Você pode selecionar ambos.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div 
+              onClick={() => handleToggleTipoLicitacao('compra')}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                configs.tiposLicitacao.includes('compra')
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  configs.tiposLicitacao.includes('compra') 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted'
+                }`}>
+                  <ShoppingCart className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Compra</p>
+                  <p className="text-sm text-muted-foreground">Produtos e materiais</p>
+                </div>
+                {configs.tiposLicitacao.includes('compra') && (
+                  <CheckCircle2 className="w-5 h-5 text-primary ml-auto" />
+                )}
+              </div>
+            </div>
+
+            <div 
+              onClick={() => handleToggleTipoLicitacao('servico')}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                configs.tiposLicitacao.includes('servico')
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  configs.tiposLicitacao.includes('servico') 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted'
+                }`}>
+                  <Wrench className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Serviço</p>
+                  <p className="text-sm text-muted-foreground">Obras e prestação</p>
+                </div>
+                {configs.tiposLicitacao.includes('servico') && (
+                  <CheckCircle2 className="w-5 h-5 text-primary ml-auto" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1">
+              {configs.tiposLicitacao.length === 2 ? 'Todos os tipos' : 
+               configs.tiposLicitacao.includes('compra') ? 'Apenas Compra' : 'Apenas Serviço'}
+            </Badge>
           </div>
         </div>
 
