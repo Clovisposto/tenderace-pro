@@ -148,9 +148,17 @@ export type Database = {
           margem_minima: number | null
           modalidades_permitidas: string[] | null
           municipios_priorizados: Json | null
+          notificacoes_derrota: boolean | null
+          notificacoes_disputa: boolean | null
           notificacoes_email: boolean | null
+          notificacoes_nova_licitacao: boolean | null
+          notificacoes_prazo_urgente: boolean | null
           notificacoes_push: boolean | null
+          notificacoes_telefone: boolean | null
+          notificacoes_vitoria: boolean | null
           prioridade_interior: boolean | null
+          som_notificacao: boolean | null
+          telefone_notificacao: string | null
           tipos_licitacao: string[] | null
           ufs_priorizadas: string[] | null
           updated_at: string
@@ -166,9 +174,17 @@ export type Database = {
           margem_minima?: number | null
           modalidades_permitidas?: string[] | null
           municipios_priorizados?: Json | null
+          notificacoes_derrota?: boolean | null
+          notificacoes_disputa?: boolean | null
           notificacoes_email?: boolean | null
+          notificacoes_nova_licitacao?: boolean | null
+          notificacoes_prazo_urgente?: boolean | null
           notificacoes_push?: boolean | null
+          notificacoes_telefone?: boolean | null
+          notificacoes_vitoria?: boolean | null
           prioridade_interior?: boolean | null
+          som_notificacao?: boolean | null
+          telefone_notificacao?: string | null
           tipos_licitacao?: string[] | null
           ufs_priorizadas?: string[] | null
           updated_at?: string
@@ -184,9 +200,17 @@ export type Database = {
           margem_minima?: number | null
           modalidades_permitidas?: string[] | null
           municipios_priorizados?: Json | null
+          notificacoes_derrota?: boolean | null
+          notificacoes_disputa?: boolean | null
           notificacoes_email?: boolean | null
+          notificacoes_nova_licitacao?: boolean | null
+          notificacoes_prazo_urgente?: boolean | null
           notificacoes_push?: boolean | null
+          notificacoes_telefone?: boolean | null
+          notificacoes_vitoria?: boolean | null
           prioridade_interior?: boolean | null
+          som_notificacao?: boolean | null
+          telefone_notificacao?: string | null
           tipos_licitacao?: string[] | null
           ufs_priorizadas?: string[] | null
           updated_at?: string

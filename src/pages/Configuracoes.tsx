@@ -22,11 +22,20 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  XCircle,
   ShoppingCart,
   Wrench,
   Gavel,
   FileText,
-  Search
+  Search,
+  Mail,
+  Phone,
+  Trophy,
+  AlertTriangle,
+  Volume2,
+  VolumeX,
+  MessageSquare,
+  Timer
 } from 'lucide-react';
 
 // Modalidades disponíveis
@@ -86,6 +95,14 @@ const Configuracoes = () => {
     lanceAutomatico: true,
     notificacoesEmail: true,
     notificacoesPush: true,
+    notificacoesTelefone: false,
+    telefoneNotificacao: '',
+    notificacoesVitoria: true,
+    notificacoesDerrota: true,
+    notificacoesNovaLicitacao: true,
+    notificacoesPrazoUrgente: true,
+    notificacoesDisputa: true,
+    somNotificacao: true,
     captacaoContinua: true,
     prioridadeInterior: true,
     ufsPriorizadas: [] as string[],
@@ -106,6 +123,14 @@ const Configuracoes = () => {
         lanceAutomatico: savedConfig.lance_automatico ?? true,
         notificacoesEmail: savedConfig.notificacoes_email ?? true,
         notificacoesPush: savedConfig.notificacoes_push ?? true,
+        notificacoesTelefone: (savedConfig as any).notificacoes_telefone ?? false,
+        telefoneNotificacao: (savedConfig as any).telefone_notificacao || '',
+        notificacoesVitoria: (savedConfig as any).notificacoes_vitoria ?? true,
+        notificacoesDerrota: (savedConfig as any).notificacoes_derrota ?? true,
+        notificacoesNovaLicitacao: (savedConfig as any).notificacoes_nova_licitacao ?? true,
+        notificacoesPrazoUrgente: (savedConfig as any).notificacoes_prazo_urgente ?? true,
+        notificacoesDisputa: (savedConfig as any).notificacoes_disputa ?? true,
+        somNotificacao: (savedConfig as any).som_notificacao ?? true,
         captacaoContinua: savedConfig.captacao_continua ?? true,
         prioridadeInterior: savedConfig.prioridade_interior ?? true,
         ufsPriorizadas: savedConfig.ufs_priorizadas || [],
@@ -281,6 +306,14 @@ const Configuracoes = () => {
       lance_automatico: configs.lanceAutomatico,
       notificacoes_email: configs.notificacoesEmail,
       notificacoes_push: configs.notificacoesPush,
+      notificacoes_telefone: configs.notificacoesTelefone,
+      telefone_notificacao: configs.telefoneNotificacao,
+      notificacoes_vitoria: configs.notificacoesVitoria,
+      notificacoes_derrota: configs.notificacoesDerrota,
+      notificacoes_nova_licitacao: configs.notificacoesNovaLicitacao,
+      notificacoes_prazo_urgente: configs.notificacoesPrazoUrgente,
+      notificacoes_disputa: configs.notificacoesDisputa,
+      som_notificacao: configs.somNotificacao,
       captacao_continua: configs.captacaoContinua,
       prioridade_interior: configs.prioridadeInterior,
       ufs_priorizadas: configs.ufsPriorizadas,
@@ -449,16 +482,37 @@ const Configuracoes = () => {
                                 Se nenhuma for selecionada, captaremos todas as licitações do estado.
                               </div>
                               
-                              {/* Campo de busca de cidades */}
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                  placeholder="Buscar cidade..."
-                                  value={cidadeSearch[estado.uf] || ''}
-                                  onChange={(e) => setCidadeSearch(prev => ({ ...prev, [estado.uf]: e.target.value }))}
-                                  className="pl-9 h-9"
-                                />
-                              </div>
+                              {/* Campo de busca de cidades com contador */}
+                              {(() => {
+                                const searchTerm = cidadeSearch[estado.uf] || '';
+                                const cidadesFiltradas = municipiosDisponiveis.filter(m => 
+                                  m.toLowerCase().includes(searchTerm.toLowerCase())
+                                );
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                      <Input
+                                        placeholder="Buscar cidade..."
+                                        value={searchTerm}
+                                        onChange={(e) => setCidadeSearch(prev => ({ ...prev, [estado.uf]: e.target.value }))}
+                                        className="pl-9 h-9"
+                                      />
+                                    </div>
+                                    {searchTerm && (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Badge variant="secondary" className="gap-1">
+                                          <Search className="w-3 h-3" />
+                                          {cidadesFiltradas.length} {cidadesFiltradas.length === 1 ? 'cidade encontrada' : 'cidades encontradas'}
+                                        </Badge>
+                                        {cidadesFiltradas.length === 0 && (
+                                          <span className="text-muted-foreground">Nenhuma cidade corresponde à busca</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               
                               <ScrollArea className="h-48">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -750,34 +804,173 @@ const Configuracoes = () => {
               <Bell className="w-5 h-5 text-warning" />
             </div>
             <div>
-              <h3 className="font-semibold">Notificações</h3>
-              <p className="text-sm text-muted-foreground">Configure como deseja receber alertas</p>
+              <h3 className="font-semibold">Notificações e Alertas</h3>
+              <p className="text-sm text-muted-foreground">Configure como e quando deseja receber alertas</p>
             </div>
           </div>
 
+          {/* Canais de Notificação */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Notificações por Email</p>
-                <p className="text-sm text-muted-foreground">Receber alertas importantes por email</p>
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Canais de Notificação</h4>
+            
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className={`p-4 rounded-lg border-2 transition-all ${
+                configs.notificacoesEmail ? 'border-primary bg-primary/5' : 'border-border'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Email</span>
+                  </div>
+                  <Switch
+                    checked={configs.notificacoesEmail}
+                    onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesEmail: checked })}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Receba alertas por email</p>
               </div>
-              <Switch
-                checked={configs.notificacoesEmail}
-                onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesEmail: checked })}
-              />
+
+              <div className={`p-4 rounded-lg border-2 transition-all ${
+                configs.notificacoesPush ? 'border-primary bg-primary/5' : 'border-border'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Push</span>
+                  </div>
+                  <Switch
+                    checked={configs.notificacoesPush}
+                    onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesPush: checked })}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Notificações no navegador</p>
+              </div>
+
+              <div className={`p-4 rounded-lg border-2 transition-all ${
+                configs.notificacoesTelefone ? 'border-primary bg-primary/5' : 'border-border'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Telefone</span>
+                  </div>
+                  <Switch
+                    checked={configs.notificacoesTelefone}
+                    onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesTelefone: checked })}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">SMS/WhatsApp para vitórias</p>
+              </div>
             </div>
 
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Notificações Push</p>
-                <p className="text-sm text-muted-foreground">Receber notificações no navegador</p>
+            {configs.notificacoesTelefone && (
+              <div className="space-y-2 p-4 rounded-lg bg-muted/50">
+                <label className="text-sm font-medium">Número de Telefone (WhatsApp)</label>
+                <Input
+                  placeholder="+55 (11) 99999-9999"
+                  value={configs.telefoneNotificacao}
+                  onChange={(e) => setConfigs({ ...configs, telefoneNotificacao: e.target.value })}
+                  className="max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">Usado para alertas de vitória em licitações</p>
               </div>
-              <Switch
-                checked={configs.notificacoesPush}
-                onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesPush: checked })}
-              />
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Tipos de Eventos */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Tipos de Eventos</h4>
+            
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-5 h-5 text-green-500" />
+                  <div>
+                    <p className="font-medium text-sm">Vitória em Licitação</p>
+                    <p className="text-xs text-muted-foreground">Quando você vencer uma licitação</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.notificacoesVitoria}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesVitoria: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <XCircle className="w-5 h-5 text-red-500" />
+                  <div>
+                    <p className="font-medium text-sm">Derrota em Licitação</p>
+                    <p className="text-xs text-muted-foreground">Quando perder uma disputa</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.notificacoesDerrota}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesDerrota: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-sm">Nova Licitação</p>
+                    <p className="text-xs text-muted-foreground">Quando surgir uma oportunidade</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.notificacoesNovaLicitacao}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesNovaLicitacao: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <Timer className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <p className="font-medium text-sm">Prazo Urgente</p>
+                    <p className="text-xs text-muted-foreground">Licitações com menos de 6h</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.notificacoesPrazoUrgente}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesPrazoUrgente: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <Gavel className="w-5 h-5 text-purple-500" />
+                  <div>
+                    <p className="font-medium text-sm">Início de Disputa</p>
+                    <p className="text-xs text-muted-foreground">Quando a disputa começar</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.notificacoesDisputa}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, notificacoesDisputa: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  {configs.somNotificacao ? (
+                    <Volume2 className="w-5 h-5 text-primary" />
+                  ) : (
+                    <VolumeX className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">Som de Notificação</p>
+                    <p className="text-xs text-muted-foreground">Alerta sonoro para eventos</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={configs.somNotificacao}
+                  onCheckedChange={(checked) => setConfigs({ ...configs, somNotificacao: checked })}
+                />
+              </div>
             </div>
           </div>
         </div>

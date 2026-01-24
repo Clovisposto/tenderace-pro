@@ -19,13 +19,18 @@ import {
   TrendingUp,
   Eye,
   Gavel,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Volume2,
+  Bell
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { format, differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Participacao {
   id: string;
@@ -229,7 +234,134 @@ const ParticipacaoCard = ({ participacao, isRealtime }: { participacao: Particip
 
 const MinhasParticipacoes = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
   const [realtimeUpdates, setRealtimeUpdates] = useState<string[]>([]);
+  const [creatingTest, setCreatingTest] = useState(false);
+
+  // Mutation para criar propostas de teste
+  const createTestProposalMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Primeiro, verificar se o usuário tem uma empresa
+      const { data: empresas, error: empresaError } = await supabase
+        .from('empresas')
+        .select('id')
+        .limit(1);
+
+      if (empresaError) throw empresaError;
+      
+      let empresaId: string;
+      
+      if (!empresas || empresas.length === 0) {
+        // Criar empresa de teste
+        const { data: novaEmpresa, error: createEmpresaError } = await supabase
+          .from('empresas')
+          .insert({
+            user_id: user.id,
+            nome: 'Empresa Teste',
+            cnpj: '00.000.000/0001-00',
+            razao_social: 'Empresa Teste LTDA',
+            uf: 'PA',
+            municipio: 'Belém',
+            segmento: 'Medicamentos',
+          })
+          .select('id')
+          .single();
+        
+        if (createEmpresaError) throw createEmpresaError;
+        empresaId = novaEmpresa.id;
+      } else {
+        empresaId = empresas[0].id;
+      }
+
+      // Buscar licitações disponíveis
+      const { data: licitacoes, error: licError } = await supabase
+        .from('licitacoes')
+        .select('id, valor')
+        .limit(3);
+
+      if (licError) throw licError;
+      if (!licitacoes || licitacoes.length === 0) {
+        throw new Error('Nenhuma licitação disponível. Execute a captura primeiro.');
+      }
+
+      // Criar propostas de teste com diferentes status
+      const statusList: ('Enviada' | 'Em Disputa' | 'Vencedora')[] = ['Enviada', 'Em Disputa', 'Vencedora'];
+      const propostas = licitacoes.slice(0, 3).map((lic, index) => ({
+        empresa_id: empresaId,
+        licitacao_id: lic.id,
+        status: statusList[index % statusList.length] as 'Enviada' | 'Em Disputa' | 'Vencedora',
+        valor_proposta: lic.valor * 0.95, // 5% abaixo do valor estimado
+      }));
+
+      const { data, error } = await supabase
+        .from('propostas')
+        .insert(propostas)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
+      toast({
+        title: '🎉 Propostas de teste criadas!',
+        description: `${data?.length || 0} propostas foram criadas com sucesso.`,
+      });
+      
+      // Simular notificação de vitória
+      if (data?.some(p => p.status === 'Vencedora')) {
+        setTimeout(() => {
+          playVictorySound();
+          toast({
+            title: '🏆 VITÓRIA! Parabéns!',
+            description: 'Você venceu uma licitação de teste!',
+            className: 'bg-green-500 text-white border-green-600',
+          });
+        }, 1500);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao criar propostas',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Função para tocar som de vitória
+  const playVictorySound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+      oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+      oscillator.frequency.setValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (e) {
+      console.log('Não foi possível tocar o som');
+    }
+  };
+
+  const handleCreateTestProposals = () => {
+    setCreatingTest(true);
+    createTestProposalMutation.mutate();
+    setTimeout(() => setCreatingTest(false), 2000);
+  };
 
   // Fetch participações com join nas licitações e empresas
   const { data: participacoes = [], isLoading, refetch } = useQuery({
@@ -349,10 +481,25 @@ const MinhasParticipacoes = () => {
               Acompanhe suas licitações em tempo real
             </p>
           </div>
-          <Button onClick={() => refetch()} variant="outline" className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleCreateTestProposals} 
+              variant="default" 
+              className="gap-2"
+              disabled={creatingTest || createTestProposalMutation.isPending}
+            >
+              {creatingTest ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              Criar Propostas de Teste
+            </Button>
+            <Button onClick={() => refetch()} variant="outline" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
