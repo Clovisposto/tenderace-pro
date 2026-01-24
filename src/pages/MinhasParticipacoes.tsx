@@ -22,7 +22,13 @@ import {
   RefreshCw,
   Plus,
   Volume2,
-  Bell
+  Bell,
+  Bot,
+  Zap,
+  Activity,
+  ShieldCheck,
+  PlayCircle,
+  Target
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,6 +139,176 @@ const StatusBadge = ({ status }: { status: string }) => {
       {config.icon}
       {status}
     </Badge>
+  );
+};
+
+// Card para licitações autorizadas (robô vai participar)
+const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?: boolean }) => {
+  const [robotStatus, setRobotStatus] = useState<'aguardando' | 'preparando' | 'monitorando' | 'disputando'>('aguardando');
+  
+  useEffect(() => {
+    // Simular estados do robô baseado no tempo até a abertura
+    const checkStatus = () => {
+      const now = new Date();
+      const abertura = new Date(licitacao.data_abertura);
+      const diffHours = (abertura.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (diffHours <= 0) {
+        setRobotStatus('disputando');
+      } else if (diffHours <= 1) {
+        setRobotStatus('preparando');
+      } else if (diffHours <= 24) {
+        setRobotStatus('monitorando');
+      } else {
+        setRobotStatus('aguardando');
+      }
+    };
+    
+    checkStatus();
+    const interval = setInterval(checkStatus, 60000);
+    return () => clearInterval(interval);
+  }, [licitacao.data_abertura]);
+
+  const robotStatusConfig = {
+    'aguardando': { 
+      label: 'Aguardando', 
+      color: 'bg-muted text-muted-foreground', 
+      icon: <Clock className="w-4 h-4" />,
+      description: 'Robô aguardando horário da disputa'
+    },
+    'preparando': { 
+      label: 'Preparando', 
+      color: 'bg-amber-500/10 text-amber-600', 
+      icon: <Zap className="w-4 h-4" />,
+      description: 'Robô se preparando para entrar na disputa'
+    },
+    'monitorando': { 
+      label: 'Monitorando', 
+      color: 'bg-blue-500/10 text-blue-600', 
+      icon: <Activity className="w-4 h-4 animate-pulse" />,
+      description: 'Robô monitorando portal em tempo real'
+    },
+    'disputando': { 
+      label: 'Em Disputa', 
+      color: 'bg-green-500/10 text-green-600', 
+      icon: <Bot className="w-4 h-4 animate-bounce" />,
+      description: 'Robô participando ativamente da disputa'
+    },
+  };
+
+  const status = robotStatusConfig[robotStatus];
+  
+  return (
+    <Card className={`relative overflow-hidden transition-all hover:shadow-lg border-2 ${
+      robotStatus === 'disputando' ? 'border-green-500 ring-2 ring-green-500/20' :
+      robotStatus === 'preparando' ? 'border-amber-500 ring-2 ring-amber-500/20' :
+      robotStatus === 'monitorando' ? 'border-blue-500' : 'border-border'
+    } ${isRealtime ? 'animate-pulse' : ''}`}>
+      {/* Robot Status Banner */}
+      <div className={`${status.color} px-4 py-2 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          {status.icon}
+          <span className="font-medium text-sm">{status.label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Bot className="w-5 h-5" />
+          <span className="text-xs font-medium">ROBÔ ATIVO</span>
+        </div>
+      </div>
+      
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs">
+                {licitacao.portal}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                {licitacao.modalidade}
+              </Badge>
+              <Badge className="bg-primary/10 text-primary text-xs flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                Autorizada
+              </Badge>
+            </div>
+            <CardTitle className="text-base line-clamp-2">
+              {licitacao.objeto_resumido || licitacao.objeto}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">{licitacao.numero}</p>
+          </div>
+          <CountdownTimer targetDate={licitacao.data_limite} />
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Status do Robô */}
+        <div className="p-3 rounded-lg bg-muted/50 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <PlayCircle className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Status da Automação</span>
+          </div>
+          <p className="text-xs text-muted-foreground">{status.description}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className={`h-2 flex-1 rounded-full ${
+              robotStatus === 'aguardando' ? 'bg-muted' :
+              robotStatus === 'preparando' ? 'bg-amber-200' :
+              robotStatus === 'monitorando' ? 'bg-blue-200' : 'bg-green-200'
+            }`}>
+              <div className={`h-full rounded-full transition-all duration-1000 ${
+                robotStatus === 'aguardando' ? 'w-1/4 bg-muted-foreground' :
+                robotStatus === 'preparando' ? 'w-2/4 bg-amber-500' :
+                robotStatus === 'monitorando' ? 'w-3/4 bg-blue-500' : 'w-full bg-green-500 animate-pulse'
+              }`} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate">{licitacao.orgao}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <span>{licitacao.municipio}, {licitacao.uf}</span>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Valor Estimado</p>
+            <p className="font-bold text-primary">
+              R$ {licitacao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Abertura</p>
+            <p className="font-bold text-primary">
+              {format(new Date(licitacao.data_abertura), "dd/MM HH:mm", { locale: ptBR })}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1">
+              <Target className="w-4 h-4 text-green-500" />
+              <span>ROI: {licitacao.roi_score}%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+              <span>Risco: {licitacao.risco_score}%</span>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="gap-1">
+            <Eye className="w-4 h-4" />
+            Detalhes
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -446,11 +622,27 @@ const MinhasParticipacoes = () => {
   const vencidas = filterByStatus(['Vencedora']);
   const perdidas = filterByStatus(['Perdedora', 'Cancelada']);
 
+  // Buscar licitações autorizadas (status = 'Autorizada' na tabela licitacoes)
+  const { data: licitacoesAutorizadas = [] } = useQuery({
+    queryKey: ['licitacoes-autorizadas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('licitacoes')
+        .select('*')
+        .eq('status', 'Autorizada')
+        .order('data_abertura', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const stats = {
     total: participacoes.length,
     emDisputa: emDisputa.length,
     vencidas: vencidas.length,
     perdidas: perdidas.length,
+    autorizadas: licitacoesAutorizadas.length,
     valorTotal: vencidas.reduce((acc, p) => acc + p.valor_proposta, 0),
     taxaSucesso: participacoes.length > 0 
       ? ((vencidas.length / participacoes.length) * 100).toFixed(1)
@@ -503,8 +695,17 @@ const MinhasParticipacoes = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Bot className="w-5 h-5 text-primary" />
+              </div>
+              <p className="text-2xl font-bold text-primary">{stats.autorizadas}</p>
+              <p className="text-xs text-muted-foreground">Robô Ativo</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-muted to-muted/50">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold">{stats.total}</p>
               <p className="text-xs text-muted-foreground">Total</p>
@@ -528,25 +729,30 @@ const MinhasParticipacoes = () => {
               <p className="text-xs text-muted-foreground">Perdidas</p>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 md:col-span-1 col-span-2">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
             <CardContent className="p-4 text-center">
-              <p className="text-xl font-bold text-blue-600">
+              <p className="text-lg font-bold text-blue-600">
                 R$ {stats.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
               </p>
-              <p className="text-xs text-muted-foreground">Valor Total Vencido</p>
+              <p className="text-xs text-muted-foreground">Valor Vencido</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="disputa" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="autorizadas" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="autorizadas" className="gap-2">
+              <Bot className="w-4 h-4" />
+              Robô
+              <Badge variant="secondary" className="ml-1 bg-primary/20 text-primary">{stats.autorizadas}</Badge>
+            </TabsTrigger>
             <TabsTrigger value="todas" className="gap-2">
               Todas
               <Badge variant="secondary" className="ml-1">{stats.total}</Badge>
             </TabsTrigger>
             <TabsTrigger value="disputa" className="gap-2">
-              Em Disputa
+              Disputa
               <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700">{stats.emDisputa}</Badge>
             </TabsTrigger>
             <TabsTrigger value="vencidas" className="gap-2">
@@ -558,6 +764,52 @@ const MinhasParticipacoes = () => {
               <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{stats.perdidas}</Badge>
             </TabsTrigger>
           </TabsList>
+
+          {/* Aba de Licitações Autorizadas para o Robô */}
+          <TabsContent value="autorizadas">
+            <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/20">
+                  <Bot className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-primary">Monitoramento do Robô 24/7</h3>
+                  <p className="text-sm text-muted-foreground">
+                    O robô está monitorando {stats.autorizadas} licitação(ões) autorizada(s) e participará automaticamente nas disputas.
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-medium text-green-600">Ativo</span>
+                </div>
+              </div>
+            </div>
+            
+            <ScrollArea className="h-[calc(100vh-480px)]">
+              <div className="grid gap-4 md:grid-cols-2">
+                {licitacoesAutorizadas.length === 0 ? (
+                  <Card className="col-span-2 p-8 text-center">
+                    <Bot className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Nenhuma licitação autorizada</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Autorize licitações na página de Licitações para o robô participar automaticamente.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      Clique em "Autorizar Participação" em qualquer licitação para ativar o robô.
+                    </p>
+                  </Card>
+                ) : (
+                  licitacoesAutorizadas.map(lic => (
+                    <AutorizadaCard 
+                      key={lic.id} 
+                      licitacao={lic}
+                      isRealtime={false}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
           <TabsContent value="todas">
             <ScrollArea className="h-[calc(100vh-400px)]">
