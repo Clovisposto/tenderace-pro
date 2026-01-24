@@ -35,11 +35,14 @@ import {
   Users,
   Timer,
   Info,
-  Hash
+  Hash,
+  Bot
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface LicitacaoDetalheCompletoProps {
   licitacao: Licitacao;
@@ -66,7 +69,7 @@ const statusConfig: Record<string, { bg: string; text: string }> = {
 
 export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: LicitacaoDetalheCompletoProps) {
   const [precoFinal, setPrecoFinal] = useState(licitacao.valor * 0.92);
-  const [autorizando, setAutorizando] = useState(false);
+  const queryClient = useQueryClient();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -101,15 +104,35 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
 
   const margemCalculada = ((licitacao.valor - precoFinal) / licitacao.valor) * 100;
 
-  const handleAutorizar = () => {
-    setAutorizando(true);
-    setTimeout(() => {
-      toast.success('Participação autorizada com sucesso!', {
-        description: `Licitação ${licitacao.numero} - Proposta será enviada automaticamente.`,
+  // Mutation to authorize participation
+  const autorizarMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('licitacoes')
+        .update({ status: 'Autorizada' })
+        .eq('id', licitacao.id);
+      
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      toast.success('🤖 Participação autorizada com sucesso!', {
+        description: `Licitação ${licitacao.numero} - O robô vai participar automaticamente.`,
       });
-      setAutorizando(false);
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
       onAutorizar?.();
-    }, 1500);
+    },
+    onError: (error) => {
+      console.error('Error authorizing:', error);
+      toast.error('Erro ao autorizar participação', {
+        description: 'Tente novamente ou contate o suporte.',
+      });
+    }
+  });
+
+  const handleAutorizar = () => {
+    autorizarMutation.mutate();
   };
 
   const handleCopyId = () => {
@@ -663,47 +686,63 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                   </CardHeader>
                   <CardContent>
                     <div className="p-8 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 text-center space-y-6">
-                      <Zap className="w-16 h-16 text-primary mx-auto" />
+                      <div className="flex justify-center">
+                        <div className="p-4 rounded-full bg-primary/10">
+                          <Bot className="w-16 h-16 text-primary" />
+                        </div>
+                      </div>
                       <div>
-                        <h4 className="font-bold text-2xl">Autorização de Participação</h4>
+                        <h4 className="font-bold text-2xl">Autorização de Participação do Robô</h4>
                         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
-                          Ao clicar, você autoriza a IA a enviar proposta no valor de <strong>{formatCurrency(precoFinal)}</strong> e participar automaticamente da disputa em nome da empresa.
+                          Ao clicar, você autoriza o <strong>Robô 24/7</strong> a monitorar esta licitação e participar automaticamente da disputa com proposta de <strong>{formatCurrency(precoFinal)}</strong>.
                         </p>
                       </div>
 
-                      <div className="flex flex-col items-center gap-4">
-                        {licitacao.compliance === 'Inapta' ? (
-                          <Button variant="destructive" size="lg" disabled className="w-full max-w-md h-14 text-lg">
-                            <XCircle className="w-5 h-5 mr-2" />
-                            Empresa Inapta - Participação Bloqueada
-                          </Button>
-                        ) : isExpired ? (
-                          <Button variant="destructive" size="lg" disabled className="w-full max-w-md h-14 text-lg">
-                            <Timer className="w-5 h-5 mr-2" />
-                            Prazo Encerrado
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="default"
-                            size="lg"
-                            className="w-full max-w-md h-14 text-lg bg-success hover:bg-success/90"
-                            onClick={handleAutorizar}
-                            disabled={autorizando}
-                          >
-                            {autorizando ? (
-                              <>
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                Autorizando...
-                              </>
-                            ) : (
-                              <>
-                                <ShieldCheck className="w-5 h-5 mr-2" />
-                                AUTORIZAR PARTICIPAÇÃO
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      {licitacao.status === 'Autorizada' ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="flex items-center gap-2 text-success">
+                            <CheckCircle2 className="w-6 h-6" />
+                            <span className="font-semibold text-lg">Já Autorizada</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            O robô está monitorando esta licitação. Acompanhe na aba "Participações".
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-4">
+                          {licitacao.compliance === 'Inapta' ? (
+                            <Button variant="destructive" size="lg" disabled className="w-full max-w-md h-14 text-lg">
+                              <XCircle className="w-5 h-5 mr-2" />
+                              Empresa Inapta - Participação Bloqueada
+                            </Button>
+                          ) : isExpired ? (
+                            <Button variant="destructive" size="lg" disabled className="w-full max-w-md h-14 text-lg">
+                              <Timer className="w-5 h-5 mr-2" />
+                              Prazo Encerrado
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="default"
+                              size="lg"
+                              className="w-full max-w-md h-14 text-lg bg-success hover:bg-success/90"
+                              onClick={handleAutorizar}
+                              disabled={autorizarMutation.isPending}
+                            >
+                              {autorizarMutation.isPending ? (
+                                <>
+                                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                  Autorizando...
+                                </>
+                              ) : (
+                                <>
+                                  <Bot className="w-5 h-5 mr-2" />
+                                  AUTORIZAR ROBÔ PARTICIPAR
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Scale className="w-4 h-4" />
