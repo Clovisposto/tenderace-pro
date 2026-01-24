@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Licitacao } from '@/types/licitacao';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
 
 interface LicitacaoCardProps {
   licitacao: Licitacao;
@@ -43,6 +45,7 @@ const statusColors = {
 
 export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardProps) {
   const queryClient = useQueryClient();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
   const autorizarMutation = useMutation({
     mutationFn: async () => {
@@ -54,24 +57,29 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
       if (error) throw error;
     },
     onSuccess: () => {
+      setShowConfirmDialog(false);
       queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
       queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
       toast({
-        title: "Robô Autorizado!",
-        description: `O robô agora vai participar automaticamente da licitação.`,
+        title: "✅ Robô Autorizado com Sucesso!",
+        description: `O robô foi autorizado a participar da licitação ${licitacao.numero}. Monitoramento 24/7 ativo.`,
       });
     },
     onError: () => {
       toast({
-        title: "Erro",
+        title: "Erro na Autorização",
         description: "Não foi possível autorizar. Tente novamente.",
         variant: "destructive",
       });
     },
   });
 
-  const handleAutorizar = (e: React.MouseEvent) => {
+  const handleOpenConfirmDialog = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmAutorizar = () => {
     autorizarMutation.mutate();
   };
 
@@ -160,15 +168,10 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
               <Button 
                 variant="default" 
                 size="sm"
-                onClick={handleAutorizar}
-                disabled={autorizarMutation.isPending}
+                onClick={handleOpenConfirmDialog}
                 className="gap-1.5"
               >
-                {autorizarMutation.isPending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Bot className="w-3.5 h-3.5" />
-                )}
+                <Bot className="w-3.5 h-3.5" />
                 Autorizar
               </Button>
             )}
@@ -179,6 +182,22 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AutorizacaoConfirmDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        licitacao={{
+          numero: licitacao.numero,
+          orgao: licitacao.orgao,
+          objeto: licitacao.objeto || licitacao.objetoResumido,
+          valor: licitacao.valor,
+          modalidade: licitacao.modalidade,
+          portal: licitacao.portal,
+        }}
+        onConfirm={handleConfirmAutorizar}
+        isPending={autorizarMutation.isPending}
+      />
     </div>
   );
 }
