@@ -11,7 +11,8 @@ import {
   Globe,
   BookOpen,
   Plug,
-  Shield
+  Shield,
+  Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Portal BLL', href: '/portal', icon: Globe },
   { name: 'Licitações', href: '/licitacoes', icon: FileSearch },
+  { name: 'Participações', href: '/participacoes', icon: Trophy },
   { name: 'Medicamentos', href: '/medicamentos', icon: Pill },
   { name: 'Empreendimentos', href: '/empreendimentos', icon: Briefcase },
   { name: 'Empresas', href: '/empresas', icon: Building2 },
