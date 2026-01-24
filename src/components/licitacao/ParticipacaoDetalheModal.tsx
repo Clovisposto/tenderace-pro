@@ -38,12 +38,14 @@ import {
   FileSignature,
   Sparkles,
   Loader2,
+  Gavel,
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { RobotActionLog } from './RobotActionLog';
 
 interface Participacao {
   id: string;
@@ -208,22 +210,26 @@ export function ParticipacaoDetalheModal({
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4 shrink-0">
+          <TabsList className="grid w-full grid-cols-5 shrink-0">
             <TabsTrigger value="resumo" className="gap-1.5">
               <FileText className="w-4 h-4" />
-              Resumo
+              <span className="hidden sm:inline">Resumo</span>
+            </TabsTrigger>
+            <TabsTrigger value="robo" className="gap-1.5">
+              <Gavel className="w-4 h-4" />
+              <span className="hidden sm:inline">Robô</span>
             </TabsTrigger>
             <TabsTrigger value="contrato" className="gap-1.5">
               <FileSignature className="w-4 h-4" />
-              Contrato
+              <span className="hidden sm:inline">Contrato</span>
             </TabsTrigger>
             <TabsTrigger value="atualizacao" className="gap-1.5">
               <Sparkles className="w-4 h-4" />
-              IA 24/7
+              <span className="hidden sm:inline">IA 24/7</span>
             </TabsTrigger>
             <TabsTrigger value="historico" className="gap-1.5">
               <Activity className="w-4 h-4" />
-              Histórico
+              <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
           </TabsList>
 
@@ -365,6 +371,17 @@ export function ParticipacaoDetalheModal({
                   </Badge>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Robô Tab - Log de Ações em Tempo Real */}
+            <TabsContent value="robo" className="m-0">
+              <RobotActionLog
+                licitacaoId={licitacao.id}
+                propostaId={participacao.id}
+                empresaId={participacao.empresa_id}
+                valorProposta={participacao.valor_proposta}
+                status={participacao.status}
+              />
             </TabsContent>
 
             {/* Contrato Tab */}
