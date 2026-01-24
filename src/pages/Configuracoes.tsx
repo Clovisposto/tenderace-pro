@@ -360,17 +360,22 @@ const Configuracoes = () => {
                       const municipiosSelecionados = configs.municipiosPriorizados[estado.uf] || [];
                       
                       return (
-                        <Collapsible key={estado.uf} open={isExpanded && isSelected}>
+                        <Collapsible key={estado.uf} open={isExpanded}>
                           <div className="flex items-center gap-2">
                             <CollapsibleTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => toggleExpandUF(estado.uf)}
-                                disabled={!isSelected}
+                                onClick={() => {
+                                  toggleExpandUF(estado.uf);
+                                  // Se está expandindo e não está selecionado, selecionar automaticamente
+                                  if (!isExpanded && !isSelected) {
+                                    handleToggleUF(estado.uf);
+                                  }
+                                }}
                               >
-                                {isExpanded && isSelected ? (
+                                {isExpanded ? (
                                   <ChevronDown className="w-4 h-4" />
                                 ) : (
                                   <ChevronRight className="w-4 h-4" />
@@ -385,12 +390,16 @@ const Configuracoes = () => {
                                   ? 'bg-primary hover:bg-primary/80' 
                                   : 'hover:bg-primary/20'
                               }`}
-                              onClick={() => handleToggleUF(estado.uf)}
+                              onClick={() => {
+                                handleToggleUF(estado.uf);
+                                // Ao clicar no badge, sempre expande para mostrar cidades
+                                if (!isExpanded) {
+                                  toggleExpandUF(estado.uf);
+                                }
+                              }}
                             >
                               {estado.uf} - {estado.nome}
-                              {!isSelected && (
-                                <span className="text-xs opacity-70">(clique para ver cidades)</span>
-                              )}
+                              <span className="text-xs opacity-70">(ver cidades)</span>
                             </Badge>
                             
                             {isSelected && municipiosSelecionados.length > 0 && (
