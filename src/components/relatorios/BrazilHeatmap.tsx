@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   MapPin, 
   Trophy, 
@@ -13,7 +15,9 @@ import {
   Building2,
   Target,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Search,
+  ArrowUpDown
 } from 'lucide-react';
 
 interface UFData {
@@ -92,9 +96,13 @@ const getStatusBySuccessRate = (rate: number): { label: string; variant: 'defaul
   return { label: 'Sem dados', variant: 'outline' };
 };
 
+type SortOption = 'vitorias' | 'taxaSucesso' | 'valorVencido' | 'total';
+
 export function BrazilHeatmap({ ufData, municipioData = [], onUFClick, selectedUF }: BrazilHeatmapProps) {
   const [hoveredUF, setHoveredUF] = useState<string | null>(null);
   const [showDrillDown, setShowDrillDown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('vitorias');
 
   const ufDataMap = useMemo(() => {
     const map = new Map<string, UFData>();
@@ -102,11 +110,39 @@ export function BrazilHeatmap({ ufData, municipioData = [], onUFClick, selectedU
     return map;
   }, [ufData]);
 
-  const selectedMunicipios = useMemo(() => {
+  const filteredAndSortedMunicipios = useMemo(() => {
     if (!selectedUF) return [];
-    return municipioData
-      .filter(m => m.uf === selectedUF)
-      .sort((a, b) => b.vitorias - a.vitorias || b.taxaSucesso - a.taxaSucesso);
+    
+    let filtered = municipioData.filter(m => m.uf === selectedUF);
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(m => 
+        m.municipio.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'vitorias':
+          return b.vitorias - a.vitorias || b.taxaSucesso - a.taxaSucesso;
+        case 'taxaSucesso':
+          return b.taxaSucesso - a.taxaSucesso || b.vitorias - a.vitorias;
+        case 'valorVencido':
+          return b.valorVencido - a.valorVencido || b.taxaSucesso - a.taxaSucesso;
+        case 'total':
+          return b.total - a.total || b.vitorias - a.vitorias;
+        default:
+          return 0;
+      }
+    });
+  }, [selectedUF, municipioData, searchTerm, sortBy]);
+
+  const totalMunicipiosCount = useMemo(() => {
+    if (!selectedUF) return 0;
+    return municipioData.filter(m => m.uf === selectedUF).length;
   }, [selectedUF, municipioData]);
 
   const hoveredData = hoveredUF ? ufDataMap.get(hoveredUF) : null;
@@ -200,15 +236,67 @@ export function BrazilHeatmap({ ufData, municipioData = [], onUFClick, selectedU
 
             {/* Municipalities List */}
             <div>
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Municípios ({selectedMunicipios.length})
-              </h4>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Municípios 
+                  <Badge variant="secondary" className="ml-1">
+                    {searchTerm ? `${filteredAndSortedMunicipios.length} de ${totalMunicipiosCount}` : totalMunicipiosCount}
+                  </Badge>
+                </h4>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar município..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8 h-9 w-full sm:w-[200px]"
+                    />
+                  </div>
+                  
+                  {/* Sort Select */}
+                  <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                    <SelectTrigger className="h-9 w-full sm:w-[180px]">
+                      <ArrowUpDown className="w-3.5 h-3.5 mr-2" />
+                      <SelectValue placeholder="Ordenar por" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vitorias">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-3.5 h-3.5 text-success" />
+                          Mais vitórias
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="taxaSucesso">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-3.5 h-3.5 text-primary" />
+                          Maior taxa de sucesso
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="valorVencido">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-3.5 h-3.5 text-success" />
+                          Maior valor vencido
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="total">
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                          Mais licitações
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               
-              {selectedMunicipios.length > 0 ? (
-                <ScrollArea className="h-[400px] pr-4">
+              {filteredAndSortedMunicipios.length > 0 ? (
+                <ScrollArea className="h-[350px] pr-4">
                   <div className="space-y-2">
-                    {selectedMunicipios.map((m, index) => (
+                    {filteredAndSortedMunicipios.map((m, index) => (
                       <div
                         key={`${m.municipio}-${m.uf}`}
                         className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
@@ -268,21 +356,38 @@ export function BrazilHeatmap({ ufData, municipioData = [], onUFClick, selectedU
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhum município com licitações</p>
-                  <p className="text-xs mt-1">Clique em outro estado para ver detalhes</p>
+                  {searchTerm ? (
+                    <>
+                      <p>Nenhum município encontrado</p>
+                      <p className="text-xs mt-1">Tente buscar com outro termo</p>
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        onClick={() => setSearchTerm('')}
+                        className="mt-2"
+                      >
+                        Limpar busca
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p>Nenhum município com licitações</p>
+                      <p className="text-xs mt-1">Clique em outro estado para ver detalhes</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Alert for low performance municipalities */}
-            {selectedMunicipios.filter(m => m.taxaSucesso > 0 && m.taxaSucesso < 40).length > 0 && (
+            {filteredAndSortedMunicipios.filter(m => m.taxaSucesso > 0 && m.taxaSucesso < 40).length > 0 && (
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertTriangle className="w-4 h-4" />
                   <span className="font-medium">Municípios com Baixa Performance</span>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {selectedMunicipios
+                  {filteredAndSortedMunicipios
                     .filter(m => m.taxaSucesso > 0 && m.taxaSucesso < 40)
                     .slice(0, 5)
                     .map(m => (
