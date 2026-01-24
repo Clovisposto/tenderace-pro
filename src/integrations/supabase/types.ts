@@ -150,6 +150,7 @@ export type Database = {
           notificacoes_email: boolean | null
           notificacoes_push: boolean | null
           prioridade_interior: boolean | null
+          tipos_licitacao: string[] | null
           ufs_priorizadas: string[] | null
           updated_at: string
           user_id: string
@@ -166,6 +167,7 @@ export type Database = {
           notificacoes_email?: boolean | null
           notificacoes_push?: boolean | null
           prioridade_interior?: boolean | null
+          tipos_licitacao?: string[] | null
           ufs_priorizadas?: string[] | null
           updated_at?: string
           user_id: string
@@ -182,6 +184,7 @@ export type Database = {
           notificacoes_email?: boolean | null
           notificacoes_push?: boolean | null
           prioridade_interior?: boolean | null
+          tipos_licitacao?: string[] | null
           ufs_priorizadas?: string[] | null
           updated_at?: string
           user_id?: string
