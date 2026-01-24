@@ -165,6 +165,17 @@ const Configuracoes = () => {
         municipiosPriorizados: newMunicipios,
       };
     });
+    
+    // Ao selecionar, automaticamente expande para mostrar as cidades
+    setExpandedUFs(prev => {
+      const isCurrentlySelected = configs.ufsPriorizadas.includes(uf);
+      if (!isCurrentlySelected) {
+        // Está sendo adicionado, então expande
+        return prev.includes(uf) ? prev : [...prev, uf];
+      }
+      // Está sendo removido, mantém o estado atual
+      return prev;
+    });
   };
 
   const handleToggleMunicipio = (uf: string, municipio: string) => {
@@ -317,8 +328,8 @@ const Configuracoes = () => {
 
           <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
             <p className="text-sm text-muted-foreground">
-              <strong>Dica:</strong> Clique em um estado para selecioná-lo. Clique na seta para expandir e escolher municípios específicos.
-              Se nenhum município for selecionado, todas as licitações do estado serão captadas.
+              <strong>Dica:</strong> Clique em um estado para selecioná-lo e ver as cidades disponíveis. 
+              Escolha cidades específicas ou deixe em branco para captar todas as licitações do estado.
             </p>
           </div>
 
@@ -369,7 +380,7 @@ const Configuracoes = () => {
                             
                             <Badge
                               variant={isSelected ? "default" : "outline"}
-                              className={`cursor-pointer transition-all hover:scale-105 ${
+                              className={`cursor-pointer transition-all hover:scale-105 flex items-center gap-1 ${
                                 isSelected 
                                   ? 'bg-primary hover:bg-primary/80' 
                                   : 'hover:bg-primary/20'
@@ -377,53 +388,74 @@ const Configuracoes = () => {
                               onClick={() => handleToggleUF(estado.uf)}
                             >
                               {estado.uf} - {estado.nome}
+                              {!isSelected && (
+                                <span className="text-xs opacity-70">(clique para ver cidades)</span>
+                              )}
                             </Badge>
                             
                             {isSelected && municipiosSelecionados.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {municipiosSelecionados.length} cidades
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <Building2 className="w-3 h-3" />
+                                {municipiosSelecionados.length} cidades selecionadas
                               </Badge>
                             )}
                             
                             {isSelected && municipiosSelecionados.length === 0 && (
-                              <span className="text-xs text-muted-foreground">Todos os municípios</span>
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                Todas as cidades
+                              </Badge>
                             )}
                           </div>
                           
                           <CollapsibleContent className="ml-8 mt-2">
-                            <div className="p-3 rounded-lg bg-secondary/30 space-y-3">
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleSelectAllMunicipiosUF(estado.uf)}
-                                >
-                                  Selecionar Todas
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleClearMunicipiosUF(estado.uf)}
-                                >
-                                  Limpar (Captar Todos)
-                                </Button>
+                            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium">
+                                  Cidades de {estado.nome} ({municipiosDisponiveis.length} disponíveis)
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleSelectAllMunicipiosUF(estado.uf)}
+                                  >
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Selecionar Todas
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleClearMunicipiosUF(estado.uf)}
+                                  >
+                                    <X className="w-3 h-3 mr-1" />
+                                    Limpar
+                                  </Button>
+                                </div>
                               </div>
                               
-                              <ScrollArea className="h-40">
-                                <div className="flex flex-wrap gap-1.5">
+                              <div className="p-2 rounded bg-muted/50 text-xs text-muted-foreground">
+                                💡 Selecione as cidades específicas onde deseja participar de licitações. 
+                                Se nenhuma for selecionada, captaremos todas as licitações do estado.
+                              </div>
+                              
+                              <ScrollArea className="h-48">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                   {municipiosDisponiveis.map(municipio => (
-                                    <Badge
+                                    <div
                                       key={municipio}
-                                      variant={municipiosSelecionados.includes(municipio) ? "default" : "outline"}
-                                      className={`cursor-pointer text-xs transition-all ${
-                                        municipiosSelecionados.includes(municipio)
-                                          ? 'bg-accent hover:bg-accent/80'
-                                          : 'hover:bg-accent/20'
-                                      }`}
                                       onClick={() => handleToggleMunicipio(estado.uf, municipio)}
+                                      className={`p-2 rounded-lg border cursor-pointer transition-all text-sm flex items-center gap-2 ${
+                                        municipiosSelecionados.includes(municipio)
+                                          ? 'border-primary bg-primary/10 text-primary'
+                                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                      }`}
                                     >
-                                      {municipio}
-                                    </Badge>
+                                      <Checkbox 
+                                        checked={municipiosSelecionados.includes(municipio)}
+                                        onCheckedChange={() => handleToggleMunicipio(estado.uf, municipio)}
+                                      />
+                                      <span className="truncate">{municipio}</span>
+                                    </div>
                                   ))}
                                 </div>
                               </ScrollArea>
