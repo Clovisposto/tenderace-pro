@@ -7,10 +7,12 @@ import {
   Bot,
   DollarSign,
   FileText,
+  MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RobotPerformanceDashboard } from '@/components/relatorios/RobotPerformanceDashboard';
+import { GeographicPerformanceDashboard } from '@/components/relatorios/GeographicPerformanceDashboard';
 
 const Relatorios = () => {
   return (
@@ -27,10 +29,14 @@ const Relatorios = () => {
         </div>
 
         <Tabs defaultValue="robo">
-          <TabsList className="grid w-full grid-cols-4 max-w-xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
             <TabsTrigger value="robo" className="gap-1.5">
               <Bot className="w-4 h-4" />
               <span className="hidden sm:inline">Robô</span>
+            </TabsTrigger>
+            <TabsTrigger value="geografico" className="gap-1.5">
+              <MapPin className="w-4 h-4" />
+              <span className="hidden sm:inline">Geográfico</span>
             </TabsTrigger>
             <TabsTrigger value="performance" className="gap-1.5">
               <TrendingUp className="w-4 h-4" />
@@ -49,6 +55,11 @@ const Relatorios = () => {
           {/* Robot Performance Dashboard */}
           <TabsContent value="robo" className="space-y-6 mt-6">
             <RobotPerformanceDashboard />
+          </TabsContent>
+
+          {/* Geographic Performance Dashboard */}
+          <TabsContent value="geografico" className="space-y-6 mt-6">
+            <GeographicPerformanceDashboard />
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6 mt-6">
