@@ -7,10 +7,16 @@ import {
   Building2, 
   ChevronRight,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Bot,
+  Check,
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface LicitacaoCardProps {
   licitacao: Licitacao;
@@ -36,6 +42,39 @@ const statusColors = {
 };
 
 export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardProps) {
+  const queryClient = useQueryClient();
+  
+  const autorizarMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('licitacoes')
+        .update({ status: 'Autorizada' })
+        .eq('id', licitacao.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
+      toast({
+        title: "Robô Autorizado!",
+        description: `O robô agora vai participar automaticamente da licitação.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível autorizar. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAutorizar = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    autorizarMutation.mutate();
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -49,6 +88,7 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
   });
 
   const isUrgent = licitacao.dataLimite.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+  const isAutorizada = licitacao.status === 'Autorizada';
 
   return (
     <div 
@@ -110,9 +150,33 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
             <p className="text-xl font-bold gradient-text">{formatCurrency(licitacao.valor)}</p>
           </div>
           
-          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <ChevronRight className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAutorizada ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 text-success text-xs font-medium">
+                <Check className="w-3.5 h-3.5" />
+                Robô Ativo
+              </div>
+            ) : (
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={handleAutorizar}
+                disabled={autorizarMutation.isPending}
+                className="gap-1.5"
+              >
+                {autorizarMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Bot className="w-3.5 h-3.5" />
+                )}
+                Autorizar
+              </Button>
+            )}
+            
+            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
