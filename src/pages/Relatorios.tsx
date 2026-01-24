@@ -3,10 +3,14 @@ import {
   BarChart3, 
   TrendingUp, 
   Calendar,
-  Download
+  Download,
+  Bot,
+  DollarSign,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RobotPerformanceDashboard } from '@/components/relatorios/RobotPerformanceDashboard';
 
 const Relatorios = () => {
   return (
@@ -18,16 +22,34 @@ const Relatorios = () => {
           </p>
           <Button variant="outline" className="gap-2">
             <Download className="w-4 h-4" />
-            Exportar
+            Exportar Tudo
           </Button>
         </div>
 
-        <Tabs defaultValue="performance">
-          <TabsList>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="captacao">Captação</TabsTrigger>
+        <Tabs defaultValue="robo">
+          <TabsList className="grid w-full grid-cols-4 max-w-xl">
+            <TabsTrigger value="robo" className="gap-1.5">
+              <Bot className="w-4 h-4" />
+              <span className="hidden sm:inline">Robô</span>
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="gap-1.5">
+              <TrendingUp className="w-4 h-4" />
+              <span className="hidden sm:inline">Performance</span>
+            </TabsTrigger>
+            <TabsTrigger value="financeiro" className="gap-1.5">
+              <DollarSign className="w-4 h-4" />
+              <span className="hidden sm:inline">Financeiro</span>
+            </TabsTrigger>
+            <TabsTrigger value="captacao" className="gap-1.5">
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Captação</span>
+            </TabsTrigger>
           </TabsList>
+
+          {/* Robot Performance Dashboard */}
+          <TabsContent value="robo" className="space-y-6 mt-6">
+            <RobotPerformanceDashboard />
+          </TabsContent>
 
           <TabsContent value="performance" className="space-y-6 mt-6">
             {/* Performance Overview */}
