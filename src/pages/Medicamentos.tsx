@@ -3,25 +3,33 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
 import { LicitacaoDetalheCompleto } from '@/components/licitacao/LicitacaoDetalheCompleto';
 import { useLicitacoes } from '@/hooks/useLicitacoes';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Licitacao } from '@/types/licitacao';
-import { Pill, TrendingUp, FileText, Clock, RefreshCw, MapPin } from 'lucide-react';
+import { Pill, TrendingUp, FileText, Clock, RefreshCw, MapPin, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-const UFS_PERMITIDAS = ['PA', 'TO', 'GO', 'MA'];
+import { Link } from 'react-router-dom';
 
 const Medicamentos = () => {
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [capturando, setCapturando] = useState(false);
   const { data: licitacoesDB, isLoading, refetch } = useLicitacoes();
+  const { data: configuracoes } = useConfiguracoes();
+
+  // Estados prioritários do usuário ou padrão
+  const ufsPrioritarias = useMemo(() => {
+    return configuracoes?.ufs_priorizadas && configuracoes.ufs_priorizadas.length > 0
+      ? configuracoes.ufs_priorizadas
+      : ['PA', 'TO', 'GO', 'MA'];
+  }, [configuracoes]);
 
   // Filter by segment and allowed states
   const medicamentos = useMemo(() => {
     if (!licitacoesDB) return [];
     return licitacoesDB
-      .filter(l => l.segmento === 'Medicamentos' && UFS_PERMITIDAS.includes(l.uf))
+      .filter(l => l.segmento === 'Medicamentos' && ufsPrioritarias.includes(l.uf))
       .map(l => ({
         id: l.id,
         numero: l.numero,
@@ -46,17 +54,17 @@ const Medicamentos = () => {
         editalAnalisado: l.edital_analisado || false,
         editalUrl: l.edital_url,
       }));
-  }, [licitacoesDB]);
+  }, [licitacoesDB, ufsPrioritarias]);
 
   const stats = useMemo(() => ({
     total: medicamentos.length,
     valorTotal: medicamentos.reduce((acc, l) => acc + l.valor, 0),
     aguardando: medicamentos.filter(l => l.status === 'Aguardando Autorização').length,
-    porUf: UFS_PERMITIDAS.reduce((acc, uf) => {
+    porUf: ufsPrioritarias.reduce((acc, uf) => {
       acc[uf] = medicamentos.filter(l => l.uf === uf).length;
       return acc;
     }, {} as Record<string, number>),
-  }), [medicamentos]);
+  }), [medicamentos, ufsPrioritarias]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -71,14 +79,14 @@ const Medicamentos = () => {
       const { data, error } = await supabase.functions.invoke('capturar-multiportal', {
         body: { 
           segmento: 'Medicamentos',
-          ufs: UFS_PERMITIDAS
+          ufs: ufsPrioritarias
         }
       });
 
       if (error) throw error;
 
       toast.success('Captura iniciada!', {
-        description: `Buscando licitações de medicamentos em ${UFS_PERMITIDAS.join(', ')}`
+        description: `Buscando licitações de medicamentos em ${ufsPrioritarias.join(', ')}`
       });
       
       setTimeout(() => refetch(), 2000);
@@ -97,26 +105,36 @@ const Medicamentos = () => {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Licitações de Medicamentos</h2>
-            <p className="text-sm text-muted-foreground">Captando apenas de: PA, TO, GO, MA</p>
+            <p className="text-sm text-muted-foreground">
+              Captando de {ufsPrioritarias.length} estados: {ufsPrioritarias.slice(0, 4).join(', ')}{ufsPrioritarias.length > 4 ? '...' : ''}
+            </p>
           </div>
-          <Button 
-            onClick={handleCapturar} 
-            disabled={capturando}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${capturando ? 'animate-spin' : ''}`} />
-            {capturando ? 'Capturando...' : 'Capturar Licitações'}
-          </Button>
+          <div className="flex gap-2">
+            <Link to="/configuracoes">
+              <Button variant="outline" size="sm" className="gap-1">
+                <Settings className="w-4 h-4" />
+                Estados
+              </Button>
+            </Link>
+            <Button 
+              onClick={handleCapturar} 
+              disabled={capturando}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${capturando ? 'animate-spin' : ''}`} />
+              {capturando ? 'Capturando...' : 'Capturar Licitações'}
+            </Button>
+          </div>
         </div>
 
         {/* States Banner */}
         <div className="glass-card p-4 border-l-4 border-primary">
           <div className="flex items-center gap-2 mb-3">
             <MapPin className="w-4 h-4 text-primary" />
-            <span className="font-semibold text-foreground">Estados Prioritários</span>
+            <span className="font-semibold text-foreground">Estados Prioritários ({ufsPrioritarias.length} selecionados)</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {UFS_PERMITIDAS.map(uf => (
+            {ufsPrioritarias.map(uf => (
               <Badge key={uf} variant="secondary" className="gap-1">
                 {uf}: {stats.porUf[uf] || 0} licitações
               </Badge>
@@ -169,7 +187,7 @@ const Medicamentos = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Estados Ativos</p>
-                <p className="text-2xl font-bold">{UFS_PERMITIDAS.length}</p>
+                <p className="text-2xl font-bold">{ufsPrioritarias.length}</p>
               </div>
             </div>
           </div>

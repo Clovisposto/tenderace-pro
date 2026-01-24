@@ -1,5 +1,8 @@
 project_id = "ccsmnqqwobrsvepwacrg"
 
+[functions.verificar-compliance]
+verify_jwt = false
+
 [functions.capturar-multiportal]
 verify_jwt = false
 

@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { 
   Settings as SettingsIcon,
   Bell,
@@ -11,10 +13,46 @@ import {
   DollarSign,
   Clock,
   Save,
-  RefreshCw
+  RefreshCw,
+  MapPin,
+  Globe,
+  CheckCircle2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useConfiguracoes, useUpdateConfiguracoes } from '@/hooks/useConfiguracoes';
+
+// Todos os 27 estados brasileiros
+const TODOS_ESTADOS = [
+  { uf: 'AC', nome: 'Acre', regiao: 'Norte' },
+  { uf: 'AL', nome: 'Alagoas', regiao: 'Nordeste' },
+  { uf: 'AP', nome: 'Amapá', regiao: 'Norte' },
+  { uf: 'AM', nome: 'Amazonas', regiao: 'Norte' },
+  { uf: 'BA', nome: 'Bahia', regiao: 'Nordeste' },
+  { uf: 'CE', nome: 'Ceará', regiao: 'Nordeste' },
+  { uf: 'DF', nome: 'Distrito Federal', regiao: 'Centro-Oeste' },
+  { uf: 'ES', nome: 'Espírito Santo', regiao: 'Sudeste' },
+  { uf: 'GO', nome: 'Goiás', regiao: 'Centro-Oeste' },
+  { uf: 'MA', nome: 'Maranhão', regiao: 'Nordeste' },
+  { uf: 'MT', nome: 'Mato Grosso', regiao: 'Centro-Oeste' },
+  { uf: 'MS', nome: 'Mato Grosso do Sul', regiao: 'Centro-Oeste' },
+  { uf: 'MG', nome: 'Minas Gerais', regiao: 'Sudeste' },
+  { uf: 'PA', nome: 'Pará', regiao: 'Norte' },
+  { uf: 'PB', nome: 'Paraíba', regiao: 'Nordeste' },
+  { uf: 'PR', nome: 'Paraná', regiao: 'Sul' },
+  { uf: 'PE', nome: 'Pernambuco', regiao: 'Nordeste' },
+  { uf: 'PI', nome: 'Piauí', regiao: 'Nordeste' },
+  { uf: 'RJ', nome: 'Rio de Janeiro', regiao: 'Sudeste' },
+  { uf: 'RN', nome: 'Rio Grande do Norte', regiao: 'Nordeste' },
+  { uf: 'RS', nome: 'Rio Grande do Sul', regiao: 'Sul' },
+  { uf: 'RO', nome: 'Rondônia', regiao: 'Norte' },
+  { uf: 'RR', nome: 'Roraima', regiao: 'Norte' },
+  { uf: 'SC', nome: 'Santa Catarina', regiao: 'Sul' },
+  { uf: 'SP', nome: 'São Paulo', regiao: 'Sudeste' },
+  { uf: 'SE', nome: 'Sergipe', regiao: 'Nordeste' },
+  { uf: 'TO', nome: 'Tocantins', regiao: 'Norte' },
+];
+
+const REGIOES = ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul'];
 
 const Configuracoes = () => {
   const { data: savedConfig, isLoading } = useConfiguracoes();
@@ -29,6 +67,7 @@ const Configuracoes = () => {
     notificacoesPush: true,
     captacaoContinua: true,
     prioridadeInterior: true,
+    ufsPriorizadas: ['PA', 'TO', 'GO', 'MA'] as string[],
   });
 
   useEffect(() => {
@@ -42,9 +81,50 @@ const Configuracoes = () => {
         notificacoesPush: savedConfig.notificacoes_push ?? true,
         captacaoContinua: savedConfig.captacao_continua ?? true,
         prioridadeInterior: savedConfig.prioridade_interior ?? true,
+        ufsPriorizadas: savedConfig.ufs_priorizadas || ['PA', 'TO', 'GO', 'MA'],
       });
     }
   }, [savedConfig]);
+
+  const handleToggleUF = (uf: string) => {
+    setConfigs(prev => ({
+      ...prev,
+      ufsPriorizadas: prev.ufsPriorizadas.includes(uf)
+        ? prev.ufsPriorizadas.filter(u => u !== uf)
+        : [...prev.ufsPriorizadas, uf]
+    }));
+  };
+
+  const handleToggleRegiao = (regiao: string) => {
+    const ufsRegiao = TODOS_ESTADOS.filter(e => e.regiao === regiao).map(e => e.uf);
+    const todasSelecionadas = ufsRegiao.every(uf => configs.ufsPriorizadas.includes(uf));
+    
+    if (todasSelecionadas) {
+      setConfigs(prev => ({
+        ...prev,
+        ufsPriorizadas: prev.ufsPriorizadas.filter(uf => !ufsRegiao.includes(uf))
+      }));
+    } else {
+      setConfigs(prev => ({
+        ...prev,
+        ufsPriorizadas: [...new Set([...prev.ufsPriorizadas, ...ufsRegiao])]
+      }));
+    }
+  };
+
+  const handleSelectAll = () => {
+    setConfigs(prev => ({
+      ...prev,
+      ufsPriorizadas: TODOS_ESTADOS.map(e => e.uf)
+    }));
+  };
+
+  const handleClearAll = () => {
+    setConfigs(prev => ({
+      ...prev,
+      ufsPriorizadas: []
+    }));
+  };
 
   const handleSave = () => {
     updateConfig.mutate({
@@ -56,12 +136,78 @@ const Configuracoes = () => {
       notificacoes_push: configs.notificacoesPush,
       captacao_continua: configs.captacaoContinua,
       prioridade_interior: configs.prioridadeInterior,
+      ufs_priorizadas: configs.ufsPriorizadas,
     });
   };
 
   return (
     <MainLayout title="Configurações">
-      <div className="max-w-3xl space-y-8">
+      <div className="max-w-4xl space-y-8">
+        {/* Estados Prioritários */}
+        <div className="glass-card p-6 space-y-6 animate-slide-up opacity-0" style={{ animationDelay: '50ms', animationFillMode: 'forwards' }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <MapPin className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Estados Prioritários para Captação</h3>
+              <p className="text-sm text-muted-foreground">Selecione os estados onde deseja participar de licitações</p>
+            </div>
+            <Badge variant="outline" className="gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              {configs.ufsPriorizadas.length} selecionados
+            </Badge>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              Selecionar Todos
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleClearAll}>
+              Limpar Seleção
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {REGIOES.map(regiao => {
+              const estadosRegiao = TODOS_ESTADOS.filter(e => e.regiao === regiao);
+              const selecionados = estadosRegiao.filter(e => configs.ufsPriorizadas.includes(e.uf)).length;
+              const todosRegiao = selecionados === estadosRegiao.length;
+              
+              return (
+                <div key={regiao} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={todosRegiao}
+                      onCheckedChange={() => handleToggleRegiao(regiao)}
+                    />
+                    <span className="font-medium text-sm">{regiao}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {selecionados}/{estadosRegiao.length}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2 ml-6">
+                    {estadosRegiao.map(estado => (
+                      <Badge
+                        key={estado.uf}
+                        variant={configs.ufsPriorizadas.includes(estado.uf) ? "default" : "outline"}
+                        className={`cursor-pointer transition-all hover:scale-105 ${
+                          configs.ufsPriorizadas.includes(estado.uf) 
+                            ? 'bg-primary hover:bg-primary/80' 
+                            : 'hover:bg-primary/20'
+                        }`}
+                        onClick={() => handleToggleUF(estado.uf)}
+                      >
+                        {estado.uf}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Políticas de Captação */}
         <div className="glass-card p-6 space-y-6 animate-slide-up opacity-0" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
           <div className="flex items-center gap-3">
@@ -122,16 +268,22 @@ const Configuracoes = () => {
               <Zap className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h3 className="font-semibold">Automação</h3>
-              <p className="text-sm text-muted-foreground">Configure o comportamento automático da IA</p>
+              <h3 className="font-semibold">Automação 24/7</h3>
+              <p className="text-sm text-muted-foreground">Configure o comportamento automático do sistema</p>
             </div>
+            {configs.captacaoContinua && (
+              <Badge className="bg-success/20 text-success ml-auto animate-pulse">
+                <Globe className="w-3 h-3 mr-1" />
+                Ativo
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/30">
               <div>
                 <p className="font-medium">Captação Contínua 24/7</p>
-                <p className="text-sm text-muted-foreground">Buscar novas licitações automaticamente</p>
+                <p className="text-sm text-muted-foreground">Buscar novas licitações automaticamente a cada hora</p>
               </div>
               <Switch
                 checked={configs.captacaoContinua}
