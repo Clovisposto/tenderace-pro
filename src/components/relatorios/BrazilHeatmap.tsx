@@ -1,7 +1,20 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Trophy, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  MapPin, 
+  Trophy, 
+  TrendingUp, 
+  AlertTriangle, 
+  ChevronLeft,
+  Building2,
+  Target,
+  DollarSign,
+  BarChart3
+} from 'lucide-react';
 
 interface UFData {
   uf: string;
@@ -12,8 +25,20 @@ interface UFData {
   valorVencido: number;
 }
 
+interface MunicipioData {
+  municipio: string;
+  uf: string;
+  total: number;
+  vitorias: number;
+  perdidas: number;
+  taxaSucesso: number;
+  valorTotal: number;
+  valorVencido: number;
+}
+
 interface BrazilHeatmapProps {
   ufData: UFData[];
+  municipioData?: MunicipioData[];
   onUFClick?: (uf: string) => void;
   selectedUF?: string | null;
 }
@@ -50,12 +75,12 @@ const BRAZIL_STATES: Record<string, { path: string; name: string; cx: number; cy
 };
 
 const getColorBySuccessRate = (rate: number): string => {
-  if (rate >= 80) return '#22c55e'; // Green - Excellent
-  if (rate >= 60) return '#84cc16'; // Lime - Good
-  if (rate >= 40) return '#eab308'; // Yellow - Average
-  if (rate >= 20) return '#f97316'; // Orange - Below average
-  if (rate > 0) return '#ef4444';  // Red - Poor
-  return '#6b7280'; // Gray - No data
+  if (rate >= 80) return '#22c55e';
+  if (rate >= 60) return '#84cc16';
+  if (rate >= 40) return '#eab308';
+  if (rate >= 20) return '#f97316';
+  if (rate > 0) return '#ef4444';
+  return '#6b7280';
 };
 
 const getStatusBySuccessRate = (rate: number): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
@@ -67,14 +92,22 @@ const getStatusBySuccessRate = (rate: number): { label: string; variant: 'defaul
   return { label: 'Sem dados', variant: 'outline' };
 };
 
-export function BrazilHeatmap({ ufData, onUFClick, selectedUF }: BrazilHeatmapProps) {
+export function BrazilHeatmap({ ufData, municipioData = [], onUFClick, selectedUF }: BrazilHeatmapProps) {
   const [hoveredUF, setHoveredUF] = useState<string | null>(null);
+  const [showDrillDown, setShowDrillDown] = useState(false);
 
   const ufDataMap = useMemo(() => {
     const map = new Map<string, UFData>();
     ufData.forEach(uf => map.set(uf.uf, uf));
     return map;
   }, [ufData]);
+
+  const selectedMunicipios = useMemo(() => {
+    if (!selectedUF) return [];
+    return municipioData
+      .filter(m => m.uf === selectedUF)
+      .sort((a, b) => b.vitorias - a.vitorias || b.taxaSucesso - a.taxaSucesso);
+  }, [selectedUF, municipioData]);
 
   const hoveredData = hoveredUF ? ufDataMap.get(hoveredUF) : null;
   const selectedData = selectedUF ? ufDataMap.get(selectedUF) : null;
@@ -88,212 +121,345 @@ export function BrazilHeatmap({ ufData, onUFClick, selectedUF }: BrazilHeatmapPr
     }).format(value);
   };
 
+  const handleUFClick = (uf: string) => {
+    if (selectedUF === uf) {
+      setShowDrillDown(false);
+      onUFClick?.(uf);
+    } else {
+      setShowDrillDown(true);
+      onUFClick?.(uf);
+    }
+  };
+
+  const handleBackToMap = () => {
+    setShowDrillDown(false);
+    onUFClick?.('');
+  };
+
   return (
-    <Card className="glass-card">
+    <Card className="glass-card overflow-hidden">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <MapPin className="w-4 h-4" />
-          Mapa de Performance por Estado
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            {showDrillDown && selectedUF 
+              ? `Municípios de ${BRAZIL_STATES[selectedUF]?.name || selectedUF}`
+              : 'Mapa de Performance por Estado'
+            }
+          </CardTitle>
+          {showDrillDown && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleBackToMap}
+              className="gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Voltar ao Mapa
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Map */}
-          <div className="flex-1 relative">
-            <svg
-              viewBox="0 0 420 420"
-              className="w-full h-auto max-h-[500px]"
-            >
-              {/* Background */}
-              <rect width="420" height="420" fill="transparent" />
-              
-              {/* States */}
-              {Object.entries(BRAZIL_STATES).map(([uf, { path, name }]) => {
-                const data = ufDataMap.get(uf);
-                const successRate = data?.taxaSucesso || 0;
-                const fillColor = getColorBySuccessRate(successRate);
-                const isHovered = hoveredUF === uf;
-                const isSelected = selectedUF === uf;
-                
-                return (
-                  <g key={uf}>
-                    <path
-                      d={path}
-                      fill={fillColor}
-                      stroke={isSelected ? 'hsl(var(--primary))' : isHovered ? 'hsl(var(--foreground))' : 'hsl(var(--border))'}
-                      strokeWidth={isSelected ? 3 : isHovered ? 2 : 1}
-                      className="transition-all duration-200 cursor-pointer"
-                      style={{
-                        filter: isHovered || isSelected ? 'brightness(1.1)' : 'none',
-                        opacity: data ? 1 : 0.4,
-                      }}
-                      onMouseEnter={() => setHoveredUF(uf)}
-                      onMouseLeave={() => setHoveredUF(null)}
-                      onClick={() => onUFClick?.(uf)}
-                    >
-                      <title>{name}: {data ? `${successRate}% de sucesso` : 'Sem dados'}</title>
-                    </path>
-                  </g>
-                );
-              })}
-
-              {/* State Labels */}
-              {Object.entries(BRAZIL_STATES).map(([uf, { cx, cy }]) => {
-                const data = ufDataMap.get(uf);
-                if (!data) return null;
-                
-                return (
-                  <text
-                    key={`label-${uf}`}
-                    x={cx}
-                    y={cy}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="pointer-events-none select-none"
-                    fill="white"
-                    fontSize="9"
-                    fontWeight="bold"
-                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
-                  >
-                    {uf}
-                  </text>
-                );
-              })}
-            </svg>
-
-            {/* Hover Tooltip */}
-            {hoveredData && (
-              <div className="absolute top-4 left-4 bg-card border rounded-lg shadow-lg p-3 min-w-[200px] z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold">{BRAZIL_STATES[hoveredData.uf]?.name || hoveredData.uf}</span>
-                  <Badge variant={getStatusBySuccessRate(hoveredData.taxaSucesso).variant}>
-                    {hoveredData.taxaSucesso}%
-                  </Badge>
+        {/* Drill-down view for municipalities */}
+        {showDrillDown && selectedUF ? (
+          <div className="space-y-4 animate-in slide-in-from-right duration-300">
+            {/* State Summary Header */}
+            {selectedData && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs mb-1">
+                    <BarChart3 className="w-3 h-3" />
+                    Total
+                  </div>
+                  <p className="text-xl font-bold">{selectedData.total}</p>
                 </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Licitações:</span>
-                    <span>{hoveredData.total}</span>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs mb-1">
+                    <Trophy className="w-3 h-3" />
+                    Vitórias
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Vitórias:</span>
-                    <span className="text-success">{hoveredData.vitorias}</span>
+                  <p className="text-xl font-bold text-success">{selectedData.vitorias}</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs mb-1">
+                    <Target className="w-3 h-3" />
+                    Taxa
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Valor Vencido:</span>
-                    <span>{formatCurrency(hoveredData.valorVencido)}</span>
+                  <p className="text-xl font-bold">{selectedData.taxaSucesso}%</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs mb-1">
+                    <DollarSign className="w-3 h-3" />
+                    Valor
                   </div>
+                  <p className="text-xl font-bold text-success">{formatCurrency(selectedData.valorVencido)}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Municipalities List */}
+            <div>
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                Municípios ({selectedMunicipios.length})
+              </h4>
+              
+              {selectedMunicipios.length > 0 ? (
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-2">
+                    {selectedMunicipios.map((m, index) => (
+                      <div
+                        key={`${m.municipio}-${m.uf}`}
+                        className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0 ? 'bg-yellow-500/20 text-yellow-600' :
+                              index === 1 ? 'bg-gray-400/20 text-gray-600' :
+                              index === 2 ? 'bg-orange-500/20 text-orange-600' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium">{m.municipio}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {m.total} licitações captadas
+                              </p>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant={getStatusBySuccessRate(m.taxaSucesso).variant}
+                            className="shrink-0"
+                          >
+                            {m.taxaSucesso}% sucesso
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Performance</span>
+                            <span>
+                              <span className="text-success font-medium">{m.vitorias} vitórias</span>
+                              {m.perdidas > 0 && (
+                                <span className="text-destructive ml-2">{m.perdidas} perdidas</span>
+                              )}
+                            </span>
+                          </div>
+                          
+                          <Progress 
+                            value={m.taxaSucesso} 
+                            className="h-1.5"
+                          />
+                          
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Valor captado: {formatCurrency(m.valorTotal)}</span>
+                            <span className="text-success font-medium">
+                              Vencido: {formatCurrency(m.valorVencido)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhum município com licitações</p>
+                  <p className="text-xs mt-1">Clique em outro estado para ver detalhes</p>
+                </div>
+              )}
+            </div>
+
+            {/* Alert for low performance municipalities */}
+            {selectedMunicipios.filter(m => m.taxaSucesso > 0 && m.taxaSucesso < 40).length > 0 && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-medium">Municípios com Baixa Performance</span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedMunicipios
+                    .filter(m => m.taxaSucesso > 0 && m.taxaSucesso < 40)
+                    .slice(0, 5)
+                    .map(m => (
+                      <Badge key={m.municipio} variant="outline" className="text-xs">
+                        {m.municipio}: {m.taxaSucesso}%
+                      </Badge>
+                    ))}
                 </div>
               </div>
             )}
           </div>
+        ) : (
+          /* Map View */
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Map */}
+            <div className="flex-1 relative">
+              <svg
+                viewBox="0 0 420 420"
+                className="w-full h-auto max-h-[500px]"
+              >
+                <rect width="420" height="420" fill="transparent" />
+                
+                {Object.entries(BRAZIL_STATES).map(([uf, { path, name }]) => {
+                  const data = ufDataMap.get(uf);
+                  const successRate = data?.taxaSucesso || 0;
+                  const fillColor = getColorBySuccessRate(successRate);
+                  const isHovered = hoveredUF === uf;
+                  const isSelected = selectedUF === uf;
+                  
+                  return (
+                    <g key={uf}>
+                      <path
+                        d={path}
+                        fill={fillColor}
+                        stroke={isSelected ? 'hsl(var(--primary))' : isHovered ? 'hsl(var(--foreground))' : 'hsl(var(--border))'}
+                        strokeWidth={isSelected ? 3 : isHovered ? 2 : 1}
+                        className="transition-all duration-200 cursor-pointer"
+                        style={{
+                          filter: isHovered || isSelected ? 'brightness(1.1)' : 'none',
+                          opacity: data ? 1 : 0.4,
+                        }}
+                        onMouseEnter={() => setHoveredUF(uf)}
+                        onMouseLeave={() => setHoveredUF(null)}
+                        onClick={() => handleUFClick(uf)}
+                      >
+                        <title>{name}: {data ? `${successRate}% de sucesso - Clique para ver municípios` : 'Sem dados'}</title>
+                      </path>
+                    </g>
+                  );
+                })}
 
-          {/* Legend and Stats */}
-          <div className="lg:w-64 space-y-4">
-            {/* Legend */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Taxa de Sucesso</h4>
-              <div className="space-y-1">
-                {[
-                  { min: 80, label: '80%+', color: '#22c55e', status: 'Excelente' },
-                  { min: 60, label: '60-79%', color: '#84cc16', status: 'Bom' },
-                  { min: 40, label: '40-59%', color: '#eab308', status: 'Regular' },
-                  { min: 20, label: '20-39%', color: '#f97316', status: 'Baixo' },
-                  { min: 1, label: '1-19%', color: '#ef4444', status: 'Crítico' },
-                  { min: 0, label: '0%', color: '#6b7280', status: 'Sem dados' },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-2 text-xs">
-                    <div 
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="flex-1">{item.label}</span>
-                    <span className="text-muted-foreground">{item.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                {Object.entries(BRAZIL_STATES).map(([uf, { cx, cy }]) => {
+                  const data = ufDataMap.get(uf);
+                  if (!data) return null;
+                  
+                  return (
+                    <text
+                      key={`label-${uf}`}
+                      x={cx}
+                      y={cy}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="pointer-events-none select-none"
+                      fill="white"
+                      fontSize="9"
+                      fontWeight="bold"
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                    >
+                      {uf}
+                    </text>
+                  );
+                })}
+              </svg>
 
-            {/* Selected State Details */}
-            {selectedData && (
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy className="w-4 h-4 text-primary" />
-                  <span className="font-medium">{BRAZIL_STATES[selectedData.uf]?.name}</span>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Taxa de Sucesso</span>
-                    <Badge variant={getStatusBySuccessRate(selectedData.taxaSucesso).variant}>
-                      {selectedData.taxaSucesso}%
+              {/* Hover Tooltip */}
+              {hoveredData && !showDrillDown && (
+                <div className="absolute top-4 left-4 bg-card border rounded-lg shadow-lg p-3 min-w-[220px] z-10 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold">{BRAZIL_STATES[hoveredData.uf]?.name || hoveredData.uf}</span>
+                    <Badge variant={getStatusBySuccessRate(hoveredData.taxaSucesso).variant}>
+                      {hoveredData.taxaSucesso}%
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Total Licitações</span>
-                    <span className="font-medium">{selectedData.total}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Vitórias</span>
-                    <span className="font-medium text-success">{selectedData.vitorias} 🏆</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Perdidas</span>
-                    <span className="font-medium text-destructive">{selectedData.perdidas}</span>
-                  </div>
-                  <div className="pt-2 border-t">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Valor Vencido</span>
-                      <span className="font-medium text-success">{formatCurrency(selectedData.valorVencido)}</span>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Licitações:</span>
+                      <span>{hoveredData.total}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vitórias:</span>
+                      <span className="text-success">{hoveredData.vitorias}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor Vencido:</span>
+                      <span>{formatCurrency(hoveredData.valorVencido)}</span>
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                    Clique para ver municípios →
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Legend and Stats */}
+            <div className="lg:w-64 space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Taxa de Sucesso</h4>
+                <div className="space-y-1">
+                  {[
+                    { min: 80, label: '80%+', color: '#22c55e', status: 'Excelente' },
+                    { min: 60, label: '60-79%', color: '#84cc16', status: 'Bom' },
+                    { min: 40, label: '40-59%', color: '#eab308', status: 'Regular' },
+                    { min: 20, label: '20-39%', color: '#f97316', status: 'Baixo' },
+                    { min: 1, label: '1-19%', color: '#ef4444', status: 'Crítico' },
+                    { min: 0, label: '0%', color: '#6b7280', status: 'Sem dados' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2 text-xs">
+                      <div 
+                        className="w-4 h-4 rounded"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                      <span className="text-muted-foreground">{item.status}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Quick Stats */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Destaques
-              </h4>
-              {ufData
-                .filter(u => u.vitorias > 0)
-                .sort((a, b) => b.taxaSucesso - a.taxaSucesso)
-                .slice(0, 3)
-                .map((uf, i) => (
-                  <div 
-                    key={uf.uf}
-                    className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => onUFClick?.(uf.uf)}
-                  >
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                      i === 0 ? 'bg-yellow-500/20 text-yellow-600' :
-                      i === 1 ? 'bg-gray-400/20 text-gray-600' :
-                      'bg-orange-500/20 text-orange-600'
-                    }`}>
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 font-medium">{uf.uf}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {uf.taxaSucesso}%
-                    </Badge>
-                  </div>
-                ))}
-              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Top Estados
+                </h4>
+                {ufData
+                  .filter(u => u.vitorias > 0)
+                  .sort((a, b) => b.taxaSucesso - a.taxaSucesso)
+                  .slice(0, 3)
+                  .map((uf, i) => (
+                    <div 
+                      key={uf.uf}
+                      className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleUFClick(uf.uf)}
+                    >
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                        i === 0 ? 'bg-yellow-500/20 text-yellow-600' :
+                        i === 1 ? 'bg-gray-400/20 text-gray-600' :
+                        'bg-orange-500/20 text-orange-600'
+                      }`}>
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 font-medium">{uf.uf}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {uf.taxaSucesso}%
+                      </Badge>
+                    </div>
+                  ))}
+              </div>
+
               {ufData.filter(u => u.taxaSucesso > 0 && u.taxaSucesso < 40).length > 0 && (
-                <div className="mt-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <div className="flex items-center gap-2 text-sm text-destructive">
                     <AlertTriangle className="w-4 h-4" />
-                    <span className="font-medium">Atenção Requerida</span>
+                    <span className="font-medium">Atenção</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {ufData.filter(u => u.taxaSucesso > 0 && u.taxaSucesso < 40).length} estados com taxa abaixo de 40%
                   </p>
                 </div>
               )}
+
+              <p className="text-xs text-muted-foreground text-center pt-2 border-t">
+                Clique em um estado para ver os municípios
+              </p>
             </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -170,7 +170,8 @@ export function GeographicPerformanceDashboard() {
       {/* Brazil Heatmap */}
       <BrazilHeatmap 
         ufData={metrics?.ufMetrics || []}
-        onUFClick={(uf) => setSelectedUF(selectedUF === uf ? null : uf)}
+        municipioData={metrics?.municipioMetrics || []}
+        onUFClick={(uf) => setSelectedUF(uf === '' || selectedUF === uf ? null : uf)}
         selectedUF={selectedUF}
       />
 
