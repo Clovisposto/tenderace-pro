@@ -28,6 +28,7 @@ import {
   Pie,
   Legend,
 } from 'recharts';
+import { BrazilHeatmap } from './BrazilHeatmap';
 
 const UF_COLORS: Record<string, string> = {
   'PA': '#22c55e',
@@ -165,6 +166,13 @@ export function GeographicPerformanceDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Brazil Heatmap */}
+      <BrazilHeatmap 
+        ufData={metrics?.ufMetrics || []}
+        onUFClick={(uf) => setSelectedUF(selectedUF === uf ? null : uf)}
+        selectedUF={selectedUF}
+      />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
