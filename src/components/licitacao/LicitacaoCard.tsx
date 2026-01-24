@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Licitacao } from '@/types/licitacao';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,8 @@ const statusColors = {
   'Cancelada': 'bg-muted text-muted-foreground border-muted-foreground/30',
 };
 
-export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardProps) {
+export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
+  ({ licitacao, onClick, delay = 0 }, ref) => {
   const queryClient = useQueryClient();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
@@ -100,6 +101,7 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
 
   return (
     <div 
+      ref={ref}
       className="glass-card p-5 hover:border-primary/30 transition-all duration-300 cursor-pointer group animate-slide-up opacity-0"
       style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
       onClick={onClick}
@@ -200,4 +202,6 @@ export function LicitacaoCard({ licitacao, onClick, delay = 0 }: LicitacaoCardPr
       />
     </div>
   );
-}
+});
+
+LicitacaoCard.displayName = 'LicitacaoCard';
