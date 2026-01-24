@@ -140,6 +140,39 @@ function classifySegmento(objeto: string): 'Medicamentos' | 'Empreendimentos' {
   return keywords.some(k => lower.includes(k)) ? 'Medicamentos' : 'Empreendimentos';
 }
 
+// Classifica se é licitação de compra ou serviço baseado no objeto
+function classifyTipoLicitacao(objeto: string): 'compra' | 'servico' {
+  const lower = objeto.toLowerCase();
+  
+  // Palavras-chave para serviço
+  const servicoKeywords = [
+    'serviço', 'servico', 'manutenção', 'manutencao', 'consultoria', 
+    'obra', 'construção', 'construcao', 'reforma', 'instalação', 'instalacao',
+    'limpeza', 'vigilância', 'vigilancia', 'segurança', 'seguranca',
+    'transporte', 'frete', 'locação', 'locacao', 'aluguel',
+    'prestação', 'prestacao', 'execução', 'execucao', 'contratação de empresa para',
+    'elaboração', 'elaboracao', 'assessoria', 'treinamento', 'capacitação'
+  ];
+  
+  // Palavras-chave para compra
+  const compraKeywords = [
+    'aquisição', 'aquisicao', 'fornecimento', 'compra', 'material',
+    'equipamento', 'produto', 'medicamento', 'mobiliário', 'mobiliario',
+    'veículo', 'veiculo', 'computador', 'impressora', 'suprimento',
+    'gênero', 'genero', 'alimentício', 'alimenticio', 'uniforme'
+  ];
+  
+  const temServico = servicoKeywords.some(k => lower.includes(k));
+  const temCompra = compraKeywords.some(k => lower.includes(k));
+  
+  // Se só tem palavras de serviço ou tem mais indícios de serviço
+  if (temServico && !temCompra) return 'servico';
+  if (!temServico && temCompra) return 'compra';
+  
+  // Se tem ambos ou nenhum, classificar como compra por padrão
+  return 'compra';
+}
+
 function calculateROI(valor: number, modalidade: string): number {
   let base = 70;
   if (modalidade === 'Dispensa com Disputa') base += 10;
@@ -153,6 +186,17 @@ function calculateRisco(prazo: number): number {
   if (prazo < 2) base += 20;
   if (prazo < 5) base += 10;
   return Math.min(80, Math.max(5, base + Math.floor(Math.random() * 10)));
+}
+
+// Verifica se o objeto passa no filtro de tipos de licitação
+function passaTipoFiltro(objeto: string, tiposPermitidos: string[]): boolean {
+  // Se não há filtro ou tem ambos tipos, passa tudo
+  if (!tiposPermitidos || tiposPermitidos.length === 0 || tiposPermitidos.length === 2) {
+    return true;
+  }
+  
+  const tipo = classifyTipoLicitacao(objeto);
+  return tiposPermitidos.includes(tipo);
 }
 
 // Capture from PNCP API - REAL INTEGRATION
@@ -675,6 +719,24 @@ async function getUserUFs(supabase: any, userId?: string): Promise<string[]> {
   return ['PA', 'TO', 'GO', 'MA'];
 }
 
+// Get user's preferred tipos de licitação from configuracoes
+async function getUserTiposLicitacao(supabase: any, userId?: string): Promise<string[]> {
+  if (userId) {
+    const { data } = await supabase
+      .from('configuracoes')
+      .select('tipos_licitacao')
+      .eq('user_id', userId)
+      .single();
+    
+    if (data?.tipos_licitacao && data.tipos_licitacao.length > 0) {
+      return data.tipos_licitacao;
+    }
+  }
+  
+  // Default: ambos os tipos
+  return ['compra', 'servico'];
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -685,16 +747,18 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse request body for optional UFs filter
+    // Parse request body for optional filters
     let requestUFs: string[] | undefined;
     let segmento: string | undefined;
     let userId: string | undefined;
+    let tiposLicitacao: string[] | undefined;
 
     try {
       const body = await req.json();
       requestUFs = body.ufs;
       segmento = body.segmento;
       userId = body.user_id;
+      tiposLicitacao = body.tipos_licitacao;
     } catch {
       // No body, use defaults
     }
@@ -704,7 +768,13 @@ serve(async (req) => {
       ? requestUFs 
       : await getUserUFs(supabase, userId);
 
+    // Get tipos de licitação to use (from request, user config, or default)
+    let tiposPermitidos = tiposLicitacao && tiposLicitacao.length > 0
+      ? tiposLicitacao
+      : await getUserTiposLicitacao(supabase, userId);
+
     console.log('[MultiPortal] Starting capture for UFs:', ufsPermitidas.join(', '));
+    console.log('[MultiPortal] Tipos de licitação:', tiposPermitidos.join(', '));
     if (segmento) console.log('[MultiPortal] Filtering by segment:', segmento);
 
     // Log job start
@@ -715,6 +785,7 @@ serve(async (req) => {
         details: { 
           portals: Object.keys(PORTALS),
           ufs: ufsPermitidas,
+          tipos_licitacao: tiposPermitidos,
           segmento: segmento || 'all',
           timestamp: new Date().toISOString()
         } 
@@ -733,6 +804,29 @@ serve(async (req) => {
       captureBancoBrasil(supabase, ufsPermitidas),
     ]);
 
+    // Filtrar licitações por tipo após inserção (remover as que não passam no filtro)
+    if (tiposPermitidos.length === 1) {
+      console.log('[MultiPortal] Aplicando filtro de tipo:', tiposPermitidos[0]);
+      
+      // Buscar licitações recentes e filtrar
+      const { data: licitacoesRecentes } = await supabase
+        .from('licitacoes')
+        .select('id, objeto')
+        .gte('created_at', new Date(Date.now() - 60000).toISOString()); // Últimas 60 segundos
+      
+      if (licitacoesRecentes) {
+        for (const lic of licitacoesRecentes) {
+          if (!passaTipoFiltro(lic.objeto, tiposPermitidos)) {
+            await supabase
+              .from('licitacoes')
+              .delete()
+              .eq('id', lic.id);
+            console.log(`[MultiPortal] Removida licitação ${lic.id} (tipo incompatível)`);
+          }
+        }
+      }
+    }
+
     const totalCount = results.reduce((sum, r) => sum + r.count, 0);
     const successCount = results.filter(r => r.success).length;
 
@@ -747,6 +841,7 @@ serve(async (req) => {
             total: totalCount,
             successfulPortals: successCount,
             ufs: ufsPermitidas,
+            tipos_licitacao: tiposPermitidos,
             completedAt: new Date().toISOString(),
           }
         })
@@ -761,6 +856,7 @@ serve(async (req) => {
       results,
       total: totalCount,
       ufs: ufsPermitidas,
+      tipos_licitacao: tiposPermitidos,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
