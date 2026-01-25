@@ -503,6 +503,7 @@ export function ParticipacoesDashboardTab() {
   const [isImpugnacaoOpen, setIsImpugnacaoOpen] = useState(false);
   const [impugnacaoLicitacao, setImpugnacaoLicitacao] = useState<LicitacaoAutorizada | null>(null);
   const [selectedRobotLog, setSelectedRobotLog] = useState<LicitacaoAutorizada | null>(null);
+  const [activeTab, setActiveTab] = useState('autorizadas');
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -681,32 +682,33 @@ export function ParticipacoesDashboardTab() {
     );
   }
 
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setActiveTab('autorizadas')}>
           <CardContent className="p-4 text-center">
             <Bot className="w-6 h-6 mx-auto mb-2 text-primary" />
             <p className="text-2xl font-bold">{stats.autorizadas}</p>
             <p className="text-xs text-muted-foreground">Robô Ativo</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all" onClick={() => setActiveTab('disputa')}>
           <CardContent className="p-4 text-center">
             <Gavel className="w-6 h-6 mx-auto mb-2 text-amber-500" />
             <p className="text-2xl font-bold">{stats.emDisputa}</p>
             <p className="text-xs text-muted-foreground">Em Disputa</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-success/50 transition-all" onClick={() => setActiveTab('vencidas')}>
           <CardContent className="p-4 text-center">
             <Trophy className="w-6 h-6 mx-auto mb-2 text-success" />
             <p className="text-2xl font-bold">{stats.vencidas}</p>
             <p className="text-xs text-muted-foreground">Vencidas</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-destructive/50 transition-all" onClick={() => setActiveTab('perdidas')}>
           <CardContent className="p-4 text-center">
             <XCircle className="w-6 h-6 mx-auto mb-2 text-destructive" />
             <p className="text-2xl font-bold">{stats.perdidas}</p>
@@ -729,28 +731,51 @@ export function ParticipacoesDashboardTab() {
         </Card>
       </div>
 
-      {/* Main Content - Vertical List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Autorizadas (Robô vai participar) */}
-        <Card className="border-primary/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-primary" />
-              Robô Autorizado a Participar
-              <Badge variant="outline" className="ml-auto">{stats.autorizadas}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[500px] pr-4">
+      {/* Internal Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="autorizadas" className="flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            <span className="hidden sm:inline">Autorizadas</span>
+            <Badge variant="secondary" className="ml-1">{stats.autorizadas}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="disputa" className="flex items-center gap-2">
+            <Gavel className="w-4 h-4" />
+            <span className="hidden sm:inline">Em Disputa</span>
+            <Badge variant="secondary" className="ml-1">{stats.emDisputa}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="vencidas" className="flex items-center gap-2">
+            <Trophy className="w-4 h-4" />
+            <span className="hidden sm:inline">Vencidas</span>
+            <Badge variant="secondary" className="ml-1">{stats.vencidas}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="perdidas" className="flex items-center gap-2">
+            <XCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Perdidas</span>
+            <Badge variant="secondary" className="ml-1">{stats.perdidas}</Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Autorizadas */}
+        <TabsContent value="autorizadas" className="mt-6">
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-primary animate-pulse" />
+                Robô Autorizado a Participar
+                <Badge className="ml-auto bg-primary">{stats.autorizadas} ativas</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
                 {licitacoesAutorizadas.length > 0 ? (
                   licitacoesAutorizadas.map((lic) => {
                     const robotState = robotStates[lic.id];
                     
                     return (
-                      <Card key={lic.id} className={`border-2 ${
-                        robotState?.status === 'disputando' ? 'border-success ring-2 ring-success/20' :
-                        robotState?.status === 'preparando' ? 'border-amber-500' :
+                      <Card key={lic.id} className={`border-2 transition-all ${
+                        robotState?.status === 'disputando' ? 'border-success ring-2 ring-success/20 shadow-lg shadow-success/10' :
+                        robotState?.status === 'preparando' ? 'border-amber-500 ring-1 ring-amber-500/20' :
                         robotState?.status === 'monitorando' ? 'border-blue-500' : 'border-border'
                       }`}>
                         {/* Robot Status Header */}
@@ -766,6 +791,9 @@ export function ParticipacoesDashboardTab() {
                               robotState?.status === 'monitorando' ? 'text-blue-500 animate-pulse' : 'text-muted-foreground'
                             }`} />
                             <StatusBadge status={robotState?.status || 'aguardando'} />
+                            {robotState?.status === 'disputando' && (
+                              <span className="text-xs text-success animate-pulse">● AO VIVO</span>
+                            )}
                           </div>
                           {robotState && robotState.posicao && (
                             <PositionBadge position={robotState.posicao} total={robotState.totalCompetidores} />
@@ -775,7 +803,7 @@ export function ParticipacoesDashboardTab() {
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{lic.objeto_resumido || lic.objeto}</p>
+                              <p className="font-medium text-sm">{lic.objeto_resumido || lic.objeto}</p>
                               <p className="text-xs text-muted-foreground">{lic.numero}</p>
                             </div>
                             <CountdownTimer targetDate={lic.data_limite} />
@@ -793,14 +821,18 @@ export function ParticipacoesDashboardTab() {
                           </div>
 
                           {robotState && robotState.status === 'disputando' && (
-                            <div className="p-2 rounded-lg bg-muted/50 space-y-2">
+                            <div className="p-3 rounded-lg bg-muted/50 space-y-2">
                               <div className="flex items-center justify-between text-xs">
-                                <span>Menor Lance:</span>
+                                <span className="text-muted-foreground">Menor Lance:</span>
                                 <span className="font-bold text-success">{formatCurrency(robotState.menorLance)}</span>
                               </div>
                               <div className="flex items-center justify-between text-xs">
-                                <span>Meu Lance:</span>
+                                <span className="text-muted-foreground">Meu Lance:</span>
                                 <span className="font-bold">{formatCurrency(robotState.meuLance)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Lances Enviados:</span>
+                                <Badge variant="outline">{robotState.lancesEnviados}</Badge>
                               </div>
                               <Progress 
                                 value={((robotState.totalCompetidores - robotState.posicao + 1) / robotState.totalCompetidores) * 100} 
@@ -810,8 +842,8 @@ export function ParticipacoesDashboardTab() {
                           )}
 
                           <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
-                            <span className="font-bold text-primary">{formatCurrency(lic.valor)}</span>
-                            <div className="flex gap-1">
+                            <span className="font-bold text-primary text-lg">{formatCurrency(lic.valor)}</span>
+                            <div className="flex gap-1 flex-wrap">
                               <Button 
                                 variant="outline"
                                 size="sm" 
@@ -848,165 +880,236 @@ export function ParticipacoesDashboardTab() {
                     );
                   })
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma licitação autorizada</p>
-                    <p className="text-xs">Autorize licitações para o robô participar</p>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Bot className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="font-medium">Nenhuma licitação autorizada</p>
+                    <p className="text-sm">Autorize licitações para o robô participar automaticamente</p>
                   </div>
                 )}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Right: Em Concorrência */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gavel className="w-5 h-5 text-amber-500" />
-              Em Concorrência
-              <Badge variant="outline" className="ml-auto">{stats.emDisputa}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[500px] pr-4">
+        {/* Tab: Em Disputa */}
+        <TabsContent value="disputa" className="mt-6">
+          <Card className="border-amber-500/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gavel className="w-5 h-5 text-amber-500" />
+                Participações em Concorrência
+                <Badge className="ml-auto bg-amber-500 text-white">{stats.emDisputa} ativas</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
-                {participacoes.filter(p => ['Enviada', 'Em Disputa'].includes(p.status)).map((part) => (
-                  <Card key={part.id} className={`${
-                    part.status === 'Em Disputa' ? 'border-amber-500 ring-1 ring-amber-500/20' : ''
-                  }`}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <StatusBadge status={part.status} />
-                            <Badge variant="outline" className="text-xs">{part.licitacao.portal}</Badge>
+                {participacoes.filter(p => ['Enviada', 'Em Disputa'].includes(p.status)).length > 0 ? (
+                  participacoes.filter(p => ['Enviada', 'Em Disputa'].includes(p.status)).map((part) => (
+                    <Card key={part.id} className={`transition-all ${
+                      part.status === 'Em Disputa' ? 'border-amber-500 ring-1 ring-amber-500/20' : ''
+                    }`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <StatusBadge status={part.status} />
+                              <Badge variant="outline" className="text-xs">{part.licitacao.portal}</Badge>
+                              {part.status === 'Em Disputa' && (
+                                <span className="text-xs text-amber-500 animate-pulse">● AO VIVO</span>
+                              )}
+                            </div>
+                            <p className="font-medium text-sm">{part.licitacao.objeto_resumido || part.licitacao.objeto}</p>
+                            <p className="text-xs text-muted-foreground">{part.licitacao.numero}</p>
                           </div>
-                          <p className="font-medium text-sm truncate">{part.licitacao.objeto_resumido || part.licitacao.objeto}</p>
-                          <p className="text-xs text-muted-foreground">{part.licitacao.numero}</p>
+                          <CountdownTimer targetDate={part.licitacao.data_limite} />
                         </div>
-                        <CountdownTimer targetDate={part.licitacao.data_limite} />
-                      </div>
 
-                      <Separator />
+                        <Separator />
 
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="text-center p-2 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground">Valor Estimado</p>
-                          <p className="font-bold text-primary">{formatCurrency(part.licitacao.valor)}</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="text-center p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground mb-1">Valor Estimado</p>
+                            <p className="font-bold text-primary">{formatCurrency(part.licitacao.valor)}</p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-success/10">
+                            <p className="text-xs text-muted-foreground mb-1">Sua Proposta</p>
+                            <p className="font-bold text-success">{formatCurrency(part.valor_proposta)}</p>
+                            <p className="text-xs text-success">
+                              -{((1 - part.valor_proposta / part.licitacao.valor) * 100).toFixed(1)}%
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-center p-2 rounded-lg bg-success/10">
-                          <p className="text-xs text-muted-foreground">Sua Proposta</p>
-                          <p className="font-bold text-success">{formatCurrency(part.valor_proposta)}</p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="w-3 h-3" />
-                          <span className="truncate max-w-[150px]">{part.licitacao.orgao}</span>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            <span className="truncate max-w-[150px]">{part.licitacao.orgao}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
 
-                {participacoes.filter(p => ['Enviada', 'Em Disputa'].includes(p.status)).length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Gavel className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma participação em andamento</p>
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setSelectedRobotLog(part.licitacao as LicitacaoAutorizada)}
+                          >
+                            <Activity className="w-3 h-3 mr-1" />
+                            Ver Log do Robô
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Gavel className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="font-medium">Nenhuma participação em andamento</p>
+                    <p className="text-sm">Envie propostas para participar de licitações</p>
                   </div>
                 )}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Bottom: Results */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vencidas */}
-        <Card className="border-success/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-success">
-              <Trophy className="w-5 h-5" />
-              Vencidas
-              <Badge className="ml-auto bg-success">{stats.vencidas}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[250px] pr-4">
-              <div className="space-y-3">
-                {participacoes.filter(p => p.status === 'Vencedora').map((part) => (
-                  <Card key={part.id} className="border-success/50 bg-success/5">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{part.licitacao.objeto_resumido}</p>
-                        <p className="text-xs text-muted-foreground">{part.licitacao.orgao}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-success">{formatCurrency(part.valor_proposta)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          -{((1 - part.valor_proposta / part.licitacao.valor) * 100).toFixed(1)}%
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {participacoes.filter(p => p.status === 'Vencedora').length === 0 && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <Trophy className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhuma vitória ainda</p>
+        {/* Tab: Vencidas */}
+        <TabsContent value="vencidas" className="mt-6">
+          <Card className="border-success/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-success">
+                <Trophy className="w-5 h-5" />
+                Licitações Vencidas
+                <Badge className="ml-auto bg-success">{stats.vencidas} contratos</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {participacoes.filter(p => p.status === 'Vencedora').length > 0 ? (
+                  participacoes.filter(p => p.status === 'Vencedora').map((part) => (
+                    <Card key={part.id} className="border-success/50 bg-success/5">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-success" />
+                            <div>
+                              <p className="font-medium text-sm">{part.licitacao.objeto_resumido}</p>
+                              <p className="text-xs text-muted-foreground">{part.licitacao.numero}</p>
+                            </div>
+                          </div>
+                          <Badge className="bg-success">Vencedor</Badge>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Valor Estimado</p>
+                            <p className="font-bold">{formatCurrency(part.licitacao.valor)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Sua Proposta</p>
+                            <p className="font-bold text-success">{formatCurrency(part.valor_proposta)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Economia</p>
+                            <p className="font-bold text-success">
+                              -{((1 - part.valor_proposta / part.licitacao.valor) * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            <span>{part.licitacao.orgao}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Trophy className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="font-medium">Nenhuma vitória ainda</p>
+                    <p className="text-sm">Continue participando para conquistar licitações</p>
                   </div>
                 )}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Perdidas */}
-        <Card className="border-destructive/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <XCircle className="w-5 h-5" />
-              Perdidas
-              <Badge variant="destructive" className="ml-auto">{stats.perdidas}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[250px] pr-4">
-              <div className="space-y-3">
-                {participacoes.filter(p => ['Perdedora', 'Cancelada'].includes(p.status)).map((part) => (
-                  <Card key={part.id} className="border-destructive/30 bg-destructive/5">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{part.licitacao.objeto_resumido}</p>
-                        <p className="text-xs text-muted-foreground">{part.licitacao.orgao}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-destructive">{formatCurrency(part.valor_proposta)}</p>
-                        <Badge variant="outline" className="text-xs">{part.status}</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {participacoes.filter(p => ['Perdedora', 'Cancelada'].includes(p.status)).length === 0 && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhuma perda registrada</p>
+        {/* Tab: Perdidas */}
+        <TabsContent value="perdidas" className="mt-6">
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <XCircle className="w-5 h-5" />
+                Licitações Perdidas
+                <Badge variant="destructive" className="ml-auto">{stats.perdidas}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {participacoes.filter(p => ['Perdedora', 'Cancelada'].includes(p.status)).length > 0 ? (
+                  participacoes.filter(p => ['Perdedora', 'Cancelada'].includes(p.status)).map((part) => (
+                    <Card key={part.id} className="border-destructive/30 bg-destructive/5">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{part.licitacao.objeto_resumido}</p>
+                            <p className="text-xs text-muted-foreground">{part.licitacao.numero}</p>
+                          </div>
+                          <Badge variant="destructive">{part.status}</Badge>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="grid grid-cols-2 gap-3 text-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Sua Proposta</p>
+                            <p className="font-bold text-destructive">{formatCurrency(part.valor_proposta)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Valor Estimado</p>
+                            <p className="font-bold">{formatCurrency(part.licitacao.valor)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            <span>{part.licitacao.orgao}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CheckCircle2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-success" />
+                    <p className="font-medium">Nenhuma perda registrada</p>
+                    <p className="text-sm">Excelente desempenho nas licitações!</p>
                   </div>
                 )}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Proposal Modal */}
       <ProposalModal
