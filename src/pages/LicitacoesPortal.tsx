@@ -5,13 +5,14 @@ import { BLLTable } from '@/components/licitacao/BLLTable';
 import { BLLMobileList } from '@/components/licitacao/BLLMobileList';
 import { BLLMobileFiltersDrawer } from '@/components/licitacao/BLLMobileFiltersDrawer';
 import { BLLDetailPanel } from '@/components/licitacao/BLLDetailPanel';
-import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
+import { CaptureStatusIndicator } from '@/components/licitacao/CaptureStatusIndicator';
+import { useLicitacoes, useLicitacoesRealtime, type Licitacao } from '@/hooks/useLicitacoes';
+import { useAutoCapture } from '@/hooks/useAutoCapture';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
-  RefreshCw, 
   Download, 
   FileText,
   ShoppingCart,
@@ -49,7 +50,7 @@ const LicitacoesPortal = () => {
 
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { setupRealtime } = useLicitacoesRealtime();
-  const capturarPNCP = useCapturarPNCP();
+  const { capture, isCapturing } = useAutoCapture();
 
   useEffect(() => {
     const cleanup = setupRealtime();
@@ -184,6 +185,14 @@ const LicitacoesPortal = () => {
   return (
     <MainLayout title="Portal de Licitações">
       <div className="space-y-4">
+        {/* Auto Capture Status Indicator */}
+        <CaptureStatusIndicator
+          onCapture={capture}
+          isCapturing={isCapturing}
+          autoCapture={true}
+          autoInterval={60}
+        />
+
         {/* Header with Tabs */}
         <div className="bg-card border border-border rounded-lg p-3 md:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -258,17 +267,7 @@ const LicitacoesPortal = () => {
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Exportar</span>
               </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => capturarPNCP.mutate()}
-                disabled={capturarPNCP.isPending}
-                className="gap-1.5 md:gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${capturarPNCP.isPending ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Capturar PNCP</span>
-                <span className="sm:hidden">Capturar</span>
-              </Button>
+              {/* Capture button removed - using auto-capture indicator above */}
             </div>
           </div>
 
