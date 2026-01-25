@@ -6,6 +6,73 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============= SECURITY: Authentication Helper =============
+interface AuthResult {
+  authorized: boolean;
+  error?: string;
+  userId?: string;
+}
+
+async function authenticateAndAuthorize(req: Request, supabase: any): Promise<AuthResult> {
+  const authHeader = req.headers.get('Authorization');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  // SECURITY: Require Authorization header
+  if (!authHeader) {
+    console.log('[Auth] Missing Authorization header');
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+
+  // Allow service role key for scheduled jobs (pg_cron triggers)
+  if (token === serviceRoleKey) {
+    console.log('[Auth] Service role key authenticated');
+    return { authorized: true, userId: 'service_role' };
+  }
+
+  // Verify user token using getClaims
+  try {
+    const { data, error: authError } = await supabase.auth.getClaims(token);
+    
+    if (authError || !data?.claims) {
+      console.log('[Auth] Invalid token:', authError?.message);
+      return { authorized: false, error: 'Invalid authentication token' };
+    }
+
+    const userId = data.claims.sub;
+    
+    if (!userId) {
+      console.log('[Auth] No user ID in token claims');
+      return { authorized: false, error: 'Invalid token: missing user ID' };
+    }
+
+    // Check if user has admin role for capture operations
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError) {
+      console.log('[Auth] Error checking role:', roleError.message);
+      return { authorized: false, error: 'Error verifying user role' };
+    }
+
+    if (!roleData) {
+      console.log('[Auth] User lacks admin role:', userId);
+      return { authorized: false, error: 'Admin role required for capture operations' };
+    }
+
+    console.log('[Auth] Admin user authenticated:', userId);
+    return { authorized: true, userId };
+  } catch (error) {
+    console.error('[Auth] Token verification error:', error);
+    return { authorized: false, error: 'Token verification failed' };
+  }
+}
+
 // Portal configurations
 const PORTALS = {
   PNCP: {
@@ -773,10 +840,26 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // ============= SECURITY: Authenticate Request =============
+    const authResult = await authenticateAndAuthorize(req, supabase);
+    
+    if (!authResult.authorized) {
+      console.log('[MultiPortal] Unauthorized request:', authResult.error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: authResult.error || 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('[MultiPortal] Authenticated as:', authResult.userId);
+    // =============================================================
+
     // Parse request body for optional filters
     let requestUFs: string[] | undefined;
     let segmento: string | undefined;
-    let userId: string | undefined;
     let tiposLicitacao: string[] | undefined;
     let modalidadesReq: string[] | undefined;
 
@@ -784,27 +867,30 @@ serve(async (req) => {
       const body = await req.json();
       requestUFs = body.ufs;
       segmento = body.segmento;
-      userId = body.user_id;
       tiposLicitacao = body.tipos_licitacao;
       modalidadesReq = body.modalidades;
+      // SECURITY: user_id is now taken from authenticated token, not request body
     } catch {
       // No body, use defaults
     }
 
+    // SECURITY: Use authenticated userId for config lookup, not user-supplied value
+    const authenticatedUserId = authResult.userId !== 'service_role' ? authResult.userId : undefined;
+
     // Get UFs to use (from request, user config, or default)
     let ufsPermitidas = requestUFs && requestUFs.length > 0 
       ? requestUFs 
-      : await getUserUFs(supabase, userId);
+      : await getUserUFs(supabase, authenticatedUserId);
 
     // Get tipos de licitação to use (from request, user config, or default)
     let tiposPermitidos = tiposLicitacao && tiposLicitacao.length > 0
       ? tiposLicitacao
-      : await getUserTiposLicitacao(supabase, userId);
+      : await getUserTiposLicitacao(supabase, authenticatedUserId);
 
     // Get modalidades to use (from request, user config, or default)
     let modalidadesPermitidas = modalidadesReq && modalidadesReq.length > 0
       ? modalidadesReq
-      : await getUserModalidades(supabase, userId);
+      : await getUserModalidades(supabase, authenticatedUserId);
 
     console.log('[MultiPortal] Starting capture for UFs:', ufsPermitidas.join(', '));
     console.log('[MultiPortal] Tipos de licitação:', tiposPermitidos.join(', '));
