@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 // Documentação exigida padrão por categoria
 const DOCUMENTOS_HABILITACAO = {
   juridica: [
@@ -55,6 +61,45 @@ interface ComplianceResult {
   verificacoes: ComplianceCheck[];
   pendencias: string[];
   score: number;
+}
+
+// Authentication helper - verifies user token and returns user info
+async function authenticateRequest(req: Request, supabase: any): Promise<{
+  authorized: boolean;
+  userId?: string;
+  error?: string;
+}> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    
+    if (error || !data?.user) {
+      return { authorized: false, error: 'Invalid or expired token' };
+    }
+
+    return { authorized: true, userId: data.user.id };
+  } catch (err) {
+    return { authorized: false, error: 'Authentication failed' };
+  }
+}
+
+// Verify user owns the empresa they're checking compliance for
+async function verifyEmpresaOwnership(supabase: any, empresaId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('empresas')
+    .select('id')
+    .eq('id', empresaId)
+    .eq('user_id', userId)
+    .single();
+
+  return !error && !!data;
 }
 
 // Simula verificação SICAF (na produção, faria chamada real à API SICAF)
@@ -173,23 +218,86 @@ function calcularStatusGeral(verificacoes: ComplianceCheck[]): { status: 'Apta' 
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Create client with anon key for auth verification
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: req.headers.get('Authorization') || '' } }
+    });
 
-    const { empresa_id, licitacao_id } = await req.json();
+    // SECURITY: Authenticate the request
+    const authResult = await authenticateRequest(req, supabaseAuth);
+    if (!authResult.authorized) {
+      console.error('[Compliance] Authentication failed:', authResult.error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: authResult.error || 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
+    const userId = authResult.userId!;
+    console.log('[Compliance] Authenticated user:', userId);
+
+    // Parse and validate input
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid JSON body'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { empresa_id, licitacao_id } = body;
+
+    // Input validation
     if (!empresa_id || !licitacao_id) {
       return new Response(JSON.stringify({
         success: false,
         error: 'empresa_id e licitacao_id são obrigatórios'
       }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!isValidUUID(empresa_id) || !isValidUUID(licitacao_id)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'empresa_id e licitacao_id devem ser UUIDs válidos'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create service client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // SECURITY: Verify user owns the empresa
+    const ownsEmpresa = await verifyEmpresaOwnership(supabase, empresa_id, userId);
+    if (!ownsEmpresa) {
+      console.error('[Compliance] User does not own empresa:', empresa_id);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Acesso negado: você não tem permissão para verificar esta empresa'
+      }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -257,7 +365,7 @@ serve(async (req) => {
     console.error('[Compliance] Erro:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : 'Erro interno'
+      error: 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
