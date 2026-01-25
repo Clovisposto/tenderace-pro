@@ -54,6 +54,7 @@ import {
   Check,
   Copy,
   MessageSquare,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -61,6 +62,8 @@ import { format, differenceInSeconds, differenceInMinutes, differenceInHours, di
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { ImpugnacaoSystem } from '@/components/licitacao/ImpugnacaoSystem';
+import { RobotLiveLog } from '@/components/licitacao/RobotLiveLog';
 
 interface Participacao {
   id: string;
@@ -497,6 +500,9 @@ export function ParticipacoesDashboardTab() {
   const [selectedLicitacao, setSelectedLicitacao] = useState<LicitacaoAutorizada | null>(null);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [robotStates, setRobotStates] = useState<Record<string, RobotState>>({});
+  const [isImpugnacaoOpen, setIsImpugnacaoOpen] = useState(false);
+  const [impugnacaoLicitacao, setImpugnacaoLicitacao] = useState<LicitacaoAutorizada | null>(null);
+  const [selectedRobotLog, setSelectedRobotLog] = useState<LicitacaoAutorizada | null>(null);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -803,18 +809,39 @@ export function ParticipacoesDashboardTab() {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
                             <span className="font-bold text-primary">{formatCurrency(lic.valor)}</span>
-                            <Button 
-                              size="sm" 
-                              onClick={() => {
-                                setSelectedLicitacao(lic);
-                                setIsProposalModalOpen(true);
-                              }}
-                            >
-                              <Send className="w-3 h-3 mr-1" />
-                              Criar Proposta
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="outline"
+                                size="sm" 
+                                onClick={() => {
+                                  setImpugnacaoLicitacao(lic);
+                                  setIsImpugnacaoOpen(true);
+                                }}
+                              >
+                                <Scale className="w-3 h-3 mr-1" />
+                                Impugnar
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                size="sm" 
+                                onClick={() => setSelectedRobotLog(lic)}
+                              >
+                                <Activity className="w-3 h-3 mr-1" />
+                                Log
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedLicitacao(lic);
+                                  setIsProposalModalOpen(true);
+                                }}
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                Proposta
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -991,6 +1018,38 @@ export function ParticipacoesDashboardTab() {
         }}
         onSubmit={(data) => submitProposalMutation.mutate(data)}
       />
+
+      {/* Impugnação System */}
+      <ImpugnacaoSystem
+        licitacao={impugnacaoLicitacao}
+        isOpen={isImpugnacaoOpen}
+        onClose={() => {
+          setIsImpugnacaoOpen(false);
+          setImpugnacaoLicitacao(null);
+        }}
+      />
+
+      {/* Robot Live Log Modal */}
+      <Dialog open={!!selectedRobotLog} onOpenChange={() => setSelectedRobotLog(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              Log do Robô em Tempo Real
+            </DialogTitle>
+            <DialogDescription>
+              {selectedRobotLog?.numero} - {selectedRobotLog?.orgao}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRobotLog && (
+            <RobotLiveLog
+              licitacaoId={selectedRobotLog.id}
+              valorProposta={selectedRobotLog.valor * 0.92}
+              isActive={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
