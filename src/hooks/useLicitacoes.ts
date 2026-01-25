@@ -94,19 +94,26 @@ export function useCapturarPNCP() {
 
   return useMutation({
     mutationFn: async () => {
+      // Get current user session token for proper authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Não autenticado. Faça login para continuar.');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/capturar-pncp`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
         }
       );
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to capture');
+        throw new Error(error.error || 'Falha na captura');
       }
       return response.json();
     },
@@ -134,20 +141,27 @@ export function useAnalisarEdital() {
 
   return useMutation({
     mutationFn: async (params: { licitacao_id: string; objeto: string; edital_url?: string }) => {
+      // Get current user session token for proper authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Não autenticado. Faça login para continuar.');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analisar-edital`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify(params),
         }
       );
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to analyze');
+        throw new Error(error.error || 'Falha na análise');
       }
       return response.json();
     },
