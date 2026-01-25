@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.analisar-impugnacao]
 verify_jwt = false
+
+[functions.filtro-inteligente]
+verify_jwt = false
