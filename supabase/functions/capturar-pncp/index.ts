@@ -166,24 +166,30 @@ serve(async (req) => {
     const dataInicio = new Date(hoje);
     dataInicio.setDate(dataInicio.getDate() - 30);
 
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    // PNCP API date format: YYYYMMDD (no dashes)
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}${month}${day}`;
+    };
 
-    // Build query parameters for PNCP API
-    // Filter: Dispensa de Licitação (modalidade 8) and value range R$1.000-R$35.000
+    // Build query parameters for PNCP API with correct parameter names
+    // https://pncp.gov.br/api/consulta/swagger-ui/index.html
     const params = new URLSearchParams({
-      dataInicial: formatDate(dataInicio),
-      dataFinal: formatDate(hoje),
+      dataPublicacaoInicio: formatDate(dataInicio),
+      dataPublicacaoFim: formatDate(hoje),
       pagina: '1',
       tamanhoPagina: '100',
     });
 
     const url = `${PNCP_API_BASE}/contratacoes/publicacao?${params}`;
-    console.log(`[PNCP Capture] Fetching from PNCP API...`);
+    console.log(`[PNCP Capture] Fetching from PNCP API: ${url}`);
 
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'LicitaIA-Bot/1.0 (Governo Federal)',
+        'User-Agent': 'Mozilla/5.0 (compatible; LicitaBot/1.0)',
       },
     });
 
