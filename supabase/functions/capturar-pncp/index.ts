@@ -77,24 +77,22 @@ function calculateRisco(compliance: boolean, prazo: number): number {
   return Math.min(80, Math.max(5, base + Math.floor(Math.random() * 10)));
 }
 
-// Authentication and authorization helper
+// ====== SECURE AUTHENTICATION - NO BYPASSES ======
 async function authenticateAndAuthorize(req: Request, supabase: any): Promise<{ authorized: boolean; error?: string; userId?: string }> {
   const authHeader = req.headers.get('Authorization');
-  
-  // Check if it's a service role token (for cron jobs) - allow even without auth header
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   
+  // SECURITY: Require authorization header - NO BYPASS
   if (!authHeader) {
-    // Allow unauthenticated access for demo/testing - generate demo data
-    console.log('[PNCP Capture] No auth header - allowing demo access');
-    return { authorized: true, userId: 'demo_user' };
+    console.warn('[PNCP Capture] No authorization header provided');
+    return { authorized: false, error: 'Authorization header required' };
   }
 
   const token = authHeader.replace('Bearer ', '');
   
-  // Check if it's a service role token
+  // Allow service role token (for cron jobs only)
   if (token === serviceRoleKey) {
-    console.log('[PNCP Capture] Service role authentication');
+    console.log('[PNCP Capture] Service role authentication (scheduled job)');
     return { authorized: true, userId: 'service_role' };
   }
 
@@ -104,15 +102,14 @@ async function authenticateAndAuthorize(req: Request, supabase: any): Promise<{ 
 
     if (authError || !data?.claims) {
       console.error('[PNCP Capture] Auth error:', authError?.message || 'No claims');
-      // Allow access anyway for demo purposes
-      console.log('[PNCP Capture] Allowing demo access due to auth issue');
-      return { authorized: true, userId: 'demo_user' };
+      // SECURITY: Return unauthorized - NO BYPASS
+      return { authorized: false, error: 'Invalid authentication token' };
     }
 
     const userId = data.claims.sub;
     console.log('[PNCP Capture] User authenticated:', userId);
 
-    // Check if user has admin role
+    // SECURITY: Require admin role - NO BYPASS
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
@@ -122,18 +119,19 @@ async function authenticateAndAuthorize(req: Request, supabase: any): Promise<{ 
 
     if (roleError) {
       console.error('[PNCP Capture] Role check error:', roleError.message);
+      return { authorized: false, error: 'Permission check failed' };
     }
 
-    // Allow access even without admin role for now
     if (!roleData) {
-      console.warn('[PNCP Capture] User without admin role, allowing demo access:', userId);
+      console.warn('[PNCP Capture] User lacks admin role:', userId);
+      return { authorized: false, error: 'Admin role required' };
     }
 
     return { authorized: true, userId: userId };
   } catch (error) {
-    console.error('[PNCP Capture] Auth exception:', error);
-    // Allow access for demo purposes
-    return { authorized: true, userId: 'demo_user' };
+    console.error('[PNCP Capture] Token verification failed:', error);
+    // SECURITY: Return unauthorized on exception - NO BYPASS
+    return { authorized: false, error: 'Authentication failed' };
   }
 }
 
@@ -147,7 +145,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Authenticate and authorize the request
+    // SECURITY: Authenticate and authorize the request
     const authResult = await authenticateAndAuthorize(req, supabase);
     
     if (!authResult.authorized) {
@@ -180,7 +178,7 @@ serve(async (req) => {
     });
 
     const url = `${PNCP_API_BASE}/contratacoes/publicacao?${params}`;
-    console.log(`[PNCP Capture] Fetching from: ${url}`);
+    console.log(`[PNCP Capture] Fetching from PNCP API...`);
 
     const response = await fetch(url, {
       headers: {
@@ -191,29 +189,15 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[PNCP Capture] API Error: ${response.status} - ${errorText}`);
+      console.error(`[PNCP Capture] API Error: ${response.status}`);
       
-      // If PNCP is unavailable, generate mock data for demonstration
-      console.log('[PNCP Capture] Generating demonstration data...');
-      
-      const demoData = generateDemoData();
-      
-      for (const licitacao of demoData) {
-        const { error } = await supabase
-          .from('licitacoes')
-          .upsert(licitacao, { onConflict: 'numero' });
-        
-        if (error) {
-          console.error(`[PNCP Capture] Insert error for ${licitacao.numero}:`, error);
-        }
-      }
-      
+      // Return error instead of generating demo data in production
       return new Response(JSON.stringify({
-        success: true,
-        message: 'Demo data generated (PNCP unavailable)',
-        count: demoData.length,
-        source: 'demo'
+        success: false,
+        error: 'PNCP API temporarily unavailable',
+        status: response.status
       }), {
+        status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -249,15 +233,19 @@ serve(async (req) => {
         const dataLimite = item.dataEncerramentoProposta ? new Date(item.dataEncerramentoProposta) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         const diasAteVencimento = Math.floor((dataLimite.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
+        // Sanitize string inputs
+        const sanitizedObjeto = (item.objetoCompra || 'Objeto não informado').substring(0, 2000);
+        const sanitizedOrgao = (item.orgaoEntidade?.razaoSocial || 'Órgão Público').substring(0, 500);
+
         const licitacao = {
           numero: item.numeroControlePNCP || `PNCP-${item.anoCompra}-${item.sequencialCompra}`,
           portal: 'PNCP' as const,
-          orgao: item.orgaoEntidade?.razaoSocial || 'Órgão Público',
+          orgao: sanitizedOrgao,
           uasg: item.orgaoEntidade?.cnpj?.substring(0, 6) || null,
-          municipio: municipio,
-          uf: uf,
-          objeto: item.objetoCompra || 'Objeto não informado',
-          objeto_resumido: (item.objetoCompra || '').substring(0, 80) + '...',
+          municipio: municipio.substring(0, 100),
+          uf: uf.substring(0, 2),
+          objeto: sanitizedObjeto,
+          objeto_resumido: sanitizedObjeto.substring(0, 80) + '...',
           valor: valor,
           modalidade: modalidade,
           data_abertura: dataAbertura.toISOString(),
@@ -303,64 +291,10 @@ serve(async (req) => {
     console.error('[PNCP Capture] Fatal error:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Internal server error'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
-
-function generateDemoData() {
-  const orgaos = [
-    { nome: 'Secretaria Municipal de Saúde', municipio: 'Ribeirão Preto', uf: 'SP' },
-    { nome: 'Hospital Federal de Bonsucesso', municipio: 'Rio de Janeiro', uf: 'RJ' },
-    { nome: 'Prefeitura Municipal de Caruaru', municipio: 'Caruaru', uf: 'PE' },
-    { nome: 'CRAS - Centro de Referência', municipio: 'Feira de Santana', uf: 'BA' },
-    { nome: 'UBS Central', municipio: 'Campinas', uf: 'SP' },
-    { nome: 'Secretaria Estadual de Saúde', municipio: 'Curitiba', uf: 'PR' },
-    { nome: 'Prefeitura Municipal', municipio: 'Petrolina', uf: 'PE' },
-    { nome: 'Hospital Regional', municipio: 'Goiânia', uf: 'GO' },
-  ];
-
-  const objetos = [
-    { texto: 'Aquisição de medicamentos para abastecimento da rede municipal de saúde', segmento: 'Medicamentos' as const },
-    { texto: 'Contratação de serviços de manutenção preventiva de equipamentos hospitalares', segmento: 'Empreendimentos' as const },
-    { texto: 'Aquisição de material de escritório e expediente', segmento: 'Empreendimentos' as const },
-    { texto: 'Fornecimento de cestas básicas para famílias em vulnerabilidade', segmento: 'Empreendimentos' as const },
-    { texto: 'Aquisição de vacinas e imunobiológicos', segmento: 'Medicamentos' as const },
-    { texto: 'Serviços de limpeza e conservação predial', segmento: 'Empreendimentos' as const },
-    { texto: 'Medicamentos controlados para doenças crônicas', segmento: 'Medicamentos' as const },
-    { texto: 'Equipamentos de proteção individual (EPI)', segmento: 'Empreendimentos' as const },
-  ];
-
-  const modalidades = ['Dispensa com Disputa', 'Dispensa sem Disputa', 'Compra Direta'] as const;
-  const statuses = ['Nova', 'Em Análise', 'Aguardando Autorização'] as const;
-
-  return Array.from({ length: 12 }, (_, i) => {
-    const orgao = orgaos[i % orgaos.length];
-    const objeto = objetos[i % objetos.length];
-    const modalidade = modalidades[i % modalidades.length];
-    const valor = 5000 + Math.floor(Math.random() * 30000);
-    const diasFuturos = 2 + Math.floor(Math.random() * 15);
-    
-    return {
-      numero: `PNCP-2026-${String(1000 + i).padStart(6, '0')}`,
-      portal: 'PNCP' as const,
-      orgao: orgao.nome,
-      municipio: orgao.municipio,
-      uf: orgao.uf,
-      objeto: objeto.texto,
-      objeto_resumido: objeto.texto.substring(0, 50) + '...',
-      valor: valor,
-      modalidade: modalidade,
-      data_abertura: new Date(Date.now() + diasFuturos * 24 * 60 * 60 * 1000).toISOString(),
-      data_limite: new Date(Date.now() + (diasFuturos - 1) * 24 * 60 * 60 * 1000).toISOString(),
-      status: statuses[i % statuses.length],
-      segmento: objeto.segmento,
-      edital_analisado: false,
-      roi_score: 60 + Math.floor(Math.random() * 35),
-      risco_score: 10 + Math.floor(Math.random() * 30),
-    };
-  });
-}

@@ -26,13 +26,93 @@ Contexto do sistema:
 Seja conciso, profissional e sempre forneça informações precisas sobre licitações públicas.
 Responda sempre em português brasileiro.`;
 
+// Message validation
+interface Message {
+  role: string;
+  content: string;
+}
+
+function isValidMessage(msg: unknown): msg is Message {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    typeof m.role === 'string' &&
+    (m.role === 'user' || m.role === 'assistant' || m.role === 'system') &&
+    typeof m.content === 'string'
+  );
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, stream = false } = await req.json();
+    const body = await req.json();
+    const { messages, stream = false } = body;
+
+    // ====== INPUT VALIDATION ======
+    
+    // Validate messages is an array
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "messages deve ser um array" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate array length
+    if (messages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "messages não pode estar vazio" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (messages.length > 50) {
+      return new Response(
+        JSON.stringify({ error: "Máximo de 50 mensagens permitido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate each message
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      
+      if (!isValidMessage(msg)) {
+        return new Response(
+          JSON.stringify({ error: `Mensagem ${i + 1} tem formato inválido` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate content length
+      if (msg.content.length > 10000) {
+        return new Response(
+          JSON.stringify({ error: `Mensagem ${i + 1} muito longa (máximo 10000 caracteres)` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check for empty content
+      if (msg.content.trim().length === 0) {
+        return new Response(
+          JSON.stringify({ error: `Mensagem ${i + 1} não pode estar vazia` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Validate stream parameter
+    if (typeof stream !== 'boolean') {
+      return new Response(
+        JSON.stringify({ error: "stream deve ser um boolean" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ====== END INPUT VALIDATION ======
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -40,6 +120,12 @@ serve(async (req) => {
     }
 
     console.log("[AI Assistant] Processando mensagem...");
+
+    // Sanitize messages for API call
+    const sanitizedMessages = messages.map((msg: Message) => ({
+      role: msg.role,
+      content: msg.content.substring(0, 10000) // Enforce max length
+    }));
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -51,7 +137,7 @@ serve(async (req) => {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          ...messages,
+          ...sanitizedMessages,
         ],
         stream: stream,
         temperature: 0.7,
@@ -61,7 +147,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[AI Assistant] Gateway error:", response.status, errorText);
+      console.error("[AI Assistant] Gateway error:", response.status);
       
       if (response.status === 429) {
         return new Response(
@@ -101,7 +187,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("[AI Assistant] Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Erro ao processar solicitação" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
