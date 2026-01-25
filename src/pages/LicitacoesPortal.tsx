@@ -6,6 +6,7 @@ import { BLLMobileList } from '@/components/licitacao/BLLMobileList';
 import { BLLMobileFiltersDrawer } from '@/components/licitacao/BLLMobileFiltersDrawer';
 import { BLLDetailPanel } from '@/components/licitacao/BLLDetailPanel';
 import { CaptureStatusIndicator } from '@/components/licitacao/CaptureStatusIndicator';
+import { AISmartFilter } from '@/components/licitacao/AISmartFilter';
 import { useLicitacoes, useLicitacoesRealtime, type Licitacao } from '@/hooks/useLicitacoes';
 import { useAutoCapture } from '@/hooks/useAutoCapture';
 import { Button } from '@/components/ui/button';
@@ -191,6 +192,13 @@ const LicitacoesPortal = () => {
           isCapturing={isCapturing}
           autoCapture={true}
           autoInterval={60}
+        />
+
+        {/* AI Smart Filter */}
+        <AISmartFilter
+          licitacoes={licitacoes || []}
+          onSelectLicitacao={setSelectedLicitacao}
+          segmento={activeTab === 'compra_direta' ? undefined : undefined}
         />
 
         {/* Header with Tabs */}
