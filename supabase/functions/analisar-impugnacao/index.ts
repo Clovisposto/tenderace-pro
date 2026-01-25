@@ -11,7 +11,95 @@ serve(async (req) => {
   }
 
   try {
-    const { editalTexto, licitacaoNumero, modalidade, valor, orgao } = await req.json();
+    const body = await req.json();
+    const { editalTexto, licitacaoNumero, modalidade, valor, orgao } = body;
+
+    // ====== INPUT VALIDATION ======
+    
+    // Validate licitacaoNumero (required, max 100 chars)
+    if (!licitacaoNumero || typeof licitacaoNumero !== 'string') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Número da licitação é obrigatório'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (licitacaoNumero.length > 100) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Número da licitação muito longo (máximo 100 caracteres)'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate editalTexto (optional, max 100KB)
+    if (editalTexto !== undefined && editalTexto !== null) {
+      if (typeof editalTexto !== 'string') {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Texto do edital deve ser uma string'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      if (editalTexto.length > 100000) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Texto do edital muito grande (máximo 100KB)'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Validate valor (optional, must be positive number)
+    if (valor !== undefined && valor !== null) {
+      if (typeof valor !== 'number' || valor < 0 || valor > 1000000000) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Valor inválido'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Validate modalidade (optional, max 100 chars)
+    if (modalidade !== undefined && modalidade !== null) {
+      if (typeof modalidade !== 'string' || modalidade.length > 100) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Modalidade inválida'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Validate orgao (optional, max 500 chars)
+    if (orgao !== undefined && orgao !== null) {
+      if (typeof orgao !== 'string' || orgao.length > 500) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Órgão inválido (máximo 500 caracteres)'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ====== END INPUT VALIDATION ======
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -43,15 +131,22 @@ Para cada irregularidade encontrada, forneça:
 - Sugestão de argumentação para impugnação
 - Nível de gravidade (alta, média, baixa)`;
 
+    // Sanitize inputs for prompt to prevent injection
+    const safeNumero = String(licitacaoNumero).substring(0, 100);
+    const safeModalidade = modalidade ? String(modalidade).substring(0, 100) : 'Não informada';
+    const safeOrgao = orgao ? String(orgao).substring(0, 500) : 'Não informado';
+    const safeValor = typeof valor === 'number' ? valor : 0;
+    const safeEdital = editalTexto ? String(editalTexto).substring(0, 50000) : 'Edital não disponível para análise completa. Realizar análise baseada nos dados disponíveis.';
+
     const userPrompt = `Analise o seguinte edital de licitação:
 
-NÚMERO: ${licitacaoNumero}
-MODALIDADE: ${modalidade}
-VALOR ESTIMADO: R$ ${valor?.toLocaleString('pt-BR')}
-ÓRGÃO: ${orgao}
+NÚMERO: ${safeNumero}
+MODALIDADE: ${safeModalidade}
+VALOR ESTIMADO: R$ ${safeValor.toLocaleString('pt-BR')}
+ÓRGÃO: ${safeOrgao}
 
 TEXTO DO EDITAL:
-${editalTexto || 'Edital não disponível para análise completa. Realizar análise baseada nos dados disponíveis.'}
+${safeEdital}
 
 Forneça uma análise detalhada identificando possíveis irregularidades e fundamente cada ponto com a legislação aplicável. Se não houver texto do edital, analise os metadados disponíveis e indique verificações recomendadas.`;
 
@@ -136,7 +231,7 @@ Forneça uma análise detalhada identificando possíveis irregularidades e funda
         );
       }
       const errorText = await response.text();
-      console.error('Erro na API:', response.status, errorText);
+      console.error('Erro na API:', response.status);
       throw new Error(`Erro na análise: ${response.status}`);
     }
 
@@ -175,7 +270,7 @@ Forneça uma análise detalhada identificando possíveis irregularidades e funda
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+        error: 'Erro ao processar análise'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
