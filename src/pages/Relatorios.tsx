@@ -8,11 +8,13 @@ import {
   DollarSign,
   FileText,
   MapPin,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RobotPerformanceDashboard } from '@/components/relatorios/RobotPerformanceDashboard';
 import { GeographicPerformanceDashboard } from '@/components/relatorios/GeographicPerformanceDashboard';
+import { AIvsManualDashboard } from '@/components/relatorios/AIvsManualDashboard';
 
 const Relatorios = () => {
   return (
@@ -28,8 +30,12 @@ const Relatorios = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue="robo">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+        <Tabs defaultValue="ia-comparativo">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+            <TabsTrigger value="ia-comparativo" className="gap-1.5">
+              <Brain className="w-4 h-4" />
+              <span className="hidden sm:inline">IA vs Manual</span>
+            </TabsTrigger>
             <TabsTrigger value="robo" className="gap-1.5">
               <Bot className="w-4 h-4" />
               <span className="hidden sm:inline">Robô</span>
@@ -51,6 +57,11 @@ const Relatorios = () => {
               <span className="hidden sm:inline">Captação</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* AI vs Manual Comparative Dashboard */}
+          <TabsContent value="ia-comparativo" className="space-y-6 mt-6">
+            <AIvsManualDashboard />
+          </TabsContent>
 
           {/* Robot Performance Dashboard */}
           <TabsContent value="robo" className="space-y-6 mt-6">
