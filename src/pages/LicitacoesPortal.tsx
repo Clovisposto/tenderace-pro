@@ -104,6 +104,14 @@ const LicitacoesPortal = () => {
     if (!licitacoes) return [];
     let result = [...licitacoes];
 
+    // Excluir licitações já autorizadas/participando (vão para "Minhas Participações")
+    result = result.filter(l => 
+      l.status !== 'Autorizada' && 
+      l.status !== 'Em Disputa' && 
+      l.status !== 'Vencida' && 
+      l.status !== 'Perdida'
+    );
+
     // Filter by main tab (Compras vs Serviços)
     if (mainTab === 'compras') {
       // Compras = Compra Direta, Dispensa sem Disputa
