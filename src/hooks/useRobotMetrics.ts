@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MonthlyData {
   mes: string;
@@ -82,9 +83,13 @@ const SEGMENTO_COLORS: Record<string, string> = {
 };
 
 export function useRobotMetrics(periodo: string = '6m') {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['robot-metrics', periodo],
+    queryKey: ['robot-metrics', periodo, user?.id],
     queryFn: async (): Promise<RobotMetrics> => {
+      if (!user) throw new Error('Usuário não autenticado');
+
       // Calculate date range based on period
       const now = new Date();
       let startDate: Date;
@@ -116,10 +121,24 @@ export function useRobotMetrics(periodo: string = '6m') {
       if (licitacoesError) throw licitacoesError;
 
       // Fetch propostas data
+      const { data: minhasEmpresas, error: minhasEmpresasError } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (minhasEmpresasError) throw minhasEmpresasError;
+
+      const minhasEmpresaIds = (minhasEmpresas ?? []).map((e) => e.id);
+
       const { data: propostas, error: propostasError } = await supabase
         .from('propostas')
         .select('*')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        // If the user has no companies yet, return no proposals.
+        .in(
+          'empresa_id',
+          minhasEmpresaIds.length > 0 ? minhasEmpresaIds : ['00000000-0000-0000-0000-000000000000']
+        );
 
       if (propostasError) throw propostasError;
 
@@ -313,6 +332,7 @@ export function useRobotMetrics(periodo: string = '6m') {
         },
       };
     },
+    enabled: !!user,
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 10000, // Consider data stale after 10 seconds
   });

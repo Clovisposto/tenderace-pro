@@ -48,6 +48,7 @@ import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDetalheModal';
+import { getSafeErrorMessage } from '@/lib/safeError';
 
 interface Participacao {
   id: string;
@@ -643,6 +644,7 @@ const MinhasParticipacoes = () => {
       const { data: empresas, error: empresaError } = await supabase
         .from('empresas')
         .select('id')
+        .eq('user_id', user.id)
         .limit(1);
 
       if (empresaError) throw empresaError;
@@ -721,7 +723,7 @@ const MinhasParticipacoes = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao criar propostas',
-        description: error.message,
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -762,6 +764,18 @@ const MinhasParticipacoes = () => {
   const { data: participacoes = [], isLoading, refetch } = useQuery({
     queryKey: ['minhas-participacoes'],
     queryFn: async () => {
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Defense-in-depth: scope proposals to the current user's companies.
+      const { data: minhasEmpresas, error: minhasEmpresasError } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (minhasEmpresasError) throw minhasEmpresasError;
+      const minhasEmpresaIds = (minhasEmpresas ?? []).map((e) => e.id);
+      if (minhasEmpresaIds.length === 0) return [];
+
       const { data: propostas, error } = await supabase
         .from('propostas')
         .select(`
@@ -773,6 +787,7 @@ const MinhasParticipacoes = () => {
           created_at,
           updated_at
         `)
+        .in('empresa_id', minhasEmpresaIds)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -790,7 +805,8 @@ const MinhasParticipacoes = () => {
       const { data: empresas } = await supabase
         .from('empresas')
         .select('id, nome, cnpj')
-        .in('id', empresaIds);
+        .in('id', empresaIds)
+        .eq('user_id', user.id);
 
       // Montar os dados completos
       return propostas.map(proposta => ({
@@ -799,6 +815,7 @@ const MinhasParticipacoes = () => {
         empresa: empresas?.find(e => e.id === proposta.empresa_id) || { nome: 'N/A', cnpj: 'N/A' }
       })).filter(p => p.licitacao !== null) as Participacao[];
     },
+    enabled: !!user,
   });
 
   // Configurar realtime para atualizações de status

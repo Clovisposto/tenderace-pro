@@ -62,6 +62,7 @@ import { format, differenceInSeconds, differenceInMinutes, differenceInHours, di
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSafeErrorMessage } from '@/lib/safeError';
 import { ImpugnacaoSystem } from '@/components/licitacao/ImpugnacaoSystem';
 import { RobotLiveLog } from '@/components/licitacao/RobotLiveLog';
 
@@ -512,9 +513,22 @@ export function ParticipacoesDashboardTab() {
   const { data: participacoes = [], isLoading: loadingParticipacoes } = useQuery({
     queryKey: ['dashboard-participacoes'],
     queryFn: async () => {
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Defense-in-depth: scope proposals to the current user's companies.
+      const { data: minhasEmpresas, error: minhasEmpresasError } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (minhasEmpresasError) throw minhasEmpresasError;
+      const minhasEmpresaIds = (minhasEmpresas ?? []).map((e) => e.id);
+      if (minhasEmpresaIds.length === 0) return [];
+
       const { data: propostas, error } = await supabase
         .from('propostas')
         .select('*')
+        .in('empresa_id', minhasEmpresaIds)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -530,7 +544,8 @@ export function ParticipacoesDashboardTab() {
       const { data: empresas } = await supabase
         .from('empresas')
         .select('id, nome, cnpj')
-        .in('id', empresaIds);
+        .in('id', empresaIds)
+        .eq('user_id', user.id);
 
       return propostas.map(proposta => ({
         ...proposta,
@@ -539,6 +554,7 @@ export function ParticipacoesDashboardTab() {
       })).filter(p => p.licitacao !== null) as Participacao[];
     },
     refetchInterval: 10000,
+    enabled: !!user,
   });
 
   // Fetch licitações autorizadas
@@ -595,6 +611,7 @@ export function ParticipacoesDashboardTab() {
       const { data: empresas } = await supabase
         .from('empresas')
         .select('id')
+        .eq('user_id', user.id)
         .limit(1);
 
       if (!empresas || empresas.length === 0) {
@@ -648,7 +665,7 @@ export function ParticipacoesDashboardTab() {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao enviar proposta',
-        description: error.message,
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     },

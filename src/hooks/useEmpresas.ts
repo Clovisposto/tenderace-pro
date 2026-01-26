@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { getSafeErrorMessage } from '@/lib/safeError';
 
 export type Empresa = Tables<'empresas'>;
 export type EmpresaInsert = TablesInsert<'empresas'>;
@@ -25,18 +26,23 @@ export function useEmpresas() {
 }
 
 export function useEmpresa(id: string) {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['empresa', id],
+    queryKey: ['empresa', id, user?.id],
     queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('empresas')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!id && !!user,
   });
 }
 
@@ -67,7 +73,7 @@ export function useCreateEmpresa() {
     onError: (error) => {
       toast({
         title: 'Erro ao cadastrar',
-        description: error.message,
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -99,7 +105,7 @@ export function useUpdateEmpresa() {
     onError: (error) => {
       toast({
         title: 'Erro ao atualizar',
-        description: error.message,
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -128,7 +134,7 @@ export function useDeleteEmpresa() {
     onError: (error) => {
       toast({
         title: 'Erro ao remover',
-        description: error.message,
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     },

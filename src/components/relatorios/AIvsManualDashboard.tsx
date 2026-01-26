@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ComparisonMetrics {
   aiWins: number;
@@ -82,9 +83,13 @@ interface ComparisonMetrics {
 }
 
 function useAIvsManualMetrics(periodo: string) {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['ai-vs-manual-metrics', periodo],
+    queryKey: ['ai-vs-manual-metrics', periodo, user?.id],
     queryFn: async (): Promise<ComparisonMetrics> => {
+      if (!user) throw new Error('Usuário não autenticado');
+
       // Calculate date range
       const now = new Date();
       let startDate = new Date();
@@ -111,10 +116,24 @@ function useAIvsManualMetrics(periodo: string) {
         .select('*')
         .gte('created_at', startDate.toISOString());
 
+      // Defense-in-depth: scope proposals to the current user's companies.
+      const { data: minhasEmpresas, error: minhasEmpresasError } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (minhasEmpresasError) throw minhasEmpresasError;
+
+      const minhasEmpresaIds = (minhasEmpresas ?? []).map((e) => e.id);
+
       const { data: propostas } = await supabase
         .from('propostas')
         .select('*, licitacoes(*)')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .in(
+          'empresa_id',
+          minhasEmpresaIds.length > 0 ? minhasEmpresaIds : ['00000000-0000-0000-0000-000000000000']
+        );
 
       // Simulate AI vs Manual comparison based on ROI score
       // Licitações com roi_score > 70 são consideradas "selecionadas pela IA"
@@ -200,6 +219,7 @@ function useAIvsManualMetrics(periodo: string) {
         radarData,
       };
     },
+    enabled: !!user,
     refetchInterval: 60000,
     staleTime: 30000,
   });
