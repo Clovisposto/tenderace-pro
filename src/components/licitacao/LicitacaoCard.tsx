@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   Bot,
   Check,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,9 +22,28 @@ import { toast } from '@/hooks/use-toast';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
 
 interface LicitacaoCardProps {
-  licitacao: Licitacao;
+  licitacao: Licitacao & { editalUrl?: string };
   onClick?: () => void;
   delay?: number;
+}
+
+// Generate portal URL based on portal type and tender number
+function getPortalUrl(portal: string, numero: string, editalUrl?: string): string | null {
+  if (editalUrl) return editalUrl;
+  
+  const portalUrls: Record<string, string> = {
+    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}`,
+    'BLL': `https://bllcompras.com/DirectBuy/DirectBuySearchPublic?numero=${encodeURIComponent(numero)}`,
+    'ComprasNet': `https://www.gov.br/compras/pt-br/acesso-a-informacao/consultas?numero=${encodeURIComponent(numero)}`,
+    'Caixa': `https://licitacoes1.caixa.gov.br/sicve-web/private/view/licitante/listaAtividadesLicitante.jsf`,
+    'BB': `https://www.licitacoes-e.com.br/aop/lct/licitacoes/consultaLicitacoes.aop`,
+    'Banpara': `https://cotacao.banpara.b.br/core/default.aspx`,
+    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Licitacoes/`,
+    'Portal Estadual': null,
+    'Portal Municipal': null,
+  };
+  
+  return portalUrls[portal] || null;
 }
 
 const complianceVariant = {
@@ -161,6 +181,23 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Ver no Portal Original Button */}
+            {getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).editalUrl) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).editalUrl);
+                  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Portal
+              </Button>
+            )}
+            
             {isAutorizada ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 text-success text-xs font-medium">
                 <Check className="w-3.5 h-3.5" />

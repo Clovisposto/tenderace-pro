@@ -55,6 +55,23 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
 import type { Licitacao } from '@/hooks/useLicitacoes';
 
+// Generate portal URL based on portal type and tender number
+function getPortalUrl(portal: string, numero: string, editalUrl?: string | null): string | null {
+  if (editalUrl) return editalUrl;
+  
+  const portalUrls: Record<string, string> = {
+    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}`,
+    'BLL': `https://bllcompras.com/DirectBuy/DirectBuySearchPublic?numero=${encodeURIComponent(numero)}`,
+    'ComprasNet': `https://www.gov.br/compras/pt-br/acesso-a-informacao/consultas?numero=${encodeURIComponent(numero)}`,
+    'Caixa': `https://licitacoes1.caixa.gov.br/sicve-web/private/view/licitante/listaAtividadesLicitante.jsf`,
+    'BB': `https://www.licitacoes-e.com.br/aop/lct/licitacoes/consultaLicitacoes.aop`,
+    'Banpara': `https://cotacao.banpara.b.br/core/default.aspx`,
+    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Licitacoes/`,
+  };
+  
+  return portalUrls[portal] || null;
+}
+
 interface BLLDetailPanelProps {
   licitacao: Licitacao | null;
   onClose: () => void;
@@ -269,6 +286,23 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
                 <SheetTitle className="text-lg md:text-xl leading-tight pr-8">
                   {licitacao.objeto_resumido || licitacao.objeto?.substring(0, 80)}
                 </SheetTitle>
+                
+                {/* Ver no Portal Original Button */}
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 w-full sm:w-auto"
+                    onClick={() => {
+                      const url = getPortalUrl(licitacao.portal, licitacao.numero, licitacao.edital_url);
+                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    disabled={!getPortalUrl(licitacao.portal, licitacao.numero, licitacao.edital_url)}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver no Portal Original
+                  </Button>
+                </div>
               </div>
             </div>
           </SheetHeader>

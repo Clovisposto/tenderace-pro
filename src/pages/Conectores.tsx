@@ -3,6 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SicafConnector } from '@/components/conectores/SicafConnector';
+import { BanparaConnector } from '@/components/conectores/BanparaConnector';
+import { CaixaConnector } from '@/components/conectores/CaixaConnector';
+import { MedicalVMConnector } from '@/components/conectores/MedicalVMConnector';
 import { 
   Plug, 
   Shield, 
@@ -10,7 +13,10 @@ import {
   Database,
   CheckCircle,
   Clock,
-  Lock
+  Lock,
+  Building,
+  Building2,
+  Pill
 } from 'lucide-react';
 
 const conectoresDisponiveis = [
@@ -54,9 +60,9 @@ const conectoresDisponiveis = [
     id: 'caixa',
     nome: 'Caixa',
     descricao: 'Caixa Econômica Federal - Licitações',
-    status: 'ativo',
-    tipo: 'API Caixa',
-    icon: Database,
+    status: 'pronto',
+    tipo: 'API Caixa (Rate Limited)',
+    icon: Building,
     url: 'https://licitacoes.caixa.gov.br',
   },
   {
@@ -70,18 +76,27 @@ const conectoresDisponiveis = [
   },
   {
     id: 'banpara',
-    nome: 'Banpara Cotações',
+    nome: 'Banpará',
     descricao: 'Sistema de Cotações do Banco do Pará',
-    status: 'ativo',
+    status: 'pronto',
     tipo: 'Portal Regional PA',
-    icon: Database,
+    icon: Building2,
     url: 'https://cotacao.banpara.b.br/Default.aspx',
+  },
+  {
+    id: 'medicalvm',
+    nome: 'MedicalVM',
+    descricao: 'Portal Especializado em Medicamentos',
+    status: 'pronto',
+    tipo: 'Portal Farmacêutico',
+    icon: Pill,
+    url: 'https://www.medicalvm.com.br',
   },
   {
     id: 'sicaf',
     nome: 'SICAF',
     descricao: 'Sistema de Cadastramento Unificado de Fornecedores',
-    status: 'ativo',
+    status: 'pronto',
     tipo: 'Certificado Digital',
     icon: Shield,
   },
@@ -91,9 +106,9 @@ const Conectores = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ativo':
-        return <Badge className="badge-vencida gap-1"><CheckCircle className="w-3 h-3" /> Ativo</Badge>;
+        return <Badge className="bg-success/20 text-success gap-1"><CheckCircle className="w-3 h-3" /> Ativo</Badge>;
       case 'pronto':
-        return <Badge className="badge-aguardando gap-1"><Clock className="w-3 h-3" /> Pronto</Badge>;
+        return <Badge className="bg-warning/20 text-warning gap-1"><Clock className="w-3 h-3" /> Pronto</Badge>;
       default:
         return <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" /> Planejado</Badge>;
     }
@@ -109,22 +124,22 @@ const Conectores = () => {
             Conectores de Portais
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie as integrações com portais de licitação
+            Gerencie as integrações com portais de licitação - Configure credenciais para ativar capturas
           </p>
         </div>
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {conectoresDisponiveis.map((conector) => (
             <Card key={conector.id} className="bll-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                     conector.status === 'ativo' ? 'bg-success/10' :
                     conector.status === 'pronto' ? 'bg-warning/10' :
                     'bg-secondary'
                   }`}>
-                    <conector.icon className={`w-5 h-5 ${
+                    <conector.icon className={`w-4 h-4 ${
                       conector.status === 'ativo' ? 'text-success' :
                       conector.status === 'pronto' ? 'text-warning' :
                       'text-muted-foreground'
@@ -135,7 +150,7 @@ const Conectores = () => {
                     <p className="text-xs text-muted-foreground truncate">{conector.tipo}</p>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-2">
                   {getStatusBadge(conector.status)}
                 </div>
               </CardContent>
@@ -144,21 +159,44 @@ const Conectores = () => {
         </div>
 
         {/* Tabs for each connector */}
-        <Tabs defaultValue="sicaf" className="space-y-4">
-          <TabsList className="bg-secondary">
-            <TabsTrigger value="sicaf" className="gap-2">
+        <Tabs defaultValue="banpara" className="space-y-4">
+          <TabsList className="bg-secondary flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="banpara" className="gap-2 text-xs">
+              <Building2 className="w-4 h-4" />
+              Banpará
+            </TabsTrigger>
+            <TabsTrigger value="caixa" className="gap-2 text-xs">
+              <Building className="w-4 h-4" />
+              Caixa
+            </TabsTrigger>
+            <TabsTrigger value="medicalvm" className="gap-2 text-xs">
+              <Pill className="w-4 h-4" />
+              MedicalVM
+            </TabsTrigger>
+            <TabsTrigger value="sicaf" className="gap-2 text-xs">
               <Shield className="w-4 h-4" />
               SICAF
             </TabsTrigger>
-            <TabsTrigger value="pncp" className="gap-2">
+            <TabsTrigger value="pncp" className="gap-2 text-xs">
               <Globe className="w-4 h-4" />
               PNCP
             </TabsTrigger>
-            <TabsTrigger value="outros" className="gap-2">
-              <Plug className="w-4 h-4" />
-              Outros
-            </TabsTrigger>
           </TabsList>
+
+          {/* Banpará Tab */}
+          <TabsContent value="banpara">
+            <BanparaConnector />
+          </TabsContent>
+
+          {/* Caixa Tab */}
+          <TabsContent value="caixa">
+            <CaixaConnector />
+          </TabsContent>
+
+          {/* MedicalVM Tab */}
+          <TabsContent value="medicalvm">
+            <MedicalVMConnector />
+          </TabsContent>
 
           {/* SICAF Tab */}
           <TabsContent value="sicaf">
@@ -179,7 +217,7 @@ const Conectores = () => {
                       Portal Nacional de Contratações Públicas
                     </CardDescription>
                   </div>
-                  <Badge className="badge-vencida ml-auto">Ativo</Badge>
+                  <Badge className="bg-success/20 text-success ml-auto">Ativo</Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-4">
@@ -187,7 +225,7 @@ const Conectores = () => {
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-5 h-5 text-success mt-0.5" />
                     <div>
-                      <p className="font-medium">Conector Operacional</p>
+                      <p className="font-medium">Conector Operacional - Captura 24/7</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         O conector PNCP está ativo e funcionando. A captura automática ocorre a cada hora,
                         buscando novas licitações conforme a política configurada.
@@ -212,46 +250,6 @@ const Conectores = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Outros Tab */}
-          <TabsContent value="outros">
-            <Card className="bll-card">
-              <CardHeader className="bll-card-header">
-                <CardTitle className="text-lg">Conectores Planejados</CardTitle>
-                <CardDescription>
-                  Integrações futuras em desenvolvimento
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  {conectoresDisponiveis
-                    .filter(c => c.status === 'planejado')
-                    .map((conector) => (
-                      <div key={conector.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                            <conector.icon className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{conector.nome}</p>
-                            <p className="text-xs text-muted-foreground">{conector.descricao}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">Planejado</Badge>
-                      </div>
-                    ))}
-                </div>
-
-                <div className="mt-4 bg-primary/5 border border-primary/20 rounded-lg p-4">
-                  <p className="text-sm">
-                    Os conectores planejados serão implementados conforme demanda e disponibilidade
-                    de APIs oficiais. Todos seguirão as diretrizes de conformidade (Lei 14.133/2021)
-                    e não realizarão automação de login ou bypass de captcha.
-                  </p>
                 </div>
               </CardContent>
             </Card>
