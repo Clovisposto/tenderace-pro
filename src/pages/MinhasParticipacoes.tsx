@@ -30,7 +30,15 @@ import {
   PlayCircle,
   Target,
   Sparkles,
-  Loader2
+  Loader2,
+  Pill,
+  Building,
+  FileSignature,
+  Truck,
+  CreditCard,
+  Phone,
+  Mail,
+  CalendarClock
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -315,6 +323,172 @@ const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?
   );
 };
 
+// Card para licitações vencidas com informações de contrato
+const VencedoraCard = ({ participacao, isRealtime, onOpenDetails }: { 
+  participacao: Participacao; 
+  isRealtime?: boolean;
+  onOpenDetails: (participacao: Participacao) => void;
+}) => {
+  const { licitacao, empresa } = participacao;
+  
+  // Informações simuladas do contrato
+  const infoContrato = {
+    prazoEntrega: '30 dias corridos após emissão da Nota de Empenho',
+    localEntrega: `${licitacao.municipio}/${licitacao.uf} - Sede do Órgão`,
+    vigenciaContrato: '12 meses a partir da assinatura',
+    formaPagamento: '30 dias após entrega e aceite definitivo',
+    telefoneContato: '(XX) XXXX-XXXX',
+    emailContato: `licitacao@${licitacao.municipio.toLowerCase().replace(/\s/g, '')}.gov.br`,
+    responsavel: 'Setor de Licitações e Contratos',
+  };
+  
+  return (
+    <Card className="relative overflow-hidden transition-all hover:shadow-xl border-2 border-success/40 bg-gradient-to-br from-success/5 to-success/10">
+      {/* Victory Banner */}
+      <div className="absolute top-0 right-0 w-28 h-28 overflow-hidden">
+        <div className="absolute top-4 -right-10 w-40 text-center text-xs font-bold text-white bg-success transform rotate-45 py-1.5 shadow-lg">
+          🏆 VENCEDOR
+        </div>
+      </div>
+      
+      {/* Segmento Badge */}
+      <div className="absolute top-3 left-3">
+        <Badge className={`${
+          licitacao.segmento === 'Medicamentos' 
+            ? 'bg-blue-100 text-blue-700' 
+            : 'bg-orange-100 text-orange-700'
+        }`}>
+          {licitacao.segmento === 'Medicamentos' ? (
+            <><Pill className="w-3 h-3 mr-1" /> Medicamentos</>
+          ) : (
+            <><Building className="w-3 h-3 mr-1" /> Empreendimentos</>
+          )}
+        </Badge>
+      </div>
+      
+      <CardHeader className="pb-3 pt-10">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-xs">
+              {licitacao.portal}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">
+              {licitacao.modalidade}
+            </Badge>
+            <Badge className="bg-success/20 text-success flex items-center gap-1">
+              <Trophy className="w-3 h-3" />
+              Vencedora
+            </Badge>
+          </div>
+          <CardTitle className="text-base line-clamp-2 pr-16">
+            {licitacao.objeto_resumido || licitacao.objeto}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">{licitacao.numero}</p>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Órgão e Local */}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate">{licitacao.orgao}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <span>{licitacao.municipio}, {licitacao.uf}</span>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Valores */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <p className="text-xs text-muted-foreground mb-1">Valor Vencedor</p>
+            <p className="text-xl font-bold text-success">
+              R$ {participacao.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <p className="text-xs text-muted-foreground mb-1">Economia Gerada</p>
+            <p className="text-xl font-bold text-warning">
+              {((1 - participacao.valor_proposta / licitacao.valor) * 100).toFixed(1)}%
+            </p>
+          </div>
+        </div>
+
+        {/* Informações de Contrato e Entrega */}
+        <div className="p-4 rounded-lg bg-background border-2 border-dashed border-success/40">
+          <div className="flex items-center gap-2 mb-3">
+            <FileSignature className="w-4 h-4 text-success" />
+            <h4 className="font-semibold text-sm text-success">Informações do Contrato</h4>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div className="flex items-start gap-2">
+              <Truck className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-muted-foreground">Prazo de Entrega</p>
+                <p className="font-medium">{infoContrato.prazoEntrega}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-muted-foreground">Local de Entrega</p>
+                <p className="font-medium">{infoContrato.localEntrega}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <CalendarClock className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-muted-foreground">Vigência</p>
+                <p className="font-medium">{infoContrato.vigenciaContrato}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <CreditCard className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-muted-foreground">Forma de Pagamento</p>
+                <p className="font-medium">{infoContrato.formaPagamento}</p>
+              </div>
+            </div>
+          </div>
+          
+          <Separator className="my-3" />
+          
+          {/* Contato */}
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1">
+              <Phone className="w-3 h-3 text-muted-foreground" />
+              <span>{infoContrato.telefoneContato}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Mail className="w-3 h-3 text-muted-foreground" />
+              <span>{infoContrato.emailContato}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <div className="text-xs text-muted-foreground">
+            Empresa: {empresa.nome}
+          </div>
+          <Button 
+            className="gap-1 bg-success hover:bg-success/90"
+            size="sm"
+            onClick={() => onOpenDetails(participacao)}
+          >
+            <FileSignature className="w-4 h-4" />
+            Ver Contrato
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const ParticipacaoCard = ({ participacao, isRealtime, onOpenDetails }: { 
   participacao: Participacao; 
   isRealtime?: boolean;
@@ -322,19 +496,31 @@ const ParticipacaoCard = ({ participacao, isRealtime, onOpenDetails }: {
 }) => {
   const { licitacao, empresa } = participacao;
   
+  // Use VencedoraCard for winners
+  if (participacao.status === 'Vencedora') {
+    return <VencedoraCard participacao={participacao} isRealtime={isRealtime} onOpenDetails={onOpenDetails} />;
+  }
+  
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${
       isRealtime ? 'ring-2 ring-primary animate-pulse' : ''
     }`}>
-      {participacao.status === 'Vencedora' && (
-        <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden">
-          <div className="absolute top-3 -right-8 w-32 text-center text-xs font-bold text-white bg-success transform rotate-45 py-1">
-            VENCEDOR
-          </div>
-        </div>
-      )}
+      {/* Segmento Badge */}
+      <div className="absolute top-3 left-3">
+        <Badge className={`text-xs ${
+          licitacao.segmento === 'Medicamentos' 
+            ? 'bg-blue-100 text-blue-700' 
+            : 'bg-orange-100 text-orange-700'
+        }`}>
+          {licitacao.segmento === 'Medicamentos' ? (
+            <><Pill className="w-3 h-3 mr-1" /> Med</>
+          ) : (
+            <><Building className="w-3 h-3 mr-1" /> Emp</>
+          )}
+        </Badge>
+      </div>
       
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 pt-10">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -651,9 +837,19 @@ const MinhasParticipacoes = () => {
   const filterByStatus = (status: string[]) => 
     participacoes.filter(p => status.includes(p.status));
 
+  const filterBySegmento = (segmento: string) =>
+    participacoes.filter(p => p.licitacao.segmento === segmento);
+
   const emDisputa = filterByStatus(['Enviada', 'Em Disputa']);
   const vencidas = filterByStatus(['Vencedora']);
   const perdidas = filterByStatus(['Perdedora', 'Cancelada']);
+
+  // Filtrar por segmento
+  const medicamentosParticipacoes = filterBySegmento('Medicamentos');
+  const empreendimentosParticipacoes = filterBySegmento('Empreendimentos');
+  
+  const medicamentosVencidas = medicamentosParticipacoes.filter(p => p.status === 'Vencedora');
+  const empreendimentosVencidas = empreendimentosParticipacoes.filter(p => p.status === 'Vencedora');
 
   // Buscar licitações autorizadas (status = 'Autorizada' na tabela licitacoes)
   const { data: licitacoesAutorizadas = [] } = useQuery({
@@ -670,6 +866,10 @@ const MinhasParticipacoes = () => {
     },
   });
 
+  // Separar licitações autorizadas por segmento
+  const autorizadasMedicamentos = licitacoesAutorizadas.filter(l => l.segmento === 'Medicamentos');
+  const autorizadasEmpreendimentos = licitacoesAutorizadas.filter(l => l.segmento === 'Empreendimentos');
+
   const stats = {
     total: participacoes.length,
     emDisputa: emDisputa.length,
@@ -679,7 +879,17 @@ const MinhasParticipacoes = () => {
     valorTotal: vencidas.reduce((acc, p) => acc + p.valor_proposta, 0),
     taxaSucesso: participacoes.length > 0 
       ? ((vencidas.length / participacoes.length) * 100).toFixed(1)
-      : '0.0'
+      : '0.0',
+    medicamentos: {
+      total: medicamentosParticipacoes.length,
+      vencidas: medicamentosVencidas.length,
+      autorizadas: autorizadasMedicamentos.length,
+    },
+    empreendimentos: {
+      total: empreendimentosParticipacoes.length,
+      vencidas: empreendimentosVencidas.length,
+      autorizadas: autorizadasEmpreendimentos.length,
+    }
   };
 
   if (isLoading) {
@@ -789,27 +999,41 @@ const MinhasParticipacoes = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="autorizadas" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="autorizadas" className="gap-2">
-              <Bot className="w-4 h-4" />
-              Robô
-              <Badge variant="secondary" className="ml-1 bg-primary/20 text-primary">{stats.autorizadas}</Badge>
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="autorizadas" className="gap-1 text-xs md:text-sm">
+              <Bot className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Robô</span>
+              <Badge variant="secondary" className="ml-0.5 bg-primary/20 text-primary text-xs px-1.5">{stats.autorizadas}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="todas" className="gap-2">
-              Todas
-              <Badge variant="secondary" className="ml-1">{stats.total}</Badge>
+            <TabsTrigger value="medicamentos" className="gap-1 text-xs md:text-sm">
+              <Pill className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Med</span>
+              <Badge variant="secondary" className="ml-0.5 bg-blue-100 text-blue-700 text-xs px-1.5">{stats.medicamentos.total}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="disputa" className="gap-2">
-              Disputa
-              <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700">{stats.emDisputa}</Badge>
+            <TabsTrigger value="empreendimentos" className="gap-1 text-xs md:text-sm">
+              <Building className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Emp</span>
+              <Badge variant="secondary" className="ml-0.5 bg-orange-100 text-orange-700 text-xs px-1.5">{stats.empreendimentos.total}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="vencidas" className="gap-2">
-              Vencidas
-              <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700">{stats.vencidas}</Badge>
+            <TabsTrigger value="disputa" className="gap-1 text-xs md:text-sm">
+              <Gavel className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Disputa</span>
+              <Badge variant="secondary" className="ml-0.5 bg-warning/20 text-warning text-xs px-1.5">{stats.emDisputa}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="perdidas" className="gap-2">
-              Perdidas
-              <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{stats.perdidas}</Badge>
+            <TabsTrigger value="vencidas" className="gap-1 text-xs md:text-sm">
+              <Trophy className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Vencidas</span>
+              <Badge variant="secondary" className="ml-0.5 bg-success/20 text-success text-xs px-1.5">{stats.vencidas}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="perdidas" className="gap-1 text-xs md:text-sm">
+              <XCircle className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Perdidas</span>
+              <Badge variant="secondary" className="ml-0.5 bg-destructive/20 text-destructive text-xs px-1.5">{stats.perdidas}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="todas" className="gap-1 text-xs md:text-sm">
+              <FileText className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Todas</span>
+              <Badge variant="secondary" className="ml-0.5 text-xs px-1.5">{stats.total}</Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -852,6 +1076,94 @@ const MinhasParticipacoes = () => {
                       key={lic.id} 
                       licitacao={lic}
                       isRealtime={false}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Aba Medicamentos */}
+          <TabsContent value="medicamentos">
+            <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-50/50 border border-blue-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-blue-100">
+                  <Pill className="w-6 h-6 text-blue-700" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-700">Empresa: PARA MEDICAMENTOS E SERVIÇOS MÉDICOS LTDA</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.medicamentos.autorizadas} autorizada(s) • {stats.medicamentos.vencidas} vencida(s) • {stats.medicamentos.total} total
+                  </p>
+                </div>
+                <Badge className="ml-auto bg-blue-100 text-blue-700">
+                  <ShieldCheck className="w-3 h-3 mr-1" />
+                  Licença Farmacêutica
+                </Badge>
+              </div>
+            </div>
+            
+            <ScrollArea className="h-[calc(100vh-480px)]">
+              <div className="grid gap-4 md:grid-cols-2">
+                {medicamentosParticipacoes.length === 0 ? (
+                  <Card className="col-span-2 p-8 text-center">
+                    <Pill className="w-16 h-16 mx-auto text-blue-300 mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Nenhuma participação em Medicamentos</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Autorize licitações no segmento de Medicamentos para participar.
+                    </p>
+                  </Card>
+                ) : (
+                  medicamentosParticipacoes.map(p => (
+                    <ParticipacaoCard 
+                      key={p.id} 
+                      participacao={p} 
+                      isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Aba Empreendimentos */}
+          <TabsContent value="empreendimentos">
+            <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-orange-50 to-orange-50/50 border border-orange-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-orange-100">
+                  <Building className="w-6 h-6 text-orange-700" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-orange-700">Empresa: PARA EMPREENDIMENTOS COMERCIO E PRESTACAO DE SERVIÇOS LTDA</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.empreendimentos.autorizadas} autorizada(s) • {stats.empreendimentos.vencidas} vencida(s) • {stats.empreendimentos.total} total
+                  </p>
+                </div>
+                <Badge className="ml-auto bg-orange-100 text-orange-700">
+                  <ShieldCheck className="w-3 h-3 mr-1" />
+                  SICAF Regular
+                </Badge>
+              </div>
+            </div>
+            
+            <ScrollArea className="h-[calc(100vh-480px)]">
+              <div className="grid gap-4 md:grid-cols-2">
+                {empreendimentosParticipacoes.length === 0 ? (
+                  <Card className="col-span-2 p-8 text-center">
+                    <Building className="w-16 h-16 mx-auto text-orange-300 mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Nenhuma participação em Empreendimentos</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Autorize licitações no segmento de Empreendimentos para participar.
+                    </p>
+                  </Card>
+                ) : (
+                  empreendimentosParticipacoes.map(p => (
+                    <ParticipacaoCard 
+                      key={p.id} 
+                      participacao={p} 
+                      isRealtime={realtimeUpdates.includes(p.id)}
+                      onOpenDetails={handleOpenDetails}
                     />
                   ))
                 )}
