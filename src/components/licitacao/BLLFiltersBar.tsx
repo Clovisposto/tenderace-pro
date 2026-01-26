@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,11 +6,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Search, X, CalendarIcon } from 'lucide-react';
+import { Search, X, CalendarIcon, Building2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export interface BLLFiltersState {
   promotor: string;
+  orgaoPagador: string;
   numero: string;
   cidade: string;
   uf: string;
@@ -25,6 +27,7 @@ interface BLLFiltersBarProps {
   onFilterChange: (filters: BLLFiltersState) => void;
   onBuscar: () => void;
   onLimpar: () => void;
+  orgaosPagadores?: string[];
 }
 
 const UF_OPTIONS = [
@@ -50,16 +53,38 @@ const SITUACAO_OPTIONS = [
   { value: 'Cancelada', label: 'Cancelada' },
 ];
 
-export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: BLLFiltersBarProps) {
+export function BLLFiltersBar({ 
+  filters, 
+  onFilterChange, 
+  onBuscar, 
+  onLimpar,
+  orgaosPagadores = []
+}: BLLFiltersBarProps) {
+  const [orgaoPagadorOpen, setOrgaoPagadorOpen] = useState(false);
+  
   const updateFilter = useCallback(<K extends keyof BLLFiltersState>(key: K, value: BLLFiltersState[K]) => {
     onFilterChange({ ...filters, [key]: value });
   }, [filters, onFilterChange]);
+
+  // Filter suggestions for órgão pagador
+  const filteredOrgaosPagadores = useMemo(() => {
+    if (!filters.orgaoPagador) return orgaosPagadores.slice(0, 10);
+    const term = filters.orgaoPagador.toLowerCase();
+    return orgaosPagadores
+      .filter(orgao => orgao.toLowerCase().includes(term))
+      .slice(0, 10);
+  }, [filters.orgaoPagador, orgaosPagadores]);
+
+  const handleSelectOrgaoPagador = (value: string) => {
+    updateFilter('orgaoPagador', value);
+    setOrgaoPagadorOpen(false);
+  };
 
   return (
     <div className="bll-filter-bar">
       <div className="flex flex-wrap items-end gap-2">
         {/* Promotor (Órgão) */}
-        <div className="flex flex-col gap-1 min-w-[140px]">
+        <div className="flex flex-col gap-1 min-w-[130px]">
           <label className="text-xs text-muted-foreground font-medium">Promotor</label>
           <Input
             placeholder="Órgão/Entidade"
@@ -69,8 +94,71 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
           />
         </div>
 
+        {/* Órgão Pagador com Autocomplete */}
+        <div className="flex flex-col gap-1 min-w-[160px] relative">
+          <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+            <Building2 className="w-3 h-3" />
+            Órgão Pagador
+          </label>
+          <Popover open={orgaoPagadorOpen} onOpenChange={setOrgaoPagadorOpen}>
+            <PopoverTrigger asChild>
+              <div className="relative">
+                <Input
+                  placeholder="Município/UF"
+                  value={filters.orgaoPagador}
+                  onChange={(e) => {
+                    updateFilter('orgaoPagador', e.target.value);
+                    setOrgaoPagadorOpen(true);
+                  }}
+                  onFocus={() => setOrgaoPagadorOpen(true)}
+                  className="h-8 text-sm bg-background border-border pr-7"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-8 w-7 p-0"
+                  onClick={() => setOrgaoPagadorOpen(!orgaoPagadorOpen)}
+                >
+                  <ChevronDown className={cn("w-3 h-3 text-muted-foreground transition-transform", orgaoPagadorOpen && "rotate-180")} />
+                </Button>
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0" align="start">
+              <div className="max-h-[200px] overflow-y-auto">
+                {filteredOrgaosPagadores.length > 0 ? (
+                  <div className="p-1">
+                    {filteredOrgaosPagadores.map((orgao, index) => {
+                      const parts = orgao.split('/');
+                      const municipio = parts[0];
+                      const uf = parts[1] || '';
+                      return (
+                        <button
+                          key={index}
+                          className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between gap-2"
+                          onClick={() => handleSelectOrgaoPagador(orgao)}
+                        >
+                          <span className="truncate">{municipio}</span>
+                          {uf && (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              {uf}
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 text-center text-sm text-muted-foreground">
+                    Nenhum resultado
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
         {/* Nº Edital/Processo */}
-        <div className="flex flex-col gap-1 min-w-[120px]">
+        <div className="flex flex-col gap-1 min-w-[100px]">
           <label className="text-xs text-muted-foreground font-medium">Nº Edital</label>
           <Input
             placeholder="Número"
@@ -81,7 +169,7 @@ export function BLLFiltersBar({ filters, onFilterChange, onBuscar, onLimpar }: B
         </div>
 
         {/* Cidade */}
-        <div className="flex flex-col gap-1 min-w-[120px]">
+        <div className="flex flex-col gap-1 min-w-[100px]">
           <label className="text-xs text-muted-foreground font-medium">Cidade</label>
           <Input
             placeholder="Município"
