@@ -6,6 +6,7 @@ import { SicafConnector } from '@/components/conectores/SicafConnector';
 import { BanparaConnector } from '@/components/conectores/BanparaConnector';
 import { CaixaConnector } from '@/components/conectores/CaixaConnector';
 import { MedicalVMConnector } from '@/components/conectores/MedicalVMConnector';
+import { EmailWebhookConfig } from '@/components/integracao/EmailWebhookConfig';
 import { 
   Plug, 
   Shield, 
@@ -16,7 +17,8 @@ import {
   Lock,
   Building,
   Building2,
-  Pill
+  Pill,
+  Mail
 } from 'lucide-react';
 
 const conectoresDisponiveis = [
@@ -159,8 +161,12 @@ const Conectores = () => {
         </div>
 
         {/* Tabs for each connector */}
-        <Tabs defaultValue="banpara" className="space-y-4">
+        <Tabs defaultValue="email" className="space-y-4">
           <TabsList className="bg-secondary flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="email" className="gap-2 text-xs">
+              <Mail className="w-4 h-4" />
+              Email/Drive
+            </TabsTrigger>
             <TabsTrigger value="banpara" className="gap-2 text-xs">
               <Building2 className="w-4 h-4" />
               Banpará
@@ -182,6 +188,11 @@ const Conectores = () => {
               PNCP
             </TabsTrigger>
           </TabsList>
+
+          {/* Email/Drive Tab */}
+          <TabsContent value="email">
+            <EmailWebhookConfig />
+          </TabsContent>
 
           {/* Banpará Tab */}
           <TabsContent value="banpara">
