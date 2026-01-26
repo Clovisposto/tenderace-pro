@@ -17,15 +17,20 @@ import {
   Download, 
   FileText,
   ShoppingCart,
-  MapPin,
+  Briefcase,
+  Pill,
+  Building2,
   Zap,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Bot,
+  Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type TabType = 'processos' | 'compra_direta' | 'localizacao';
+type MainTabType = 'todos' | 'compras' | 'servicos';
+type SegmentTabType = 'todos' | 'medicamentos' | 'empreendimentos';
 
 const INITIAL_FILTERS: BLLFiltersState = {
   promotor: '',
@@ -42,7 +47,8 @@ const PAGE_SIZE = 20;
 
 const LicitacoesPortal = () => {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<TabType>('processos');
+  const [mainTab, setMainTab] = useState<MainTabType>('todos');
+  const [segmentTab, setSegmentTab] = useState<SegmentTabType>('todos');
   const [filters, setFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
@@ -72,32 +78,43 @@ const LicitacoesPortal = () => {
     return count;
   }, [appliedFilters]);
 
-  // Apply tab presets
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab as TabType);
+  // Handle main tab change (Compras/Serviços)
+  const handleMainTabChange = useCallback((tab: string) => {
+    setMainTab(tab as MainTabType);
     setPage(1);
-    
-    if (tab === 'compra_direta') {
-      setFilters({ ...INITIAL_FILTERS, modalidade: 'Compra Direta' });
-      setAppliedFilters({ ...INITIAL_FILTERS, modalidade: 'Compra Direta' });
-    } else if (tab === 'localizacao') {
-      setFilters({ ...INITIAL_FILTERS });
-      setAppliedFilters({ ...INITIAL_FILTERS });
-    } else {
-      setFilters(INITIAL_FILTERS);
-      setAppliedFilters(INITIAL_FILTERS);
-    }
   }, []);
 
-  // Filter licitacoes
+  // Handle segment tab change (Medicamentos/Empreendimentos)
+  const handleSegmentTabChange = useCallback((tab: string) => {
+    setSegmentTab(tab as SegmentTabType);
+    setPage(1);
+  }, []);
+
+  // Filter licitacoes by type and segment
   const licitacoesFiltradas = useMemo(() => {
     if (!licitacoes) return [];
     let result = [...licitacoes];
 
-    if (activeTab === 'compra_direta') {
-      result = result.filter(l => l.modalidade === 'Compra Direta');
+    // Filter by main tab (Compras vs Serviços)
+    if (mainTab === 'compras') {
+      // Compras = Compra Direta, Dispensa sem Disputa
+      result = result.filter(l => 
+        l.modalidade === 'Compra Direta' || 
+        l.modalidade === 'Dispensa sem Disputa'
+      );
+    } else if (mainTab === 'servicos') {
+      // Serviços = Dispensa com Disputa
+      result = result.filter(l => l.modalidade === 'Dispensa com Disputa');
     }
 
+    // Filter by segment tab (Medicamentos vs Empreendimentos)
+    if (segmentTab === 'medicamentos') {
+      result = result.filter(l => l.segmento === 'Medicamentos');
+    } else if (segmentTab === 'empreendimentos') {
+      result = result.filter(l => l.segmento === 'Empreendimentos');
+    }
+
+    // Apply text filters
     if (appliedFilters.promotor) {
       const busca = appliedFilters.promotor.toLowerCase();
       result = result.filter(l => l.orgao.toLowerCase().includes(busca));
@@ -113,7 +130,7 @@ const LicitacoesPortal = () => {
     if (appliedFilters.uf && appliedFilters.uf !== 'all') {
       result = result.filter(l => l.uf === appliedFilters.uf);
     }
-    if (appliedFilters.modalidade && appliedFilters.modalidade !== 'all' && activeTab !== 'compra_direta') {
+    if (appliedFilters.modalidade && appliedFilters.modalidade !== 'all') {
       result = result.filter(l => l.modalidade === appliedFilters.modalidade);
     }
     if (appliedFilters.situacao && appliedFilters.situacao !== 'all') {
@@ -127,7 +144,7 @@ const LicitacoesPortal = () => {
     }
 
     return result;
-  }, [licitacoes, appliedFilters, activeTab]);
+  }, [licitacoes, appliedFilters, mainTab, segmentTab]);
 
   // Paginated results
   const paginatedLicitacoes = useMemo(() => {
@@ -141,16 +158,13 @@ const LicitacoesPortal = () => {
   }, [filters]);
 
   const handleLimpar = useCallback(() => {
-    const baseFilters = activeTab === 'compra_direta' 
-      ? { ...INITIAL_FILTERS, modalidade: 'Compra Direta' }
-      : INITIAL_FILTERS;
-    setFilters(baseFilters);
-    setAppliedFilters(baseFilters);
+    setFilters(INITIAL_FILTERS);
+    setAppliedFilters(INITIAL_FILTERS);
     setPage(1);
-  }, [activeTab]);
+  }, []);
 
   const handleExportCSV = () => {
-    const headers = ['Número', 'Portal', 'Órgão', 'Município', 'UF', 'Objeto', 'Valor', 'Modalidade', 'Status', 'Data Abertura'];
+    const headers = ['Número', 'Portal', 'Órgão', 'Município', 'UF', 'Objeto', 'Valor', 'Modalidade', 'Segmento', 'Status', 'Data Abertura'];
     const rows = licitacoesFiltradas.map(l => [
       l.numero,
       l.portal,
@@ -160,6 +174,7 @@ const LicitacoesPortal = () => {
       l.objeto.replace(/,/g, ';'),
       l.valor,
       l.modalidade,
+      l.segmento,
       l.status,
       new Date(l.data_abertura).toLocaleDateString('pt-BR')
     ]);
@@ -169,24 +184,37 @@ const LicitacoesPortal = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `licitacoes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `licitacoes_${segmentTab}_${mainTab}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     toast.success('Exportação CSV realizada!');
   };
 
-  // Stats
-  const stats = useMemo(() => ({
-    total: licitacoes?.length || 0,
-    novas: licitacoes?.filter(l => l.status === 'Nova').length || 0,
-    aguardando: licitacoes?.filter(l => l.status === 'Aguardando Autorização').length || 0,
-    disputa: licitacoes?.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length || 0,
-    vencidas: licitacoes?.filter(l => l.status === 'Vencida').length || 0,
-  }), [licitacoes]);
+  // Stats by segment
+  const stats = useMemo(() => {
+    const filtered = licitacoes || [];
+    
+    // Get counts for current segment
+    const currentSegment = segmentTab === 'todos' 
+      ? filtered 
+      : filtered.filter(l => l.segmento === (segmentTab === 'medicamentos' ? 'Medicamentos' : 'Empreendimentos'));
+
+    return {
+      total: currentSegment.length,
+      novas: currentSegment.filter(l => l.status === 'Nova').length,
+      aguardando: currentSegment.filter(l => l.status === 'Aguardando Autorização').length,
+      disputa: currentSegment.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
+      vencidas: currentSegment.filter(l => l.status === 'Vencida').length,
+      medicamentos: filtered.filter(l => l.segmento === 'Medicamentos').length,
+      empreendimentos: filtered.filter(l => l.segmento === 'Empreendimentos').length,
+      compras: filtered.filter(l => l.modalidade === 'Compra Direta' || l.modalidade === 'Dispensa sem Disputa').length,
+      servicos: filtered.filter(l => l.modalidade === 'Dispensa com Disputa').length,
+    };
+  }, [licitacoes, segmentTab]);
 
   return (
     <MainLayout title="Portal de Licitações">
       <div className="space-y-4">
-        {/* Auto Capture Status Indicator */}
+        {/* Auto Capture Status Indicator with AI 24/7 */}
         <CaptureStatusIndicator
           onCapture={capture}
           isCapturing={isCapturing}
@@ -198,30 +226,76 @@ const LicitacoesPortal = () => {
         <AISmartFilter
           licitacoes={licitacoes || []}
           onSelectLicitacao={setSelectedLicitacao}
-          segmento={activeTab === 'compra_direta' ? undefined : undefined}
+          segmento={segmentTab === 'medicamentos' ? 'Medicamentos' : segmentTab === 'empreendimentos' ? 'Empreendimentos' : undefined}
         />
 
-        {/* Header with Tabs */}
+        {/* Segment Tabs - Medicamentos vs Empreendimentos */}
+        <div className="bg-gradient-to-r from-primary/5 via-transparent to-accent/5 border border-border rounded-lg p-3 md:p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Bot className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">IA Captando 24/7 por Empresa</span>
+            <div className="flex items-center gap-1 ml-auto">
+              <Activity className="w-3 h-3 text-success animate-pulse" />
+              <span className="text-xs text-success font-medium">Ativo</span>
+            </div>
+          </div>
+          
+          <Tabs value={segmentTab} onValueChange={handleSegmentTabChange}>
+            <TabsList className="w-full grid grid-cols-3 bg-secondary/50">
+              <TabsTrigger value="todos" className="gap-1.5 text-xs md:text-sm">
+                <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Todos</span>
+                <Badge variant="secondary" className="ml-1 text-xs px-1.5">
+                  {stats.total}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="medicamentos" className="gap-1.5 text-xs md:text-sm">
+                <Pill className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Medicamentos</span>
+                <span className="sm:hidden">Med.</span>
+                <Badge variant="secondary" className="ml-1 text-xs px-1.5 bg-primary/10 text-primary">
+                  {stats.medicamentos}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="empreendimentos" className="gap-1.5 text-xs md:text-sm">
+                <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Empreendimentos</span>
+                <span className="sm:hidden">Emp.</span>
+                <Badge variant="secondary" className="ml-1 text-xs px-1.5 bg-accent/10 text-accent-foreground">
+                  {stats.empreendimentos}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Type Tabs - Compras vs Serviços */}
         <div className="bg-card border border-border rounded-lg p-3 md:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Tabs - Scrollable on mobile */}
+            {/* Type Tabs */}
             <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-              <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <Tabs value={mainTab} onValueChange={handleMainTabChange}>
                 <TabsList className="bg-secondary/50 min-w-max">
-                  <TabsTrigger value="processos" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                  <TabsTrigger value="todos" className="gap-1.5 text-xs md:text-sm md:gap-2">
                     <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     <span className="hidden sm:inline">Processos</span>
                     <span className="sm:hidden">Proc.</span>
                   </TabsTrigger>
-                  <TabsTrigger value="compra_direta" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                  <TabsTrigger value="compras" className="gap-1.5 text-xs md:text-sm md:gap-2">
                     <ShoppingCart className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                    <span className="hidden sm:inline">Compra Direta</span>
-                    <span className="sm:hidden">C. Direta</span>
+                    <span className="hidden sm:inline">Compras</span>
+                    <span className="sm:hidden">Compras</span>
+                    <Badge variant="outline" className="ml-1 text-xs px-1.5">
+                      {stats.compras}
+                    </Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="localizacao" className="gap-1.5 text-xs md:text-sm md:gap-2">
-                    <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                    <span className="hidden sm:inline">Busca por Localização</span>
-                    <span className="sm:hidden">Local</span>
+                  <TabsTrigger value="servicos" className="gap-1.5 text-xs md:text-sm md:gap-2">
+                    <Briefcase className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">Serviços</span>
+                    <span className="sm:hidden">Serv.</span>
+                    <Badge variant="outline" className="ml-1 text-xs px-1.5">
+                      {stats.servicos}
+                    </Badge>
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -275,7 +349,6 @@ const LicitacoesPortal = () => {
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Exportar</span>
               </Button>
-              {/* Capture button removed - using auto-capture indicator above */}
             </div>
           </div>
 
@@ -314,18 +387,46 @@ const LicitacoesPortal = () => {
           />
         )}
 
-        {/* Results count */}
+        {/* Results count with active segment/type badges */}
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
           <span>{licitacoesFiltradas.length} processos</span>
-          <div className="flex items-center gap-2">
-            {activeTab === 'compra_direta' && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {segmentTab !== 'todos' && (
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${segmentTab === 'medicamentos' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-accent/10 text-accent-foreground border-accent/20'}`}
+              >
+                {segmentTab === 'medicamentos' ? (
+                  <>
+                    <Pill className="w-3 h-3 mr-1" />
+                    Medicamentos
+                  </>
+                ) : (
+                  <>
+                    <Building2 className="w-3 h-3 mr-1" />
+                    Empreendimentos
+                  </>
+                )}
+              </Badge>
+            )}
+            {mainTab !== 'todos' && (
               <Badge variant="outline" className="text-xs">
-                Compra Direta
+                {mainTab === 'compras' ? (
+                  <>
+                    <ShoppingCart className="w-3 h-3 mr-1" />
+                    Compras
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="w-3 h-3 mr-1" />
+                    Serviços
+                  </>
+                )}
               </Badge>
             )}
             {activeFiltersCount > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {activeFiltersCount} filtros ativos
+                {activeFiltersCount} filtros
               </Badge>
             )}
           </div>
