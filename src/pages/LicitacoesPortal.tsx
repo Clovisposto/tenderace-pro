@@ -8,6 +8,7 @@ import { BLLDetailPanel } from '@/components/licitacao/BLLDetailPanel';
 import { CaptureStatusIndicator } from '@/components/licitacao/CaptureStatusIndicator';
 import { AISmartFilter } from '@/components/licitacao/AISmartFilter';
 import { useLicitacoes, useLicitacoesRealtime, type Licitacao } from '@/hooks/useLicitacoes';
+import { useLicitacoesRealtimeNotifications } from '@/hooks/useLicitacoesRealtimeNotifications';
 import { useAutoCapture } from '@/hooks/useAutoCapture';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +26,8 @@ import {
   Clock,
   AlertCircle,
   Bot,
-  Activity
+  Activity,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +61,17 @@ const LicitacoesPortal = () => {
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { setupRealtime } = useLicitacoesRealtime();
   const { capture, isCapturing } = useAutoCapture();
+  
+  // Real-time notifications with sound
+  useLicitacoesRealtimeNotifications({
+    enableSound: true,
+    enableToast: true,
+    segmentoFilter: segmentTab === 'medicamentos' 
+      ? 'Medicamentos' 
+      : segmentTab === 'empreendimentos' 
+        ? 'Empreendimentos' 
+        : undefined,
+  });
 
   // Extract unique órgãos pagadores from licitações for autocomplete
   const orgaosPagadores = useMemo(() => {
