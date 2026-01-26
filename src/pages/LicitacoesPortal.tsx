@@ -34,6 +34,7 @@ type SegmentTabType = 'todos' | 'medicamentos' | 'empreendimentos';
 
 const INITIAL_FILTERS: BLLFiltersState = {
   promotor: '',
+  orgaoPagador: '',
   numero: '',
   cidade: '',
   uf: '',
@@ -59,6 +60,13 @@ const LicitacoesPortal = () => {
   const { setupRealtime } = useLicitacoesRealtime();
   const { capture, isCapturing } = useAutoCapture();
 
+  // Extract unique órgãos pagadores from licitações for autocomplete
+  const orgaosPagadores = useMemo(() => {
+    if (!licitacoes) return [];
+    const uniqueOrgaos = new Set(licitacoes.map(l => `${l.municipio}/${l.uf}`));
+    return Array.from(uniqueOrgaos).sort();
+  }, [licitacoes]);
+
   useEffect(() => {
     const cleanup = setupRealtime();
     return cleanup;
@@ -68,6 +76,7 @@ const LicitacoesPortal = () => {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (appliedFilters.promotor) count++;
+    if (appliedFilters.orgaoPagador) count++;
     if (appliedFilters.numero) count++;
     if (appliedFilters.cidade) count++;
     if (appliedFilters.uf && appliedFilters.uf !== 'all') count++;
@@ -118,6 +127,15 @@ const LicitacoesPortal = () => {
     if (appliedFilters.promotor) {
       const busca = appliedFilters.promotor.toLowerCase();
       result = result.filter(l => l.orgao.toLowerCase().includes(busca));
+    }
+    // Filtro por Órgão Pagador (municipio/uf)
+    if (appliedFilters.orgaoPagador) {
+      const busca = appliedFilters.orgaoPagador.toLowerCase();
+      result = result.filter(l => 
+        `${l.municipio}/${l.uf}`.toLowerCase().includes(busca) ||
+        l.municipio.toLowerCase().includes(busca) ||
+        l.uf.toLowerCase().includes(busca)
+      );
     }
     if (appliedFilters.numero) {
       const busca = appliedFilters.numero.toLowerCase();
@@ -384,6 +402,7 @@ const LicitacoesPortal = () => {
             onFilterChange={setFilters}
             onBuscar={handleBuscar}
             onLimpar={handleLimpar}
+            orgaosPagadores={orgaosPagadores}
           />
         )}
 
