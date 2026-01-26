@@ -150,32 +150,51 @@ async function fetchWithRetry(
   initialDelay: number = 1000
 ): Promise<{ response: Response | null; retries: number; error?: string }> {
   let lastError: string = '';
+  let attemptCount = 0;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    attemptCount = attempt + 1;
     try {
       if (attempt > 0) {
         const delay = initialDelay * Math.pow(2, attempt - 1);
-        console.log(`[Retry] Attempt ${attempt + 1}/${maxRetries + 1}, waiting ${delay}ms...`);
+        console.log(`[Retry] Tentativa ${attemptCount}/${maxRetries + 1}, aguardando ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
 
-      const response = await fetch(url, options);
+      console.log(`[Fetch] Requisição ${attemptCount}: ${url.substring(0, 80)}...`);
+      const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+      });
       
-      if (response.ok || (response.status >= 400 && response.status < 500)) {
+      console.log(`[Fetch] Resposta: HTTP ${response.status}`);
+      
+      if (response.ok) {
         return { response, retries: attempt };
       }
       
+      if (response.status >= 400 && response.status < 500) {
+        const body = await response.text();
+        console.warn(`[Fetch] Erro cliente ${response.status}: ${body.substring(0, 200)}`);
+        return { response: null, retries: attempt, error: `HTTP ${response.status}: ${body.substring(0, 100)}` };
+      }
+      
       lastError = `HTTP ${response.status}`;
-      console.warn(`[Retry] Server error ${response.status}, will retry...`);
+      console.warn(`[Retry] Erro servidor ${response.status}, tentando novamente...`);
       await response.text();
       
     } catch (error) {
-      lastError = error instanceof Error ? error.message : 'Network error';
-      console.warn(`[Retry] Fetch error: ${lastError}`);
+      lastError = error instanceof Error ? error.message : 'Erro de rede';
+      console.warn(`[Retry] Erro na tentativa ${attemptCount}: ${lastError}`);
+      
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        lastError = 'Timeout após 30s';
+      }
     }
   }
   
-  return { response: null, retries: maxRetries + 1, error: lastError };
+  console.error(`[Fetch] Falha após ${attemptCount} tentativas: ${lastError}`);
+  return { response: null, retries: attemptCount, error: lastError };
 }
 
 function mapModalidade(modalidadeNome: string, modoDisputa?: string): string {
