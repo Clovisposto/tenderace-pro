@@ -118,6 +118,7 @@ export function BLLTable({
             <TableRow className="bll-table-header">
               <TableHead className="w-[50px]"></TableHead>
               <TableHead>Promotor</TableHead>
+              <TableHead>Órgão Pagador</TableHead>
               <TableHead>Nº/Processo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Modalidade</TableHead>
@@ -130,6 +131,7 @@ export function BLLTable({
               <TableRow key={i}>
                 <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-[180px]" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
                 <TableCell><Skeleton className="h-6 w-[80px]" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
@@ -168,6 +170,9 @@ export function BLLTable({
                   Promotor
                   <SortIcon field="orgao" />
                 </div>
+              </TableHead>
+              <TableHead className="text-foreground">
+                Órgão Pagador
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:text-foreground transition-colors"
@@ -235,8 +240,13 @@ export function BLLTable({
                     i
                   </button>
                 </TableCell>
-                <TableCell className="font-medium max-w-[200px] truncate" title={lic.orgao}>
+                <TableCell className="font-medium max-w-[180px] truncate" title={lic.orgao}>
                   {lic.orgao}
+                </TableCell>
+                <TableCell className="text-sm max-w-[180px] truncate" title={`${lic.municipio}/${lic.uf}`}>
+                  <span className="text-muted-foreground">
+                    {lic.municipio}/{lic.uf}
+                  </span>
                 </TableCell>
                 <TableCell className="font-mono text-sm">
                   {formatNumero(lic.numero, lic.id)}
