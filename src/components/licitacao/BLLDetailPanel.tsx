@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Building2, 
   MapPin, 
@@ -41,7 +42,10 @@ import {
   ListChecks,
   Banknote,
   Target,
-  Bot
+  Bot,
+  ChevronRight,
+  Eye,
+  Search
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -70,6 +74,8 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
   const [precoFinal, setPrecoFinal] = useState(0);
   const [showAutorizacao, setShowAutorizacao] = useState(false);
+  const [showTermoReferencia, setShowTermoReferencia] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
   const queryClient = useQueryClient();
 
   // Mutation to authorize participation - MUST be before early return
@@ -159,6 +165,11 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     { 
       item: 1, 
       descricao: licitacao.objeto?.substring(0, 80) || 'Item de aquisição',
+      especificacaoTecnica: `Especificação completa do item conforme Termo de Referência do Edital. 
+        - Deve atender aos requisitos técnicos mínimos exigidos
+        - Garantia mínima de 12 meses
+        - Conforme normas da ABNT aplicáveis
+        - Incluir manual técnico e certificados`,
       unidade: 'UN',
       quantidade: Math.floor(Math.random() * 100) + 10,
       valorUnitario: valor / (Math.floor(Math.random() * 50) + 10),
@@ -166,6 +177,10 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     { 
       item: 2, 
       descricao: 'Material complementar conforme especificação técnica',
+      especificacaoTecnica: `Materiais complementares necessários para a execução completa do objeto.
+        - Deve seguir especificações do fabricante
+        - Compatibilidade total com item principal
+        - Marca de referência ou equivalente superior`,
       unidade: 'UN',
       quantidade: Math.floor(Math.random() * 50) + 5,
       valorUnitario: (valor * 0.3) / (Math.floor(Math.random() * 30) + 5),
@@ -173,6 +188,11 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     { 
       item: 3, 
       descricao: 'Serviço de instalação/entrega especializada',
+      especificacaoTecnica: `Serviço de instalação, configuração e entrega no local especificado.
+        - Inclui transporte até o destino
+        - Instalação por profissional habilitado
+        - Teste de funcionamento
+        - Treinamento básico de operação`,
       unidade: 'SV',
       quantidade: 1,
       valorUnitario: valor * 0.1,
@@ -207,6 +227,13 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
     { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/05/2026', vencimento: new Date('2026-05-05') },
     { label: 'Receita Municipal', ok: false, detail: 'Vencida em 13/01/2026 (*)', vencimento: new Date('2026-01-13') },
   ];
+
+  // Verificar compliance geral
+  const allComplianceOk = checklistItems.filter(item => {
+    const hoje = new Date();
+    const diasParaVencer = item.vencimento ? Math.ceil((item.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+    return diasParaVencer > 0;
+  }).length === checklistItems.length;
 
   return (
     <>
@@ -414,12 +441,19 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
                 </CardContent>
               </Card>
 
-              {/* Termo de Referência - Itens Detalhados */}
-              <Card>
+              {/* Termo de Referência - Itens Detalhados - CLICÁVEL */}
+              <Card className="group cursor-pointer hover:border-primary/50 transition-all" onClick={() => setShowTermoReferencia(true)}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ClipboardList className="w-4 h-4" />
-                    Termo de Referência - Itens
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4" />
+                      Termo de Referência - Itens
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-primary group-hover:underline">
+                      <Eye className="w-4 h-4" />
+                      Clique para ver detalhes completos
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -454,6 +488,10 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
                         </tr>
                       </tfoot>
                     </table>
+                  </div>
+                  <div className="mt-3 p-2 rounded-lg bg-primary/5 border border-dashed border-primary/30 flex items-center justify-center gap-2 text-sm text-primary font-medium">
+                    <Search className="w-4 h-4" />
+                    Clique para abrir especificações técnicas completas do Edital
                   </div>
                 </CardContent>
               </Card>
@@ -674,30 +712,78 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
                 </TabsContent>
               </Tabs>
 
-              {/* Authorization Card */}
+              {/* Authorization Card - ÚNICA ABA SIMPLIFICADA */}
               {!isAutorizada && !isExpired && (
-                <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
-                  <CardContent className="p-6 text-center space-y-4">
-                    <Zap className="w-10 h-10 text-primary mx-auto" />
-                    <div>
-                      <h4 className="font-bold text-lg">Autorizar Participação do Robô</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Ao autorizar, esta licitação será movida para "Minhas Participações" e o robô participará automaticamente.
-                      </p>
+                <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10">
+                  <CardContent className="p-6 space-y-5">
+                    {/* Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Bot className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">Autorizar Participação</h4>
+                        <p className="text-sm text-muted-foreground">Verificação e autorização do robô</p>
+                      </div>
                     </div>
-                    
+
+                    {/* Verificação Automática */}
+                    <div className="space-y-3 p-4 rounded-lg bg-background border">
+                      <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <ListChecks className="w-4 h-4" />
+                        Verificação Automática
+                      </p>
+                      
+                      <div className="space-y-2">
+                        {[
+                          { label: 'Análise do Edital', status: 'ok' },
+                          { label: 'Verificação SICAF', status: 'ok' },
+                          { label: 'Compliance Documentos', status: allComplianceOk ? 'ok' : 'warning' },
+                          { label: 'Compatibilidade Segmento', status: 'ok' },
+                        ].map((check, i) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{check.label}</span>
+                            {check.status === 'ok' ? (
+                              <span className="flex items-center gap-1 text-success font-medium">
+                                <CheckCircle2 className="w-4 h-4" />
+                                Aprovado
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-warning font-medium">
+                                <AlertTriangle className="w-4 h-4" />
+                                Ressalva
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Resumo */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-3 rounded-lg bg-secondary/50">
+                        <p className="text-muted-foreground text-xs">Valor Estimado</p>
+                        <p className="font-bold text-primary">{formatCurrency(valor)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/50">
+                        <p className="text-muted-foreground text-xs">Tempo Restante</p>
+                        <p className="font-bold">{daysRemaining}d {hoursRemaining}h</p>
+                      </div>
+                    </div>
+
+                    {/* Botão de Autorização */}
                     <Button 
                       size="lg" 
-                      className="w-full bg-success hover:bg-success/90"
+                      className="w-full bg-success hover:bg-success/90 h-14 text-base font-bold gap-2"
                       onClick={() => setShowAutorizacao(true)}
                     >
-                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      <ShieldCheck className="w-5 h-5" />
                       AUTORIZAR PARTICIPAÇÃO
                     </Button>
 
-                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
                       <Scale className="w-3 h-3" />
-                      Lei 14.133/2021 • Proposta vinculante
+                      Lei 14.133/2021 • Esta licitação será movida para "Minhas Participações"
                     </p>
                   </CardContent>
                 </Card>
@@ -720,6 +806,169 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      {/* Dialog do Termo de Referência Completo */}
+      <Dialog open={showTermoReferencia} onOpenChange={setShowTermoReferencia}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ClipboardList className="w-5 h-5" />
+              Termo de Referência - Especificações Completas
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Header Info */}
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Licitação</p>
+              <p className="font-bold">{licitacao.numero}</p>
+              <p className="text-sm text-muted-foreground mt-1">{licitacao.orgao}</p>
+            </div>
+
+            {/* Objeto Geral */}
+            <div>
+              <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Objeto da Contratação
+              </h3>
+              <div className="p-4 rounded-lg bg-secondary/30 border">
+                <p className="text-sm leading-relaxed">{licitacao.objeto}</p>
+              </div>
+            </div>
+
+            {/* Itens Detalhados */}
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                Itens do Termo de Referência
+              </h3>
+              
+              <div className="space-y-4">
+                {termosReferencia.map((item) => (
+                  <div key={item.item} className="p-4 rounded-lg border bg-card">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-primary/10 text-primary font-bold">
+                          Item {item.item}
+                        </Badge>
+                        <Badge variant="secondary">{item.unidade}</Badge>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Qtd: {item.quantidade}</p>
+                        <p className="font-bold text-primary">{formatCurrency(item.valorUnitario * item.quantidade)}</p>
+                      </div>
+                    </div>
+                    
+                    <h4 className="font-semibold text-sm mb-2">{item.descricao}</h4>
+                    
+                    <div className="p-3 rounded bg-muted/50 border border-dashed">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                        Especificação Técnica Completa
+                      </p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {item.especificacaoTecnica}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Valor Unitário:</span>
+                      <span className="font-semibold">{formatCurrency(item.valorUnitario)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-lg">VALOR TOTAL ESTIMADO:</span>
+                <span className="font-bold text-2xl text-success">{formatCurrency(valor)}</span>
+              </div>
+            </div>
+
+            {/* Condições Contratuais */}
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <CalendarClock className="w-5 h-5 text-primary" />
+                Condições Contratuais
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-secondary/50 border">
+                  <p className="text-xs text-muted-foreground uppercase">Prazo de Entrega</p>
+                  <p className="font-semibold text-sm">{infoContrato.prazoEntrega}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/50 border">
+                  <p className="text-xs text-muted-foreground uppercase">Local de Entrega</p>
+                  <p className="font-semibold text-sm">{infoContrato.localEntrega}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/50 border">
+                  <p className="text-xs text-muted-foreground uppercase">Vigência do Contrato</p>
+                  <p className="font-semibold text-sm">{infoContrato.vigenciaContrato}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/50 border">
+                  <p className="text-xs text-muted-foreground uppercase">Garantia</p>
+                  <p className="font-semibold text-sm">{infoContrato.garantia}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-success/10 border border-success/30">
+                  <p className="text-xs text-success uppercase font-medium">Forma de Pagamento</p>
+                  <p className="font-semibold text-sm">{infoContrato.formaPagamento}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                  <p className="text-xs text-warning uppercase font-medium">Penalidades</p>
+                  <p className="font-semibold text-sm">{infoContrato.penalidades}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Órgão Pagador */}
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Órgão Pagador
+              </h3>
+              
+              <div className="p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Entidade Responsável</p>
+                    <p className="font-semibold">{orgaoPagador.nome}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Localização</p>
+                    <p className="font-semibold">{orgaoPagador.endereco}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Dotação Orçamentária</p>
+                    <p className="font-semibold font-mono text-xs">{orgaoPagador.dotacaoOrcamentaria}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Fonte de Recurso</p>
+                    <p className="font-semibold">{orgaoPagador.fonteRecurso}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-3">
+              {licitacao.edital_url && (
+                <Button className="flex-1 gap-2" asChild>
+                  <a href={licitacao.edital_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4" />
+                    Acessar Edital Completo no Portal
+                  </a>
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setShowTermoReferencia(false)} className="gap-2">
+                <X className="w-4 h-4" />
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de Autorização */}
       <AutorizacaoConfirmDialog
