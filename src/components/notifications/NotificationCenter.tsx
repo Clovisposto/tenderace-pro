@@ -32,10 +32,12 @@ import {
   MailCheck,
   Smartphone,
   MessageSquare,
+  BellRing,
 } from 'lucide-react';
 import { useConfiguracoes, useUpdateConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useBrowserNotifications } from '@/hooks/useBrowserNotifications';
 
 interface Notification {
   id: string;
@@ -67,6 +69,19 @@ export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  // Browser notifications hook
+  const { 
+    permission, 
+    isSupported, 
+    requestPermission, 
+    notifyVictory, 
+    notifyNewTender, 
+    notifyDispute, 
+    notifyLoss,
+    notifyUrgentDeadline,
+    isEnabled: pushEnabled 
+  } = useBrowserNotifications();
 
   // Initialize sound preference from config
   useEffect(() => {
@@ -117,6 +132,16 @@ export function NotificationCenter() {
               setNotifications(prev => [notification, ...prev.slice(0, 49)]);
               playNotificationSound();
               
+              // Send native browser push notification
+              if (pushEnabled && config?.notificacoes_push) {
+                notifyNewTender({
+                  numero: newLicitacao.numero,
+                  valor: newLicitacao.valor,
+                  orgao: newLicitacao.orgao,
+                  prioridade: notification.priority
+                });
+              }
+              
               toast({
                 title: notification.title,
                 description: notification.message,
@@ -145,6 +170,15 @@ export function NotificationCenter() {
                 setNotifications(prev => [notification, ...prev.slice(0, 49)]);
                 playNotificationSound();
                 
+                // Send native browser push notification for victory
+                if (pushEnabled && config?.notificacoes_push) {
+                  notifyVictory({
+                    numero: updated.numero,
+                    valor: updated.valor,
+                    orgao: updated.orgao
+                  });
+                }
+                
                 toast({
                   title: notification.title,
                   description: notification.message,
@@ -165,6 +199,15 @@ export function NotificationCenter() {
                 };
                 
                 setNotifications(prev => [notification, ...prev.slice(0, 49)]);
+                
+                // Send native browser push notification for loss
+                if (pushEnabled && config?.notificacoes_push) {
+                  notifyLoss({
+                    numero: updated.numero,
+                    valor: updated.valor,
+                    orgao: updated.orgao
+                  });
+                }
               }
               
               if (updated.status === 'Em Disputa' && config?.notificacoes_disputa) {
@@ -182,6 +225,15 @@ export function NotificationCenter() {
                 setNotifications(prev => [notification, ...prev.slice(0, 49)]);
                 playNotificationSound();
                 
+                // Send native browser push notification for dispute
+                if (pushEnabled && config?.notificacoes_push) {
+                  notifyDispute({
+                    numero: updated.numero,
+                    posicao: 1,
+                    orgao: updated.orgao
+                  });
+                }
+                
                 toast({
                   title: notification.title,
                   description: notification.message,
@@ -197,7 +249,7 @@ export function NotificationCenter() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [config, playNotificationSound, toast]);
+  }, [config, playNotificationSound, toast, pushEnabled, notifyVictory, notifyNewTender, notifyDispute, notifyLoss]);
 
   // Update unread count
   useEffect(() => {
@@ -260,6 +312,24 @@ export function NotificationCenter() {
               Central de Notificações
             </SheetTitle>
             <div className="flex items-center gap-2">
+              {/* Push notification permission button */}
+              {isSupported && permission !== 'granted' && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={requestPermission}
+                  className="h-8 w-8"
+                  title="Ativar notificações push"
+                >
+                  <BellRing className="w-4 h-4 text-warning animate-pulse" />
+                </Button>
+              )}
+              {isSupported && permission === 'granted' && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-success/10 text-success text-xs">
+                  <BellRing className="w-3 h-3" />
+                  Push
+                </div>
+              )}
               <Button variant="ghost" size="icon" onClick={toggleSound} className="h-8 w-8">
                 {soundEnabled ? (
                   <Volume2 className="w-4 h-4 text-primary" />

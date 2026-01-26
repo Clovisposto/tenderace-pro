@@ -34,10 +34,13 @@ import {
   Settings,
   Filter,
   DollarSign,
+  BellRing,
+  Shield,
 } from 'lucide-react';
 import { useConfiguracoes, useUpdateConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useBrowserNotifications } from '@/hooks/useBrowserNotifications';
 
 const NOTIFICATION_EVENTS = [
   { 
@@ -91,6 +94,15 @@ export function NotificationPreferences() {
   const { data: config, isLoading } = useConfiguracoes();
   const updateConfig = useUpdateConfiguracoes();
   const { toast } = useToast();
+  
+  // Browser notifications hook
+  const { 
+    permission, 
+    isSupported, 
+    requestPermission, 
+    showNotification,
+    isEnabled: pushNativeEnabled 
+  } = useBrowserNotifications();
   
   const [preferences, setPreferences] = useState({
     // Channels
@@ -241,20 +253,59 @@ export function NotificationPreferences() {
           </div>
 
           {/* Push */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${preferences.push ? 'bg-success/20' : 'bg-muted'}`}>
-                <Bell className={`w-4 h-4 ${preferences.push ? 'text-success' : 'text-muted-foreground'}`} />
+          <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${preferences.push ? 'bg-success/20' : 'bg-muted'}`}>
+                  <Bell className={`w-4 h-4 ${preferences.push ? 'text-success' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Push (Navegador)</p>
+                  <p className="text-xs text-muted-foreground">Notificações em tempo real no navegador</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">Push (Navegador)</p>
-                <p className="text-xs text-muted-foreground">Notificações em tempo real no navegador</p>
-              </div>
+              <Switch
+                checked={preferences.push}
+                onCheckedChange={(checked) => setPreferences(p => ({ ...p, push: checked }))}
+              />
             </div>
-            <Switch
-              checked={preferences.push}
-              onCheckedChange={(checked) => setPreferences(p => ({ ...p, push: checked }))}
-            />
+            
+            {/* Native Push Permission Section */}
+            {isSupported && preferences.push && (
+              <div className="ml-11 space-y-2">
+                {permission === 'granted' ? (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-success/10 border border-success/20">
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <div>
+                      <p className="text-sm font-medium text-success">Push Nativo Ativado</p>
+                      <p className="text-xs text-muted-foreground">
+                        Você receberá alertas mesmo com o app minimizado
+                      </p>
+                    </div>
+                  </div>
+                ) : permission === 'denied' ? (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <Shield className="w-4 h-4 text-destructive" />
+                    <div>
+                      <p className="text-sm font-medium text-destructive">Permissão Bloqueada</p>
+                      <p className="text-xs text-muted-foreground">
+                        Ative nas configurações do navegador
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={requestPermission}
+                    className="w-full gap-2"
+                  >
+                    <BellRing className="w-4 h-4" />
+                    Ativar Notificações Push Nativas
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* WhatsApp/Telefone */}
