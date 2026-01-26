@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.filtro-inteligente]
 verify_jwt = false
+
+[functions.receber-licitacao-email]
+verify_jwt = false
