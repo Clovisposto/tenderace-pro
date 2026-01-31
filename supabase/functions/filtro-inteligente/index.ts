@@ -55,6 +55,40 @@ Priorize licitações com:
 - Prazo > 3 dias (tempo para preparação)
 - Objeto alinhado com segmento da empresa`;
 
+// SECURITY: Authenticate and authorize requests
+async function authenticateRequest(req: Request, supabase: any): Promise<{ authorized: boolean; userId?: string; error?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Check if it's a service role token (for internal/scheduled calls)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (token === serviceRoleKey) {
+    console.log("[Filtro IA] Service role authentication");
+    return { authorized: true, userId: 'service_role' };
+  }
+
+  // Verify user token using getClaims for efficiency
+  try {
+    const { data, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !data?.claims?.sub) {
+      console.error("[Filtro IA] Token verification failed:", claimsError?.message);
+      return { authorized: false, error: 'Invalid authentication token' };
+    }
+
+    console.log("[Filtro IA] User authenticated:", data.claims.sub);
+    return { authorized: true, userId: data.claims.sub };
+  } catch (err) {
+    console.error("[Filtro IA] Auth error:", err);
+    return { authorized: false, error: 'Authentication failed' };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -64,6 +98,23 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // SECURITY: Authenticate request before processing
+    const authResult = await authenticateRequest(req, supabase);
+    
+    if (!authResult.authorized) {
+      console.warn("[Filtro IA] Unauthorized request blocked");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: authResult.error || 'Unauthorized' 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
 
     const { licitacoes, segmento, limit = 20 } = await req.json();
 
