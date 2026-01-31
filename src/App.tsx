@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AIAssistant } from "@/components/ai/AIAssistant";
 
@@ -60,18 +62,18 @@ const AuthRoute = () => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<AuthRoute />} />
-    <Route path="/admin" element={<Admin />} />
-    <Route path="/manual" element={<Manual />} />
-    <Route path="/conectores" element={<Conectores />} />
-    <Route path="/" element={<Index />} />
-    <Route path="/licitacoes" element={<Licitacoes />} />
-    <Route path="/portal" element={<LicitacoesPortal />} />
-    <Route path="/medicamentos" element={<Medicamentos />} />
-    <Route path="/empreendimentos" element={<Empreendimentos />} />
-    <Route path="/empresas" element={<Empresas />} />
-    <Route path="/relatorios" element={<Relatorios />} />
-    <Route path="/configuracoes" element={<Configuracoes />} />
-    <Route path="/participacoes" element={<MinhasParticipacoes />} />
+    <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+    <Route path="/manual" element={<ProtectedRoute><Manual /></ProtectedRoute>} />
+    <Route path="/conectores" element={<ProtectedRoute><Conectores /></ProtectedRoute>} />
+    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+    <Route path="/licitacoes" element={<ProtectedRoute><Licitacoes /></ProtectedRoute>} />
+    <Route path="/portal" element={<ProtectedRoute><LicitacoesPortal /></ProtectedRoute>} />
+    <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
+    <Route path="/empreendimentos" element={<ProtectedRoute><Empreendimentos /></ProtectedRoute>} />
+    <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
+    <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
+    <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+    <Route path="/participacoes" element={<ProtectedRoute><MinhasParticipacoes /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
