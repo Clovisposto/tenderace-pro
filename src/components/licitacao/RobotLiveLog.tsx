@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,9 +20,11 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
+  Volume2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useVoiceAlerts } from '@/hooks/useVoiceAlerts';
 
 interface Lance {
   id: string;
@@ -49,6 +51,11 @@ export function RobotLiveLog({ licitacaoId, valorProposta, isActive = true }: Ro
   const [menorLanceAtual, setMenorLanceAtual] = useState(valorProposta);
   const [isSimulating, setIsSimulating] = useState(false);
   const [tempoRestante, setTempoRestante] = useState('02:34:15');
+  
+  // Voice alerts integration
+  const { speakPosition, speakCalled, speakVictory, isEnabled: voiceEnabled } = useVoiceAlerts();
+  const lastPositionRef = useRef<number>(1);
+  const hasAnnouncedRef = useRef<Set<string>>(new Set());
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -144,6 +151,12 @@ export function RobotLiveLog({ licitacaoId, valorProposta, isActive = true }: Ro
         };
         setPosicaoAtual(2);
         setMenorLanceAtual(novoValor);
+        
+        // Voice alert when position changes
+        if (voiceEnabled && lastPositionRef.current !== 2) {
+          speakPosition(2, totalCompetidores);
+          lastPositionRef.current = 2;
+        }
       } else if (randomType === 'lance_automatico') {
         const novoValor = menorLanceAtual * 0.995;
         newLance = {
@@ -158,6 +171,12 @@ export function RobotLiveLog({ licitacaoId, valorProposta, isActive = true }: Ro
         };
         setPosicaoAtual(1);
         setMenorLanceAtual(novoValor);
+        
+        // Voice alert when taking the lead
+        if (voiceEnabled && lastPositionRef.current !== 1) {
+          speakPosition(1, totalCompetidores);
+          lastPositionRef.current = 1;
+        }
       } else {
         newLance = {
           id: Date.now().toString(),

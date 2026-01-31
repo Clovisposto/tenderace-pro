@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { VoiceAlertControl } from '@/components/voice/VoiceAlertControl';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -91,6 +92,7 @@ export function MainLayout({ children, title }: MainLayoutProps) {
             </div>
             
             <div className="flex items-center gap-1 md:gap-2">
+              <VoiceAlertControl />
               <NotificationCenter />
               
               <DropdownMenu>
