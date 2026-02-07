@@ -49,7 +49,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDetalheModal';
 import { getSafeErrorMessage } from '@/lib/safeError';
-import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
 
 interface Participacao {
   id: string;
@@ -158,7 +157,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 // Card para licitações autorizadas (robô vai participar)
 const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?: boolean }) => {
   const [robotStatus, setRobotStatus] = useState<'aguardando' | 'preparando' | 'monitorando' | 'disputando'>('aguardando');
-  const [posicaoSimulada] = useState(() => ({ posicao: Math.floor(Math.random() * 3) + 1, total: Math.floor(Math.random() * 5) + 4 }));
   
   useEffect(() => {
     // Simular estados do robô baseado no tempo até a abertura
@@ -224,23 +222,9 @@ const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?
           {status.icon}
           <span className="font-medium text-sm">{status.label}</span>
         </div>
-        <div className="flex items-center gap-3">
-          {robotStatus === 'disputando' && (
-            <Badge className={`text-xs font-bold ${
-              posicaoSimulada.posicao === 1 
-                ? 'bg-green-500 text-white' 
-                : posicaoSimulada.posicao <= 3 
-                  ? 'bg-amber-500 text-white' 
-                  : 'bg-red-500 text-white'
-            }`}>
-              <Target className="w-3 h-3 mr-1" />
-              {posicaoSimulada.posicao}º de {posicaoSimulada.total}
-            </Badge>
-          )}
-          <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
-            <span className="text-xs font-medium">ROBÔ ATIVO</span>
-          </div>
+        <div className="flex items-center gap-2">
+          <Bot className="w-5 h-5" />
+          <span className="text-xs font-medium">ROBÔ ATIVO</span>
         </div>
       </div>
       
@@ -1089,10 +1073,8 @@ const MinhasParticipacoes = () => {
                 </div>
               </div>
             </div>
-
-            <DisputeAlertModeSelector className="mb-4" />
             
-            <ScrollArea className="h-[calc(100vh-540px)]">
+            <ScrollArea className="h-[calc(100vh-480px)]">
               <div className="grid gap-4 md:grid-cols-2">
                 {licitacoesAutorizadas.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
