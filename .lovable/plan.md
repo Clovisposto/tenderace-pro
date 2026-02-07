@@ -1,46 +1,86 @@
 
 
-# Botao de Alerta de Disputa na Aba de Participacoes
+# IA Super Inteligente -- Assistente Discreto com Comando de Voz
 
-## O que sera feito
+## Problema Atual
 
-Adicionar um painel de controle de alertas sonoros diretamente na aba "Autorizadas" (Robo) da pagina Minhas Participacoes. O usuario podera:
+O assistente atual (VoiceAIAssistant) ocupa uma area grande da tela (painel de 400x600px) quando aberto, atrapalhando a visao do sistema. O usuario quer uma IA que:
+1. Seja **discreta** -- nao atrapalhe a visao do sistema
+2. Funcione por **comando de voz** e texto
+3. Execute **tudo** que for mandado (navegar, autorizar, consultar status, etc.)
+4. Opere de forma **profissional** sem conflitos
 
-1. **Ver a posicao atual** de cada disputa ativa (ex: "1o de 5 competidores")
-2. **Escolher o tipo de alerta**: Apito (beep sonoro) ou Comando de Voz IA (narracao por voz da situacao)
-3. **Receber atualizacoes 24h** sobre mudancas de posicao, convocacoes e resultados
+## Solucao: Barra de Comando Flutuante Ultra-Discreta
 
-## Mudancas visuais
+Em vez de um painel de chat grande, a IA sera uma **barra compacta flutuante** no rodape da tela (estilo Spotlight/command bar), que:
+- Fica **minimizada** como um pequeno icone discreto (apenas um circulo de 40px)
+- Quando ativada, expande para uma **barra fina** no rodape (nao um painel gigante)
+- Mostra a resposta da IA em uma **unica linha** que some automaticamente apos alguns segundos
+- Nunca bloqueia a visao do sistema
 
-- Um card de controle sera adicionado no topo da aba "Autorizadas", logo abaixo do banner "Monitoramento do Robo 24/7"
-- O card tera dois botoes lado a lado:
-  - **Apito** (icone de sino): dispara alertas sonoros tipo beep quando houver mudanca
-  - **Voz IA** (icone de microfone): ativa narracao por voz informando posicao, convocacao e resultado
-- Indicador visual mostrando qual modo esta ativo (Apito ou Voz)
-- Em cada `AutorizadaCard`, sera exibida a posicao simulada na disputa (ex: "2o lugar de 5") com badge colorido
+```text
++----------------------------------------------------------+
+|                    SISTEMA (visao completa)               |
+|                                                          |
+|                                                          |
+|                                                          |
+|                                                          |
++----------------------------------------------------------+
+| [mic] Digite ou fale seu comando...        [resposta IA] |
++----------------------------------------------------------+
+```
 
-## Detalhes tecnicos
+## Plano Tecnico
 
-### 1. Novo componente `DisputeAlertModeSelector`
-- Arquivo: `src/components/voice/DisputeAlertModeSelector.tsx`
-- Tres modos: **Desligado**, **Apito** (usa `playAlarmSound` do hook existente), **Voz IA** (usa `speakPosition`/`speakAlert` do hook existente)
-- Preferencia salva no `localStorage` (chave: `disputeAlertMode`)
-- Botao de teste para cada modo
+### 1. Criar componente `SmartCommandBar`
 
-### 2. Modificacao no `AutorizadaCard` (MinhasParticipacoes.tsx)
-- Adicionar exibicao da posicao atual na disputa (badge com "Xo de Y")
-- Integrar com o hook `useVoiceAlerts` existente
-- Quando o robo estiver em status "disputando", mostrar posicao em destaque
+Novo arquivo: `src/components/ai/SmartCommandBar.tsx`
 
-### 3. Modificacao na pagina `MinhasParticipacoes.tsx`
-- Importar e renderizar o `DisputeAlertModeSelector` dentro da aba "autorizadas"
-- Posicionar entre o banner do robo e a lista de cards
-- Passar o modo selecionado para os `AutorizadaCard`s para que usem o tipo correto de alerta
+- **Estado minimizado**: Circulo pequeno (40px) no canto inferior direito com icone de microfone
+- **Estado ativo**: Barra fina (48px de altura) fixa no rodape da tela, com:
+  - Botao de microfone (esquerda)
+  - Campo de texto (centro)
+  - Resposta da IA aparece como toast/notificacao flutuante que some apos 5s
+- **Sem painel de chat** -- respostas aparecem como notificacoes discretas que nao bloqueiam a tela
 
-### 4. Atualizacao do hook `useVoiceAlerts.ts`
-- Nenhuma mudanca necessaria -- o hook ja possui `speakPosition`, `speakCalled`, `speakVictory`, `speakDefeat` e `playAlarmSound`
-- O novo componente apenas consumira essas funcoes existentes
+### 2. Logica de Comandos (reutilizar hooks existentes)
 
-### Arquivos afetados
-- **Novo**: `src/components/voice/DisputeAlertModeSelector.tsx`
-- **Editado**: `src/pages/MinhasParticipacoes.tsx` (importar componente, adicionar posicao nos cards)
+Reutilizar toda a infraestrutura ja existente:
+- `useSpeechRecognition` -- reconhecimento de voz
+- `useVoiceNavigation` -- navegacao por paginas
+- `usePendingAlerts` -- status de licitacoes pendentes
+
+Fast-path (sem chamar IA):
+- Navegacao: "abre licitacoes", "vai para medicamentos"
+- Acoes diretas: "autoriza tudo", "atualiza", "silencio"
+- Status rapido: "quantas aguardando?", "status do sistema"
+
+Caminho IA (para perguntas complexas):
+- Chama a Edge Function `ai-assistant` que ja existe e funciona bem
+
+### 3. Respostas por Voz (TTS)
+
+- Usa ElevenLabs TTS (ja configurado na Edge Function `elevenlabs-tts`)
+- Fallback para browser TTS
+- Resposta falada + texto discreto na barra
+
+### 4. Atualizar App.tsx
+
+- Substituir `VoiceAIAssistant` por `SmartCommandBar`
+
+### 5. Melhorias no Reconhecimento de Comandos
+
+Ampliar a deteccao de comandos para cobrir mais variacoes:
+- "autorizar" / "autoriza" / "autoriza tudo" / "autoriza todas" / "pode participar"
+- "abre" / "abrir" / "vai para" / "mostra" / "quero ver"
+- Tratamento de "para de falar" / "silencio" / "cala a boca"
+
+## Resultado Final
+
+- IA **invisivel** durante uso normal (apenas um pequeno icone)
+- Ao clicar ou falar, barra **fina** aparece no rodape sem cobrir o sistema
+- Respostas aparecem como **notificacoes discretas** que somem sozinhas
+- Voz ativa para comandos e respostas
+- Executa navegacao, autorizacao, consultas e perguntas complexas via IA
+- Zero conflito com a interface do sistema
+
