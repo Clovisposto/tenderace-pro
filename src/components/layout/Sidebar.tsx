@@ -1,32 +1,16 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  FileSearch, 
-  Building2, 
   Settings,
-  Pill,
-  Briefcase,
-  Bot,
   BarChart3,
-  Globe,
-  BookOpen,
-  Plug,
+  Bot,
   Shield,
-  Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Portal BLL', href: '/portal', icon: Globe },
-  { name: 'Licitações', href: '/licitacoes', icon: FileSearch },
-  { name: 'Participações', href: '/participacoes', icon: Trophy },
-  { name: 'Medicamentos', href: '/medicamentos', icon: Pill },
-  { name: 'Empreendimentos', href: '/empreendimentos', icon: Briefcase },
-  { name: 'Empresas', href: '/empresas', icon: Building2 },
-  { name: 'Conectores', href: '/conectores', icon: Plug },
+  { name: 'Painel', href: '/', icon: LayoutDashboard },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
-  { name: 'Manual', href: '/manual', icon: BookOpen },
   { name: 'Admin', href: '/admin', icon: Shield },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
@@ -85,8 +69,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         <div className="p-4 rounded-lg bg-sidebar-accent border border-sidebar-primary/30">
           <div className="flex items-center gap-2 mb-2">
             <div className="relative">
-              <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
-              <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-success animate-ping opacity-75" />
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+              <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-green-500 animate-ping opacity-75" />
             </div>
             <p className="text-xs text-sidebar-foreground/70">Sistema operando em</p>
           </div>
