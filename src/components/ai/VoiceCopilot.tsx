@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, X, Bot, Loader2, Volume2, VolumeX, Square, BellRing, ChevronDown, Power } from 'lucide-react';
+import { Mic, MicOff, X, Bot, Loader2, Volume2, VolumeX, Square, BellRing, ChevronDown, Power, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useVoiceNavigation } from '@/hooks/useVoiceNavigation';
 import { usePendingAlerts } from '@/hooks/usePendingAlerts';
+import { useWakeWord } from '@/hooks/useWakeWord';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -19,30 +20,47 @@ export const VoiceCopilot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(() => localStorage.getItem('copilotActive') !== 'false');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Estou aqui em segundo plano. Pode falar a qualquer momento — eu navego, informo e opero o sistema pra você.' }
+    { role: 'assistant', content: 'Olá, sou o Tom — seu assistente executivo de licitações. Estou ouvindo 24h. Diga "Tom" seguido do comando. Exemplo: "Tom, abre licitações" ou "Tom, quais licitações estão aguardando?"' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [alwaysOn, setAlwaysOn] = useState(() => localStorage.getItem('tomAlwaysOn') !== 'false');
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
-  const { pendingCount, pendingAlerts } = usePendingAlerts();
-  const lastTranscriptRef = useRef('');
+  const { pendingCount } = usePendingAlerts();
+  const { detectWakeWord } = useWakeWord();
+  const lastProcessedRef = useRef('');
   const lastAlertCountRef = useRef(0);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Auto-send when speech ends
+  // Auto-start listening when active and alwaysOn
   useEffect(() => {
-    if (!isListening && transcript && transcript !== lastTranscriptRef.current) {
-      lastTranscriptRef.current = transcript;
-      handleUserInput(transcript);
+    if (isActive && alwaysOn && isSupported && !isListening) {
+      const timer = setTimeout(() => {
+        startListening();
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [isListening, transcript]);
+  }, [isActive, alwaysOn, isSupported]);
+
+  // Process transcript with wake word detection
+  useEffect(() => {
+    if (!transcript || transcript === lastProcessedRef.current) return;
+    
+    const { detected, command } = detectWakeWord(transcript);
+    
+    if (detected && command && command.length > 2) {
+      lastProcessedRef.current = transcript;
+      handleUserInput(command);
+      if (!isOpen) setIsOpen(true);
+    }
+  }, [transcript]);
 
   // Auto-notify about pending authorizations
   useEffect(() => {
@@ -50,19 +68,14 @@ export const VoiceCopilot = () => {
     if (pendingCount !== lastAlertCountRef.current && pendingCount > 0) {
       lastAlertCountRef.current = pendingCount;
       const msg = pendingCount === 1
-        ? `Atenção, tem uma licitação nova aguardando sua autorização.`
-        : `Atenção, tem ${pendingCount} licitações novas aguardando sua autorização.`;
+        ? `Senhor, tem uma licitação nova aguardando sua autorização. Deseja que eu abra os detalhes?`
+        : `Senhor, tem ${pendingCount} licitações novas aguardando sua autorização. Diga "Tom, abre licitações" para verificar.`;
       
-      // Show toast notification (non-intrusive)
       toast.info(msg, {
         duration: 8000,
-        action: {
-          label: 'Ver',
-          onClick: () => setIsOpen(true),
-        },
+        action: { label: 'Ver', onClick: () => setIsOpen(true) },
       });
 
-      // Speak if autoSpeak and panel is closed (background alert)
       if (autoSpeak && !isOpen) {
         speakText(msg);
       }
@@ -121,7 +134,7 @@ export const VoiceCopilot = () => {
     // Try navigation first
     const { navigated, label } = tryNavigate(text);
     if (navigated) {
-      const navMsg = `Pronto, abri ${label} pra você.`;
+      const navMsg = `Pronto, senhor. Abri ${label} para você.`;
       setMessages(prev => [...prev, { role: 'assistant', content: navMsg }]);
       await speakText(navMsg);
       return;
@@ -129,114 +142,137 @@ export const VoiceCopilot = () => {
 
     setIsLoading(true);
     try {
+      const systemContext = `Você é o Tom, assistente executivo profissional de licitações públicas do sistema TenderAce PRO. 
+Você fala de forma respeitosa, profissional e direta. Trate o usuário como "senhor" ou "senhora".
+Você gerencia licitações para duas empresas:
+1. PARA MEDICAMENTOS E SERVIÇOS MÉDICOS LTDA (segmento farmacêutico)
+2. PARA EMPREENDIMENTOS COMERCIO E PRESTACAO DE SERVIÇOS LTDA (segmento de empreendimentos)
+Você opera 24 horas e tem autonomia para executar tarefas quando autorizado.
+Sempre confirme ações importantes antes de executar.`;
+
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) }
+        body: { 
+          messages: [
+            { role: 'system', content: systemContext },
+            ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: text }
+          ] 
+        }
       });
       if (error) throw error;
-      const content = data.content || 'Desculpe, não entendi. Pode repetir?';
+      const content = data.content || 'Desculpe senhor, não entendi. Pode repetir o comando?';
       setMessages(prev => [...prev, { role: 'assistant', content }]);
       const aiNavResult = tryNavigate(content);
       if (!aiNavResult.navigated) await speakText(content);
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Tive um problema. Tente falar novamente.' }]);
+      const errMsg = 'Senhor, tive um problema técnico. Estou tentando me recuperar. Pode repetir?';
+      setMessages(prev => [...prev, { role: 'assistant', content: errMsg }]);
+      await speakText(errMsg);
     } finally { setIsLoading(false); }
-  };
-
-  const handleMicToggle = () => {
-    if (isListening) stopListening();
-    else { stopSpeaking(); startListening(); if (!isOpen) setIsOpen(true); }
   };
 
   const toggleActive = () => {
     const next = !isActive;
     setIsActive(next);
     localStorage.setItem('copilotActive', String(next));
-    if (!next) { stopSpeaking(); setIsOpen(false); }
-    toast(next ? 'Gerente Digital ativado' : 'Gerente Digital desativado');
+    if (!next) { 
+      stopSpeaking(); 
+      stopListening();
+      setIsOpen(false); 
+    } else {
+      if (alwaysOn && isSupported) startListening();
+    }
+    toast(next ? '🟢 Tom ativado — ouvindo 24h' : '🔴 Tom desativado');
   };
 
-  // ============ INACTIVE STATE — invisible dot ============
+  const toggleAlwaysOn = () => {
+    const next = !alwaysOn;
+    setAlwaysOn(next);
+    localStorage.setItem('tomAlwaysOn', String(next));
+    if (next && isActive && isSupported && !isListening) {
+      startListening();
+    } else if (!next && isListening) {
+      stopListening();
+    }
+    toast(next ? '🎤 Escuta contínua ativada' : '🎤 Escuta contínua desativada');
+  };
+
+  // ============ INACTIVE STATE ============
   if (!isActive) {
     return (
       <button
         onClick={toggleActive}
-        className="fixed bottom-3 right-3 z-50 w-6 h-6 rounded-full bg-muted/40 hover:bg-primary/20 flex items-center justify-center opacity-20 hover:opacity-100 transition-all duration-500"
-        title="Ativar Gerente Digital"
+        className="fixed bottom-3 right-3 z-50 w-8 h-8 rounded-full bg-muted/60 hover:bg-primary/20 flex items-center justify-center opacity-30 hover:opacity-100 transition-all duration-500"
+        title="Ativar Tom"
       >
-        <Power className="w-3 h-3 text-muted-foreground" />
+        <Power className="w-4 h-4 text-muted-foreground" />
       </button>
     );
   }
 
-  // ============ ACTIVE BUT HIDDEN — tiny floating indicator ============
+  // ============ MINIMIZED — always-on indicator ============
   if (!isOpen) {
     return (
-      <div className="fixed bottom-3 right-3 z-50 flex items-center">
-        {/* Mic shortcut — always accessible */}
-        <button
-          onClick={handleMicToggle}
-          disabled={!isSupported}
-          className={cn(
-            "h-9 w-9 rounded-full flex items-center justify-center shadow-sm transition-all duration-300",
-            isListening
-              ? "bg-destructive text-destructive-foreground scale-110"
-              : "bg-primary/80 hover:bg-primary text-primary-foreground hover:scale-105",
-            "backdrop-blur-sm"
-          )}
-          title={isListening ? 'Parar' : 'Falar com IA'}
-        >
-          {isListening && <span className="absolute w-9 h-9 rounded-full bg-destructive/30 animate-ping" />}
-          {isListening ? <MicOff className="w-3.5 h-3.5 relative z-10" /> : <Mic className="w-3.5 h-3.5 relative z-10" />}
-        </button>
+      <div className="fixed bottom-3 right-3 z-50 flex items-center gap-1">
+        {/* Always-on listening indicator */}
+        {isListening && (
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] text-primary font-medium">Tom ouvindo</span>
+          </div>
+        )}
+
+        {/* Speaking indicator */}
+        {isSpeaking && (
+          <button onClick={stopSpeaking} className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center animate-pulse" title="Parar fala">
+            <Volume2 className="w-3.5 h-3.5 text-primary" />
+          </button>
+        )}
 
         {/* Pending badge */}
         {pendingCount > 0 && (
-          <button
-            onClick={() => setIsOpen(true)}
-            className="ml-1 relative"
-            title={`${pendingCount} licitações aguardando`}
-          >
+          <button onClick={() => setIsOpen(true)} className="relative" title={`${pendingCount} licitações aguardando`}>
             <Badge className="bg-warning text-warning-foreground text-[10px] px-1.5 py-0.5 animate-pulse cursor-pointer hover:scale-110 transition-transform">
               {pendingCount}
             </Badge>
           </button>
         )}
 
-        {/* Speaking indicator */}
-        {isSpeaking && (
-          <button onClick={stopSpeaking} className="ml-1 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center" title="Parar fala">
-            <Volume2 className="w-3 h-3 text-primary animate-pulse" />
-          </button>
-        )}
-
-        {/* Expand chat */}
+        {/* Tom avatar button */}
         <button
           onClick={() => setIsOpen(true)}
-          className="ml-1 h-6 w-6 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center opacity-40 hover:opacity-100 transition-all"
-          title="Abrir chat"
+          className={cn(
+            "h-10 w-10 rounded-full flex items-center justify-center shadow-md transition-all duration-300",
+            "bg-primary text-primary-foreground hover:scale-105",
+            isListening && "ring-2 ring-green-500/50"
+          )}
+          title="Abrir Tom"
         >
-          <Bot className="w-3 h-3 text-muted-foreground" />
+          <Bot className="w-5 h-5" />
         </button>
       </div>
     );
   }
 
-  // ============ OPEN PANEL — compact chat ============
+  // ============ OPEN PANEL ============
   return (
-    <div className="fixed bottom-3 right-3 z-50 w-[360px] max-w-[calc(100vw-1.5rem)] h-[460px] max-h-[calc(100vh-3rem)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
+    <div className="fixed bottom-3 right-3 z-50 w-[380px] max-w-[calc(100vw-1.5rem)] h-[500px] max-h-[calc(100vh-3rem)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
       {/* Header */}
-      <div className="bg-primary px-3 py-2 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-primary to-primary/80 px-3 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Bot className="w-4 h-4 text-primary-foreground" />
-            {(isListening || isSpeaking) && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary-foreground" />
+            </div>
+            {isListening && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse border border-white/50" />
             )}
           </div>
           <div>
-            <span className="font-semibold text-primary-foreground text-xs">Gerente Digital</span>
-            <p className="text-[9px] text-primary-foreground/60 leading-none mt-0.5">
-              {isListening ? '🎤 Te ouvindo...' : isSpeaking ? '🔊 Falando...' : isLoading ? '🧠 Pensando...' : '24h ativo'}
+            <span className="font-bold text-primary-foreground text-sm">Tom</span>
+            <span className="text-primary-foreground/60 text-xs ml-1">• Assistente Executivo</span>
+            <p className="text-[9px] text-primary-foreground/50 leading-none mt-0.5">
+              {isListening ? '🎤 Ouvindo... diga "Tom" + comando' : isSpeaking ? '🔊 Falando...' : isLoading ? '🧠 Processando...' : '24h operacional'}
             </p>
           </div>
           {pendingCount > 0 && (
@@ -247,12 +283,16 @@ export const VoiceCopilot = () => {
           )}
         </div>
         <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" onClick={toggleAlwaysOn}
+            className="text-primary-foreground hover:bg-white/20 h-6 w-6" title={alwaysOn ? 'Desativar escuta contínua' : 'Ativar escuta contínua'}>
+            {alwaysOn ? <Zap className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => setAutoSpeak(!autoSpeak)}
             className="text-primary-foreground hover:bg-white/20 h-6 w-6">
             {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
           </Button>
           <Button variant="ghost" size="icon" onClick={toggleActive}
-            className="text-primary-foreground hover:bg-white/20 h-6 w-6" title="Desativar IA">
+            className="text-primary-foreground hover:bg-white/20 h-6 w-6" title="Desativar Tom">
             <Power className="w-3 h-3" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => { stopSpeaking(); setIsOpen(false); }}
@@ -262,14 +302,29 @@ export const VoiceCopilot = () => {
         </div>
       </div>
 
+      {/* Status bar */}
+      <div className="px-3 py-1.5 bg-muted/30 border-b flex items-center justify-between text-[10px]">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <div className={`w-1.5 h-1.5 rounded-full ${isListening ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`} />
+            <span className="text-muted-foreground">{isListening ? 'Mic ativo' : 'Mic inativo'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className={`w-1.5 h-1.5 rounded-full ${alwaysOn ? 'bg-green-500' : 'bg-amber-500'}`} />
+            <span className="text-muted-foreground">{alwaysOn ? '24h ligado' : 'Manual'}</span>
+          </div>
+        </div>
+        <span className="text-muted-foreground">Wake word: "Tom"</span>
+      </div>
+
       {/* Messages */}
       <ScrollArea className="flex-1 p-3" ref={scrollRef}>
         <div className="space-y-2.5">
           {messages.map((msg, i) => (
             <div key={i} className={cn("flex gap-2", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
               {msg.role === 'assistant' && (
-                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="w-2.5 h-2.5 text-primary" />
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot className="w-3 h-3 text-primary" />
                 </div>
               )}
               <div className={cn(
@@ -285,12 +340,12 @@ export const VoiceCopilot = () => {
 
           {isLoading && (
             <div className="flex gap-2">
-              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-2.5 h-2.5 text-primary" />
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="w-3 h-3 text-primary" />
               </div>
               <div className="bg-secondary rounded-xl rounded-bl-sm px-3 py-2 flex items-center gap-2">
                 <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                <span className="text-[10px] text-muted-foreground">Pensando...</span>
+                <span className="text-[10px] text-muted-foreground">Tom processando...</span>
               </div>
             </div>
           )}
@@ -298,7 +353,7 @@ export const VoiceCopilot = () => {
           {isListening && transcript && (
             <div className="flex gap-2 justify-end">
               <div className="max-w-[85%] rounded-xl px-3 py-2 text-xs bg-primary/10 text-primary border border-primary/20 rounded-br-sm italic">
-                {transcript}
+                🎤 {transcript}
               </div>
             </div>
           )}
@@ -307,9 +362,9 @@ export const VoiceCopilot = () => {
         {/* Quick actions */}
         {messages.length <= 2 && !isLoading && !isListening && (
           <div className="mt-3 space-y-1.5">
-            <p className="text-[9px] text-muted-foreground text-center">Diga ou clique:</p>
+            <p className="text-[9px] text-muted-foreground text-center">Diga "Tom" + um destes comandos:</p>
             <div className="flex flex-wrap gap-1 justify-center">
-              {['Abrir licitações', 'Minhas disputas', 'O que é SICAF?', 'Ver relatórios'].map((a, i) => (
+              {['Abre licitações', 'Quais estão aguardando?', 'Abre medicamentos', 'Abre empreendimentos', 'Ver relatórios'].map((a, i) => (
                 <button key={i} onClick={() => handleUserInput(a)}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border hover:bg-muted transition-colors">
                   {a}
@@ -328,20 +383,25 @@ export const VoiceCopilot = () => {
             <Square className="w-2.5 h-2.5" />
           </Button>
         )}
-        <button
-          onClick={handleMicToggle}
-          disabled={isLoading || !isSupported}
-          className={cn(
-            "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-md",
-            "active:scale-95 disabled:opacity-50",
-            isListening
-              ? "bg-destructive text-destructive-foreground scale-110"
-              : "bg-primary text-primary-foreground hover:scale-105"
-          )}
-        >
-          {isListening && <span className="absolute w-12 h-12 rounded-full bg-destructive/30 animate-ping" />}
-          {isListening ? <MicOff className="w-5 h-5 relative z-10" /> : <Mic className="w-5 h-5 relative z-10" />}
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => { if (isListening) stopListening(); else startListening(); }}
+            disabled={isLoading || !isSupported}
+            className={cn(
+              "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-md",
+              "active:scale-95 disabled:opacity-50",
+              isListening
+                ? "bg-green-500 text-white ring-2 ring-green-500/30"
+                : "bg-primary text-primary-foreground hover:scale-105"
+            )}
+          >
+            {isListening && <span className="absolute w-12 h-12 rounded-full bg-green-500/20 animate-ping" />}
+            {isListening ? <Mic className="w-5 h-5 relative z-10" /> : <MicOff className="w-5 h-5 relative z-10" />}
+          </button>
+          <span className="text-[9px] text-muted-foreground">
+            {isListening ? 'Diga "Tom, ..."' : 'Clique para ativar'}
+          </span>
+        </div>
         {isSpeaking && <div className="w-7" />}
       </div>
     </div>
