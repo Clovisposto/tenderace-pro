@@ -2,12 +2,14 @@ import { useCallback, useRef } from 'react';
 
 const WAKE_WORD = 'tom';
 const WAKE_PATTERNS = [
-  /^tom[,.\s]+/i,
-  /\btom[,.\s]+/i,
-  /^t[oó]m[,.\s]+/i,
-  /\bt[oó]m[,.\s]+/i,
-  /^tô[nm][,.\s]+/i,
-  /\btô[nm][,.\s]+/i,
+  /^tom[,.\s!:]+/i,
+  /\btom[,.\s!:]+/i,
+  /^t[oóô]m[,.\s!:]+/i,
+  /\bt[oóô]m[,.\s!:]+/i,
+  /^tô[nm][,.\s!:]+/i,
+  /\btô[nm][,.\s!:]+/i,
+  /^to+m[,.\s!:]+/i,
+  /\bto+m[,.\s!:]+/i,
 ];
 
 interface UseWakeWordReturn {

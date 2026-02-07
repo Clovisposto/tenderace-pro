@@ -46,24 +46,21 @@ export function useLicitacoesRealtimeNotifications(options: RealtimeNotification
     const isHighValue = (licitacao.valor || 0) > 15000;
     const isMedicamentos = licitacao.segmento === 'Medicamentos';
 
-    // Play sound for new high-value or relevant tenders
+    // Play sound only for high-value or relevant tenders
     if (isHighValue || isMedicamentos) {
       playNotificationSound();
     }
 
-    if (enableToast) {
+    // Batch notifications: only show toast if last one was > 3s ago
+    const now = Date.now();
+    const lastToastTime = (window as any).__lastCaptureToast || 0;
+    if (enableToast && now - lastToastTime > 3000) {
+      (window as any).__lastCaptureToast = now;
       toast.success(
         `🆕 Nova Licitação Capturada!`,
         {
-          description: `${licitacao.orgao?.substring(0, 40)}... - ${valorFormatted}`,
-          duration: 5000,
-          action: {
-            label: 'Ver',
-            onClick: () => {
-              // Could navigate to the tender details
-              console.log('View tender:', licitacao.id);
-            }
-          }
+          description: `${licitacao.orgao?.substring(0, 40)} - ${valorFormatted}`,
+          duration: 3000,
         }
       );
     }

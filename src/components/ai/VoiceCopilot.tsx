@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -27,6 +28,7 @@ export const VoiceCopilot = () => {
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [alwaysOn, setAlwaysOn] = useState(() => localStorage.getItem('tomAlwaysOn') !== 'false');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
@@ -55,12 +57,13 @@ export const VoiceCopilot = () => {
     
     const { detected, command } = detectWakeWord(transcript);
     
-    if (detected && command && command.length > 1) {
+    if (detected && command && command.length > 2) {
       lastProcessedRef.current = transcript;
-      // Reset after 3s so user can repeat same command
-      setTimeout(() => { lastProcessedRef.current = ''; }, 3000);
-      handleUserInput(command);
+      setTimeout(() => { lastProcessedRef.current = ''; }, 2000);
+      
+      // Execute immediately — don't wait
       if (!isOpen) setIsOpen(true);
+      handleUserInput(command);
     }
   }, [transcript]);
 
@@ -143,7 +146,15 @@ export const VoiceCopilot = () => {
       return;
     }
 
-    // 2) FAST PATH — quick action commands (no AI needed)
+    // 2) FAST PATH — action commands (authorize, refresh, status)
+    const actionResponse = await executeAction(clean);
+    if (actionResponse) {
+      setMessages(prev => [...prev, { role: 'assistant', content: actionResponse }]);
+      speakText(actionResponse);
+      return;
+    }
+
+    // 3) FAST PATH — quick responses (no AI needed)
     const quickResponse = getQuickResponse(clean);
     if (quickResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: quickResponse }]);
@@ -151,22 +162,19 @@ export const VoiceCopilot = () => {
       return;
     }
 
-    // 3) AI path — only for complex questions
+    // 4) AI path — only for complex questions
     setIsLoading(true);
     try {
       const systemContext = `Você é o Tom, assistente executivo de licitações do TenderAce PRO.
-REGRAS OBRIGATÓRIAS:
-- Responda em NO MÁXIMO 2 frases curtas e diretas.
-- Trate o usuário como "senhor".
-- NUNCA faça perguntas de volta. Execute o comando.
-- Você gerencia duas empresas: PARA MEDICAMENTOS e PARA EMPREENDIMENTOS.
-- Você tem autonomia total. Quando o senhor mandar, execute.`;
+REGRAS:
+- NO MÁXIMO 2 frases curtas. Sem perguntas. Execute.
+- Trate como "senhor". Autonomia total.`;
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { 
           messages: [
             { role: 'system', content: systemContext },
-            ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+            ...messages.slice(-4).map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: clean }
           ] 
         }
@@ -174,24 +182,79 @@ REGRAS OBRIGATÓRIAS:
       if (error) throw error;
       const content = data.content || 'Entendido, senhor. Executando.';
       setMessages(prev => [...prev, { role: 'assistant', content }]);
-      // Try navigating based on AI response too
       const aiNav = tryNavigate(content);
       if (!aiNav.navigated) speakText(content);
     } catch {
-      const errMsg = 'Senhor, problema técnico. Pode repetir o comando?';
+      const errMsg = 'Problema técnico, senhor. Repita o comando.';
       setMessages(prev => [...prev, { role: 'assistant', content: errMsg }]);
       speakText(errMsg);
     } finally { setIsLoading(false); }
   };
 
-  // Quick responses that don't need AI
+  // ACTION COMMANDS — execute database operations directly
+  const executeAction = async (text: string): Promise<string | null> => {
+    const t = text.toLowerCase();
+
+    // AUTHORIZE — "autoriza", "autorizar", "autoriza tudo", "autoriza todas"
+    if (t.includes('autoriza') || t.includes('participar') || t.includes('participa')) {
+      try {
+        const { data: novas, error } = await supabase
+          .from('licitacoes')
+          .select('id, numero, objeto_resumido, valor')
+          .eq('status', 'Nova')
+          .order('valor', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        if (!novas || novas.length === 0) return 'Senhor, não há licitações pendentes de autorização no momento.';
+
+        // Authorize all pending
+        const ids = novas.map(l => l.id);
+        const { error: updateError } = await supabase
+          .from('licitacoes')
+          .update({ status: 'Autorizada' })
+          .in('id', ids);
+
+        if (updateError) throw updateError;
+
+        // Refresh queries
+        queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+        queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
+        queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
+
+        toast.success(`✅ ${novas.length} licitações autorizadas pelo Tom`);
+        return `Pronto, senhor. ${novas.length} licitações autorizadas com sucesso. O robô já está monitorando.`;
+      } catch (err) {
+        console.error('[Tom] Erro ao autorizar:', err);
+        return 'Senhor, erro ao autorizar. Tente novamente.';
+      }
+    }
+
+    // REFRESH
+    if (t.includes('atualiza') || t.includes('refresh') || t.includes('recarrega')) {
+      window.location.reload();
+      return 'Atualizando o sistema, senhor.';
+    }
+
+    // STOP NOTIFICATIONS
+    if (t.includes('silêncio') || t.includes('silencio') || t.includes('para') || t.includes('cala')) {
+      stopSpeaking();
+      return 'Entendido, senhor. Silenciado.';
+    }
+
+    return null;
+  };
+
+  // Quick responses that don't need AI or DB
   const getQuickResponse = (text: string): string | null => {
     const t = text.toLowerCase();
-    if (t.includes('quantas') && t.includes('aguardando')) return `Senhor, há ${pendingCount} licitações aguardando sua autorização.`;
-    if (t.includes('quais') && t.includes('aguardando')) return `Senhor, ${pendingCount} licitações aguardando. Diga "Tom, abre licitações" para verificar.`;
-    if (t.includes('status') || t.includes('situação')) return `Senhor, sistema operacional. ${pendingCount} itens pendentes de autorização.`;
-    if (t.includes('atualiza') || t.includes('refresh')) { window.location.reload(); return 'Atualizando o sistema, senhor.'; }
+    if (t.includes('quantas') && t.includes('aguardando')) return `Senhor, há ${pendingCount} licitações aguardando autorização.`;
+    if (t.includes('quais') && t.includes('aguardando')) return `Senhor, ${pendingCount} licitações aguardando. Diga "Tom, autoriza tudo" para liberar.`;
+    if (t.includes('status') || t.includes('situação') || t.includes('situacao')) return `Sistema operacional, senhor. ${pendingCount} pendentes.`;
     if (t.includes('obrigado') || t.includes('valeu')) return 'Às ordens, senhor.';
+    if (t.includes('bom dia')) return 'Bom dia, senhor. Sistema operacional.';
+    if (t.includes('boa tarde')) return 'Boa tarde, senhor. Tudo sob controle.';
+    if (t.includes('boa noite')) return 'Boa noite, senhor. Monitoramento ativo.';
     return null;
   };
 
