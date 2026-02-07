@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Send, Loader2, X, Bot } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Mic, MicOff, Loader2, X, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -12,24 +10,27 @@ import { usePendingAlerts } from '@/hooks/usePendingAlerts';
 
 export const SmartCommandBar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [lastResponse, setLastResponse] = useState('');
+  const [showResponse, setShowResponse] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedRef = useRef('');
+  const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
 
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
   const { pendingCount } = usePendingAlerts();
 
-  // Focus input when expanded
+  // Auto-start listening when expanded
   useEffect(() => {
-    if (isExpanded && inputRef.current) inputRef.current.focus();
+    if (isExpanded && isSupported && !isListening) {
+      startListening();
+    }
   }, [isExpanded]);
 
-  // Process voice transcript
+  // Process voice transcript automatically
   useEffect(() => {
     if (!transcript || transcript === lastProcessedRef.current || isLoading) return;
     const cleaned = transcript.toLowerCase().trim();
@@ -38,9 +39,16 @@ export const SmartCommandBar = () => {
     lastProcessedRef.current = transcript;
     setTimeout(() => { lastProcessedRef.current = ''; }, 3000);
 
-    if (!isExpanded) setIsExpanded(true);
     processCommand(cleaned);
   }, [transcript]);
+
+  // Show response with auto-hide
+  const showResponseText = (text: string) => {
+    setLastResponse(text);
+    setShowResponse(true);
+    if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+    responseTimerRef.current = setTimeout(() => setShowResponse(false), 8000);
+  };
 
   // ========== TTS ==========
   const speakText = useCallback(async (text: string) => {
@@ -50,7 +58,7 @@ export const SmartCommandBar = () => {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(t);
         u.lang = 'pt-BR';
-        u.rate = 1.0;
+        u.rate = 0.95;
         u.onend = () => setIsSpeaking(false);
         u.onerror = () => setIsSpeaking(false);
         window.speechSynthesis.speak(u);
@@ -92,13 +100,12 @@ export const SmartCommandBar = () => {
   const processCommand = async (text: string) => {
     if (!text.trim() || isLoading) return;
     const clean = text.trim();
-    setInput('');
 
     // 1) NAVIGATION — instant
     const { navigated, label } = tryNavigate(clean);
     if (navigated) {
-      const msg = `✅ ${label} aberto.`;
-      toast.success(msg, { duration: 4000 });
+      const msg = `${label} aberto.`;
+      showResponseText(msg);
       speakText(msg);
       return;
     }
@@ -106,7 +113,7 @@ export const SmartCommandBar = () => {
     // 2) DIRECT ACTIONS — instant
     const actionResponse = await executeAction(clean);
     if (actionResponse) {
-      toast.success(actionResponse, { duration: 5000 });
+      showResponseText(actionResponse);
       speakText(actionResponse);
       return;
     }
@@ -114,28 +121,31 @@ export const SmartCommandBar = () => {
     // 3) QUICK RESPONSES — instant
     const quickResponse = getQuickResponse(clean);
     if (quickResponse) {
-      toast.info(quickResponse, { duration: 5000 });
+      showResponseText(quickResponse);
       speakText(quickResponse);
       return;
     }
 
     // 4) AI — complex questions
     setIsLoading(true);
+    showResponseText('Processando...');
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
           messages: [
-            { role: 'system', content: 'Você é o Gerente Digital do TenderAce PRO. Responda em NO MÁXIMO 2 frases curtas e objetivas. Sem perguntas. Execute.' },
+            { role: 'system', content: 'Você é o Gerente Digital do TenderAce PRO. Responda em NO MÁXIMO 2 frases curtas e objetivas. Tudo será lido em voz alta. Sem formatação, sem markdown, sem asteriscos. Fale de forma simples e clara.' },
             { role: 'user', content: clean }
           ]
         }
       });
       if (error) throw error;
       const content = data.content || 'Comando processado.';
-      toast.info(content, { duration: 6000 });
+      showResponseText(content);
       speakText(content);
     } catch {
-      toast.error('Erro ao processar. Tente novamente.');
+      const errMsg = 'Desculpe, houve um erro. Tente novamente.';
+      showResponseText(errMsg);
+      speakText(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +165,7 @@ export const SmartCommandBar = () => {
           .limit(10);
 
         if (error) throw error;
-        if (!novas || novas.length === 0) return 'Não há licitações pendentes de autorização.';
+        if (!novas || novas.length === 0) return 'Não tem licitação pendente no momento.';
 
         const { error: updateError } = await supabase
           .from('licitacoes')
@@ -168,9 +178,10 @@ export const SmartCommandBar = () => {
         queryClient.invalidateQueries({ queryKey: ['licitacoes-autorizadas'] });
         queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
 
-        return `${novas.length} licitações autorizadas com sucesso. Robô monitorando.`;
+        toast.success(`${novas.length} licitações autorizadas`);
+        return `Pronto! ${novas.length} licitações autorizadas. O robô já está monitorando.`;
       } catch {
-        return 'Erro ao autorizar. Tente novamente.';
+        return 'Erro ao autorizar. Fale novamente.';
       }
     }
 
@@ -179,7 +190,7 @@ export const SmartCommandBar = () => {
       return 'Atualizando o sistema.';
     }
 
-    if (t.includes('silêncio') || t.includes('silencio') || t.includes('cala') || t.includes('para de falar')) {
+    if (t.includes('silêncio') || t.includes('silencio') || t.includes('cala') || t.includes('para de falar') || t.includes('para')) {
       stopSpeaking();
       return 'Silenciado.';
     }
@@ -190,128 +201,144 @@ export const SmartCommandBar = () => {
   // Quick responses without AI
   const getQuickResponse = (text: string): string | null => {
     const t = text.toLowerCase();
-    if (t.includes('quantas') && t.includes('aguardando')) return `${pendingCount} licitações aguardando autorização.`;
-    if (t.includes('quais') && t.includes('aguardando')) return `${pendingCount} licitações aguardando. Diga "autoriza tudo" para liberar.`;
-    if (t.includes('status') || t.includes('situação') || t.includes('situacao')) return `Sistema operacional. ${pendingCount} licitações pendentes.`;
+    if (t.includes('quantas') && t.includes('aguardando')) return `Tem ${pendingCount} licitações aguardando sua autorização.`;
+    if (t.includes('quais') && t.includes('aguardando')) return `${pendingCount} licitações aguardando. Fale "autoriza tudo" para liberar.`;
+    if (t.includes('status') || t.includes('situação') || t.includes('situacao')) return `Sistema funcionando. ${pendingCount} licitações pendentes.`;
     if (t.includes('obrigado') || t.includes('valeu')) return 'Às ordens!';
-    if (t.includes('bom dia')) return 'Bom dia! Sistema operacional.';
+    if (t.includes('bom dia')) return 'Bom dia! Sistema funcionando perfeitamente.';
     if (t.includes('boa tarde')) return 'Boa tarde! Tudo sob controle.';
     if (t.includes('boa noite')) return 'Boa noite! Monitoramento ativo.';
+    if (t.includes('ajuda') || t.includes('o que você faz') || t.includes('o que voce faz')) {
+      return 'Eu sou seu assistente. Fale: abre licitações, autoriza tudo, quantas aguardando, abre medicamentos, abre relatórios. Posso fazer tudo por voz!';
+    }
     return null;
   };
 
-  const handleSubmit = () => processCommand(input);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
+  const toggleMic = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
-    if (e.key === 'Escape') setIsExpanded(false);
   };
 
-  // ============ MINIMIZED STATE ============
+  const handleOpen = () => {
+    setIsExpanded(true);
+  };
+
+  // ============ MINIMIZED STATE — big, accessible button ============
   if (!isExpanded) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
-        {isListening && (
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[10px] text-primary font-medium">Ouvindo...</span>
+      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+        {/* Pending badge */}
+        {pendingCount > 0 && (
+          <div className="px-3 py-1.5 rounded-full bg-warning text-warning-foreground text-sm font-bold animate-pulse shadow-md">
+            {pendingCount} aguardando
           </div>
         )}
-        {pendingCount > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning text-warning-foreground font-bold animate-pulse">
-            {pendingCount}
-          </span>
-        )}
+
+        {/* Main button — large and accessible */}
         <button
-          onClick={() => setIsExpanded(true)}
+          onClick={handleOpen}
           className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110",
+            "w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
             "bg-primary text-primary-foreground",
-            isListening && "ring-2 ring-green-500/50"
+            isListening && "ring-4 ring-green-500/50"
           )}
-          title="Abrir comando"
+          aria-label="Abrir assistente de voz"
         >
-          <Bot className="w-5 h-5" />
+          <Mic className="w-7 h-7" />
         </button>
       </div>
     );
   }
 
-  // ============ EXPANDED COMMAND BAR ============
+  // ============ EXPANDED — Voice-first copilot ============
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg animate-in slide-in-from-bottom-2 duration-200">
-      <div className="max-w-4xl mx-auto flex items-center gap-2 px-4 py-2">
-        {/* Mic Button */}
-        {isSupported && (
-          <Button
-            variant={isListening ? 'default' : 'outline'}
-            size="icon"
-            onClick={() => isListening ? stopListening() : startListening()}
+    <>
+      {/* Response overlay — shows AI response at top, doesn't block system */}
+      {showResponse && lastResponse && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[calc(100%-2rem)] animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl px-5 py-4 flex items-start gap-3">
+            {isSpeaking && (
+              <div className="shrink-0 mt-0.5">
+                <Volume2 className="w-5 h-5 text-primary animate-pulse" />
+              </div>
+            )}
+            {isLoading && (
+              <div className="shrink-0 mt-0.5">
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              </div>
+            )}
+            <p className="text-sm text-foreground leading-relaxed flex-1">{lastResponse}</p>
+            <button onClick={() => setShowResponse(false)} className="shrink-0 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Voice control bar — bottom, compact */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-xl animate-in slide-in-from-bottom-2 duration-200">
+        <div className="max-w-lg mx-auto flex items-center justify-center gap-4 px-4 py-3">
+          {/* Stop speaking */}
+          {isSpeaking && (
+            <button
+              onClick={stopSpeaking}
+              className="w-12 h-12 rounded-full flex items-center justify-center bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-95"
+              aria-label="Parar de falar"
+            >
+              <VolumeX className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Main mic button — LARGE */}
+          <button
+            onClick={toggleMic}
             disabled={isLoading}
             className={cn(
-              "shrink-0 h-9 w-9 rounded-full transition-all",
-              isListening && "bg-green-500 hover:bg-green-600 ring-2 ring-green-500/30"
+              "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg active:scale-95 disabled:opacity-50",
+              isListening
+                ? "bg-green-500 text-white ring-4 ring-green-500/30"
+                : "bg-primary text-primary-foreground hover:scale-105"
             )}
-            title={isListening ? 'Parar microfone' : 'Ativar microfone'}
+            aria-label={isListening ? 'Parar de ouvir' : 'Começar a ouvir'}
           >
-            {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-          </Button>
-        )}
+            {isLoading ? (
+              <Loader2 className="w-7 h-7 animate-spin" />
+            ) : isListening ? (
+              <>
+                <span className="absolute w-16 h-16 rounded-full bg-green-500/20 animate-ping" />
+                <Mic className="w-7 h-7 relative z-10" />
+              </>
+            ) : (
+              <MicOff className="w-7 h-7" />
+            )}
+          </button>
 
-        {/* Input */}
-        <div className="flex-1 relative">
-          <Input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isListening ? '🎤 Ouvindo... fale seu comando' : 'Digite seu comando...'}
-            disabled={isLoading}
-            className="h-9 text-sm pr-10"
-          />
-          {isListening && transcript && (
-            <span className="absolute right-12 top-1/2 -translate-y-1/2 text-xs text-primary italic truncate max-w-[200px]">
-              {transcript}
-            </span>
-          )}
+          {/* Close */}
+          <button
+            onClick={() => { stopSpeaking(); stopListening(); setIsExpanded(false); }}
+            className="w-12 h-12 rounded-full flex items-center justify-center bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-95"
+            aria-label="Fechar assistente"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Send */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!input.trim() || isLoading}
-          size="icon"
-          className="shrink-0 h-9 w-9 rounded-full"
-        >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
-
-        {/* Status indicators */}
-        {isSpeaking && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={stopSpeaking}
-            className="shrink-0 h-9 w-9 rounded-full text-destructive"
-            title="Parar fala"
-          >
-            <span className="text-xs">🔊</span>
-          </Button>
-        )}
-
-        {/* Close */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => { stopSpeaking(); setIsExpanded(false); }}
-          className="shrink-0 h-9 w-9 rounded-full"
-        >
-          <X className="w-4 h-4" />
-        </Button>
+        {/* Status text */}
+        <div className="text-center pb-3">
+          {isListening && transcript ? (
+            <p className="text-sm text-primary font-medium px-4 truncate">🎤 {transcript}</p>
+          ) : isListening ? (
+            <p className="text-xs text-muted-foreground">🎤 Ouvindo... fale seu comando</p>
+          ) : isLoading ? (
+            <p className="text-xs text-muted-foreground">🧠 Processando...</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Toque no microfone e fale seu comando</p>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
