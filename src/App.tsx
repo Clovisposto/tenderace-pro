@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AIAssistant } from "@/components/ai/AIAssistant";
 
 
 // Lazy load pages for better performance
@@ -89,7 +90,7 @@ const App = () => (
             <Suspense fallback={<LoadingFallback />}>
               <AppRoutes />
             </Suspense>
-            
+            <AIAssistant />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
