@@ -49,14 +49,16 @@ export const VoiceCopilot = () => {
     }
   }, [isActive, alwaysOn, isSupported]);
 
-  // Process transcript with wake word detection
+  // Process transcript with wake word detection — react FAST
   useEffect(() => {
-    if (!transcript || transcript === lastProcessedRef.current) return;
+    if (!transcript || transcript === lastProcessedRef.current || isLoading) return;
     
     const { detected, command } = detectWakeWord(transcript);
     
-    if (detected && command && command.length > 2) {
+    if (detected && command && command.length > 1) {
       lastProcessedRef.current = transcript;
+      // Reset after 3s so user can repeat same command
+      setTimeout(() => { lastProcessedRef.current = ''; }, 3000);
       handleUserInput(command);
       if (!isOpen) setIsOpen(true);
     }
@@ -128,47 +130,69 @@ export const VoiceCopilot = () => {
 
   const handleUserInput = async (text: string) => {
     if (!text.trim() || isLoading) return;
-    const userMessage: Message = { role: 'user', content: text.trim() };
+    const clean = text.trim();
+    const userMessage: Message = { role: 'user', content: clean };
     setMessages(prev => [...prev, userMessage]);
 
-    // Try navigation first
-    const { navigated, label } = tryNavigate(text);
+    // 1) FAST PATH — navigation commands execute INSTANTLY
+    const { navigated, label } = tryNavigate(clean);
     if (navigated) {
-      const navMsg = `Pronto, senhor. Abri ${label} para você.`;
+      const navMsg = `Pronto, senhor. ${label} aberto.`;
       setMessages(prev => [...prev, { role: 'assistant', content: navMsg }]);
-      await speakText(navMsg);
+      speakText(navMsg);
       return;
     }
 
+    // 2) FAST PATH — quick action commands (no AI needed)
+    const quickResponse = getQuickResponse(clean);
+    if (quickResponse) {
+      setMessages(prev => [...prev, { role: 'assistant', content: quickResponse }]);
+      speakText(quickResponse);
+      return;
+    }
+
+    // 3) AI path — only for complex questions
     setIsLoading(true);
     try {
-      const systemContext = `Você é o Tom, assistente executivo profissional de licitações públicas do sistema TenderAce PRO. 
-Você fala de forma respeitosa, profissional e direta. Trate o usuário como "senhor" ou "senhora".
-Você gerencia licitações para duas empresas:
-1. PARA MEDICAMENTOS E SERVIÇOS MÉDICOS LTDA (segmento farmacêutico)
-2. PARA EMPREENDIMENTOS COMERCIO E PRESTACAO DE SERVIÇOS LTDA (segmento de empreendimentos)
-Você opera 24 horas e tem autonomia para executar tarefas quando autorizado.
-Sempre confirme ações importantes antes de executar.`;
+      const systemContext = `Você é o Tom, assistente executivo de licitações do TenderAce PRO.
+REGRAS OBRIGATÓRIAS:
+- Responda em NO MÁXIMO 2 frases curtas e diretas.
+- Trate o usuário como "senhor".
+- NUNCA faça perguntas de volta. Execute o comando.
+- Você gerencia duas empresas: PARA MEDICAMENTOS e PARA EMPREENDIMENTOS.
+- Você tem autonomia total. Quando o senhor mandar, execute.`;
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { 
           messages: [
             { role: 'system', content: systemContext },
-            ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: text }
+            ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: clean }
           ] 
         }
       });
       if (error) throw error;
-      const content = data.content || 'Desculpe senhor, não entendi. Pode repetir o comando?';
+      const content = data.content || 'Entendido, senhor. Executando.';
       setMessages(prev => [...prev, { role: 'assistant', content }]);
-      const aiNavResult = tryNavigate(content);
-      if (!aiNavResult.navigated) await speakText(content);
+      // Try navigating based on AI response too
+      const aiNav = tryNavigate(content);
+      if (!aiNav.navigated) speakText(content);
     } catch {
-      const errMsg = 'Senhor, tive um problema técnico. Estou tentando me recuperar. Pode repetir?';
+      const errMsg = 'Senhor, problema técnico. Pode repetir o comando?';
       setMessages(prev => [...prev, { role: 'assistant', content: errMsg }]);
-      await speakText(errMsg);
+      speakText(errMsg);
     } finally { setIsLoading(false); }
+  };
+
+  // Quick responses that don't need AI
+  const getQuickResponse = (text: string): string | null => {
+    const t = text.toLowerCase();
+    if (t.includes('quantas') && t.includes('aguardando')) return `Senhor, há ${pendingCount} licitações aguardando sua autorização.`;
+    if (t.includes('quais') && t.includes('aguardando')) return `Senhor, ${pendingCount} licitações aguardando. Diga "Tom, abre licitações" para verificar.`;
+    if (t.includes('status') || t.includes('situação')) return `Senhor, sistema operacional. ${pendingCount} itens pendentes de autorização.`;
+    if (t.includes('atualiza') || t.includes('refresh')) { window.location.reload(); return 'Atualizando o sistema, senhor.'; }
+    if (t.includes('obrigado') || t.includes('valeu')) return 'Às ordens, senhor.';
+    return null;
   };
 
   const toggleActive = () => {
