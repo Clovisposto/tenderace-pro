@@ -20,7 +20,7 @@ export const VoiceCopilot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! Sou seu Copiloto de Voz. Toque no microfone e fale comigo — eu vou ouvir, entender e responder em voz alta. Pode me perguntar qualquer coisa sobre licitações!'
+      content: 'Olá! Eu sou seu Gerente Digital, seu especialista em licitações. Toque no microfone e me pergunte qualquer coisa — eu ouço, entendo e respondo em voz alta pra você. Pode falar!'
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +57,23 @@ export const VoiceCopilot = () => {
     if (!autoSpeak) return;
     setIsSpeaking(true);
 
+    // Always try browser TTS first for reliability, then upgrade to ElevenLabs
+    const useBrowserTTS = (textToSpeak: string) => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'pt-BR';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setIsSpeaking(false);
+      }
+    };
+
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
@@ -71,7 +88,11 @@ export const VoiceCopilot = () => {
         }
       );
 
-      if (!response.ok) throw new Error('TTS failed');
+      if (!response.ok) {
+        console.warn('ElevenLabs TTS failed, using browser voice:', response.status);
+        useBrowserTTS(text);
+        return;
+      }
 
       const data = await response.json();
       if (data.audioContent) {
@@ -79,21 +100,17 @@ export const VoiceCopilot = () => {
         
         audioRef.current = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
         audioRef.current.onended = () => setIsSpeaking(false);
-        audioRef.current.onerror = () => setIsSpeaking(false);
+        audioRef.current.onerror = () => {
+          console.warn('Audio playback failed, using browser voice');
+          useBrowserTTS(text);
+        };
         await audioRef.current.play();
+      } else {
+        useBrowserTTS(text);
       }
     } catch (err) {
-      console.error('TTS error, fallback to browser:', err);
-      // Fallback to browser TTS
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'pt-BR';
-        utterance.rate = 1.0;
-        utterance.onend = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-      } else {
-        setIsSpeaking(false);
-      }
+      console.warn('TTS error, using browser voice:', err);
+      useBrowserTTS(text);
     }
   }, [autoSpeak]);
 
@@ -160,10 +177,10 @@ export const VoiceCopilot = () => {
   };
 
   const quickVoiceActions = [
-    'Quais licitações novas chegaram?',
-    'Como está minha posição nas disputas?',
-    'Quais documentos preciso?',
-    'Me explique dispensa com disputa',
+    'Quais licitações novas tem pra mim?',
+    'Como tá minha posição nas disputas?',
+    'O que é SICAF?',
+    'Me ajuda a entender dispensa com disputa',
   ];
 
   if (!isOpen) {
@@ -199,9 +216,9 @@ export const VoiceCopilot = () => {
             )}
           </div>
           <div>
-            <h3 className="font-bold text-primary-foreground text-base">Copiloto de Voz</h3>
+            <h3 className="font-bold text-primary-foreground text-base">Gerente Digital</h3>
             <p className="text-xs text-primary-foreground/70">
-              {isListening ? '🎤 Ouvindo...' : isSpeaking ? '🔊 Falando...' : isLoading ? '🧠 Pensando...' : '✨ Fale comigo'}
+              {isListening ? '🎤 Te ouvindo...' : isSpeaking ? '🔊 Respondendo...' : isLoading ? '🧠 Pensando...' : '✨ Toque no microfone'}
             </p>
           </div>
         </div>
@@ -354,19 +371,19 @@ export const VoiceCopilot = () => {
 
           <p className="text-xs text-muted-foreground text-center">
             {!isSupported 
-              ? 'Navegador não suporta reconhecimento de voz'
+              ? 'Navegador não suporta voz — use Chrome ou Edge'
               : isListening 
-                ? 'Estou ouvindo... fale agora!' 
+                ? 'Te ouvindo... pode falar!' 
                 : isSpeaking 
-                  ? 'Respondendo em voz alta...'
+                  ? 'Respondendo pra você...'
                   : isLoading 
-                    ? 'Processando sua pergunta...'
-                    : 'Toque no microfone para falar'}
+                    ? 'Pensando na melhor resposta...'
+                    : 'Toque no microfone e pergunte qualquer coisa'}
           </p>
         </div>
 
         <p className="text-[10px] text-muted-foreground mt-3 text-center">
-          Copiloto de Voz • TenderAce PRO
+          Gerente Digital • TenderAce PRO
         </p>
       </div>
     </div>
