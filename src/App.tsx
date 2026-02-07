@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { VoiceCopilot } from "@/components/ai/VoiceCopilot";
+
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -89,7 +89,7 @@ const App = () => (
             <Suspense fallback={<LoadingFallback />}>
               <AppRoutes />
             </Suspense>
-            <VoiceCopilot />
+            
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
