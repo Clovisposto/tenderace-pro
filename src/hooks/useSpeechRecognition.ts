@@ -7,21 +7,53 @@ interface UseSpeechRecognitionReturn {
   stopListening: () => void;
   isSupported: boolean;
   error: string | null;
-  isContinuous: boolean;
-  setContinuous: (value: boolean) => void;
 }
 
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isContinuous, setIsContinuous] = useState(true);
   const recognitionRef = useRef<any>(null);
   const shouldRestartRef = useRef(false);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const consecutiveErrorsRef = useRef(0);
+  const lastStartTimeRef = useRef(0);
 
   const isSupported = typeof window !== 'undefined' && 
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const clearRestartTimeout = () => {
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+  };
+
+  const safeRestart = useCallback(() => {
+    if (!shouldRestartRef.current || !recognitionRef.current) return;
+
+    // Prevent rapid restarts — minimum 2s between starts
+    const now = Date.now();
+    const elapsed = now - lastStartTimeRef.current;
+    const backoff = Math.min(2000 + consecutiveErrorsRef.current * 1000, 10000);
+    const delay = Math.max(backoff - elapsed, 500);
+
+    clearRestartTimeout();
+    restartTimeoutRef.current = setTimeout(() => {
+      if (!shouldRestartRef.current) return;
+      try {
+        lastStartTimeRef.current = Date.now();
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e: any) {
+        // "already started" or other — wait longer
+        consecutiveErrorsRef.current++;
+        if (consecutiveErrorsRef.current < 10 && shouldRestartRef.current) {
+          safeRestart();
+        }
+      }
+    }, delay);
+  }, []);
 
   useEffect(() => {
     if (!isSupported) return;
@@ -35,6 +67,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: any) => {
+      consecutiveErrorsRef.current = 0; // Reset on success
       let finalTranscript = '';
       let interimTranscript = '';
       
@@ -55,34 +88,24 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
         setError('Permissão de microfone negada. Ative nas configurações do navegador.');
         shouldRestartRef.current = false;
-      } else if (event.error === 'no-speech') {
-        // Silently restart — no speech detected is normal in always-on mode
-      } else if (event.error !== 'aborted') {
-        setError('Erro no reconhecimento de voz. Tentando novamente...');
+        setIsListening(false);
+        return;
       }
+      // For aborted/no-speech/network errors — just let onend handle restart
+      // Don't log aborted errors (they're normal during restart cycles)
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        console.warn('Speech recognition error:', event.error);
+      }
+      consecutiveErrorsRef.current++;
     };
 
     recognition.onend = () => {
       setIsListening(false);
-      // Auto-restart for continuous always-on mode
       if (shouldRestartRef.current) {
-        restartTimeoutRef.current = setTimeout(() => {
-          try {
-            recognition.start();
-            setIsListening(true);
-          } catch (e) {
-            // Will retry on next cycle
-            restartTimeoutRef.current = setTimeout(() => {
-              if (shouldRestartRef.current) {
-                try { recognition.start(); setIsListening(true); } catch {}
-              }
-            }, 2000);
-          }
-        }, 300);
+        safeRestart();
       }
     };
 
@@ -90,34 +113,34 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
     return () => {
       shouldRestartRef.current = false;
-      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-      recognition.abort();
+      clearRestartTimeout();
+      try { recognition.abort(); } catch {}
     };
-  }, [isSupported]);
+  }, [isSupported, safeRestart]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
     setError(null);
     setTranscript('');
     shouldRestartRef.current = true;
+    consecutiveErrorsRef.current = 0;
+    lastStartTimeRef.current = Date.now();
     try {
       recognitionRef.current.start();
       setIsListening(true);
     } catch (e) {
-      console.error('Failed to start recognition:', e);
+      // Already started — that's fine
+      setIsListening(true);
     }
   }, []);
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current) return;
     shouldRestartRef.current = false;
-    if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-    recognitionRef.current.stop();
+    consecutiveErrorsRef.current = 0;
+    clearRestartTimeout();
+    if (!recognitionRef.current) return;
+    try { recognitionRef.current.stop(); } catch {}
     setIsListening(false);
-  }, []);
-
-  const setContinuous = useCallback((value: boolean) => {
-    setIsContinuous(value);
   }, []);
 
   return {
@@ -127,7 +150,5 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     stopListening,
     isSupported,
     error,
-    isContinuous,
-    setContinuous,
   };
 }
