@@ -283,14 +283,21 @@ export type Database = {
       empresas: {
         Row: {
           certidoes_validas: boolean | null
+          certificado_digital_emissor: string | null
+          certificado_digital_tipo: string | null
+          certificado_digital_validade: string | null
+          cnae_codigo: string | null
+          cnae_descricao: string | null
           cnpj: string
           created_at: string
           email: string | null
           endereco: string | null
+          govbr_vinculado: boolean | null
           id: string
           licenca_farmaceutica: boolean | null
           municipio: string
           nome: string
+          politica_participacao: Json | null
           razao_social: string | null
           segmento: Database["public"]["Enums"]["segmento_type"]
           sicaf_status: string | null
@@ -301,14 +308,21 @@ export type Database = {
         }
         Insert: {
           certidoes_validas?: boolean | null
+          certificado_digital_emissor?: string | null
+          certificado_digital_tipo?: string | null
+          certificado_digital_validade?: string | null
+          cnae_codigo?: string | null
+          cnae_descricao?: string | null
           cnpj: string
           created_at?: string
           email?: string | null
           endereco?: string | null
+          govbr_vinculado?: boolean | null
           id?: string
           licenca_farmaceutica?: boolean | null
           municipio: string
           nome: string
+          politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
           sicaf_status?: string | null
@@ -319,14 +333,21 @@ export type Database = {
         }
         Update: {
           certidoes_validas?: boolean | null
+          certificado_digital_emissor?: string | null
+          certificado_digital_tipo?: string | null
+          certificado_digital_validade?: string | null
+          cnae_codigo?: string | null
+          cnae_descricao?: string | null
           cnpj?: string
           created_at?: string
           email?: string | null
           endereco?: string | null
+          govbr_vinculado?: boolean | null
           id?: string
           licenca_farmaceutica?: boolean | null
           municipio?: string
           nome?: string
+          politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
           sicaf_status?: string | null
