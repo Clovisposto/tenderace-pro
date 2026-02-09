@@ -11,12 +11,20 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { VoiceCopilot } from "@/components/ai/VoiceCopilot";
 
 // Lazy load pages for better performance
-const PainelUnificado = lazy(() => import("./pages/PainelUnificado"));
+const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Licitacoes = lazy(() => import("./pages/Licitacoes"));
+const LicitacoesPortal = lazy(() => import("./pages/LicitacoesPortal"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Manual = lazy(() => import("./pages/Manual"));
+const Conectores = lazy(() => import("./pages/Conectores"));
+const Medicamentos = lazy(() => import("./pages/Medicamentos"));
+const Empreendimentos = lazy(() => import("./pages/Empreendimentos"));
+const Empresas = lazy(() => import("./pages/Empresas"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const MinhasParticipacoes = lazy(() => import("./pages/MinhasParticipacoes"));
 
 // Create QueryClient with error handling
 const queryClient = new QueryClient({
@@ -54,10 +62,18 @@ const AuthRoute = () => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<AuthRoute />} />
-    <Route path="/" element={<ProtectedRoute><PainelUnificado /></ProtectedRoute>} />
     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+    <Route path="/manual" element={<ProtectedRoute><Manual /></ProtectedRoute>} />
+    <Route path="/conectores" element={<ProtectedRoute><Conectores /></ProtectedRoute>} />
+    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+    <Route path="/licitacoes" element={<ProtectedRoute><Licitacoes /></ProtectedRoute>} />
+    <Route path="/portal" element={<ProtectedRoute><LicitacoesPortal /></ProtectedRoute>} />
+    <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
+    <Route path="/empreendimentos" element={<ProtectedRoute><Empreendimentos /></ProtectedRoute>} />
+    <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
     <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+    <Route path="/participacoes" element={<ProtectedRoute><MinhasParticipacoes /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
