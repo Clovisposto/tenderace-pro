@@ -171,6 +171,80 @@ export const VoiceCopilot = () => {
         return 'Para filtrar por medicamentos, acesse o Portal de Captação e clique na aba "Medicamentos". Vou te levar lá.';
       case 'filter_empreendimentos':
         return 'Para filtrar por empreendimentos, acesse o Portal de Captação e clique na aba "Empreendimentos". Vou te levar lá.';
+      case 'authorize_all': {
+        try {
+          const { data } = await supabase
+            .from('licitacoes')
+            .select('id, numero, orgao, municipio, uf, valor')
+            .eq('status', 'Aguardando Autorização')
+            .order('created_at', { ascending: false });
+          if (!data || data.length === 0) return 'Não há licitações aguardando autorização no momento.';
+          return `Existem ${data.length} licitações aguardando autorização. Para sua segurança, a autorização deve ser feita individualmente. Vou te levar para "Minhas Participações" onde você pode revisar e autorizar cada uma. Diga "abrir participações".`;
+        } catch {
+          return 'Não consegui verificar as licitações pendentes. Tente novamente.';
+        }
+      }
+      case 'next_disputes': {
+        try {
+          const { data } = await supabase
+            .from('licitacoes')
+            .select('numero, orgao, municipio, uf, valor, data_abertura')
+            .in('status', ['Autorizada', 'Em Disputa'])
+            .order('data_abertura', { ascending: true })
+            .limit(5);
+          if (!data || data.length === 0) return 'Não há disputas agendadas no momento.';
+          const lista = data.map((l, i) => {
+            const dt = new Date(l.data_abertura);
+            const dataStr = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            return `${i + 1}. ${l.orgao} em ${l.municipio}-${l.uf}, valor ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(l.valor)}, abertura ${dataStr}`;
+          }).join('. ');
+          return `Próximas ${data.length} disputas: ${lista}`;
+        } catch {
+          return 'Não consegui buscar as próximas disputas. Tente novamente.';
+        }
+      }
+      case 'daily_summary': {
+        try {
+          const { count: novas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Nova');
+          const { count: aguardando } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Aguardando Autorização');
+          const { count: disputas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Em Disputa');
+          const { count: vencidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Vencida');
+          const { count: perdidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Perdida');
+          return `Resumo geral: ${novas || 0} novas capturadas, ${aguardando || 0} aguardando autorização, ${disputas || 0} em disputa, ${vencidas || 0} vencidas e ${perdidas || 0} perdidas. ${(aguardando || 0) > 0 ? 'Atenção: há licitações esperando sua autorização!' : 'Tudo em dia!'}`;
+        } catch {
+          return 'Não consegui gerar o resumo. Tente novamente.';
+        }
+      }
+      case 'recent_wins': {
+        try {
+          const { data } = await supabase
+            .from('licitacoes')
+            .select('numero, orgao, municipio, uf, valor')
+            .eq('status', 'Vencida')
+            .order('updated_at', { ascending: false })
+            .limit(5);
+          if (!data || data.length === 0) return 'Ainda não há licitações vencidas registradas.';
+          const lista = data.map((l, i) =>
+            `${i + 1}. ${l.orgao} em ${l.municipio}-${l.uf}, valor ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(l.valor)}`
+          ).join('. ');
+          return `Últimas ${data.length} vitórias: ${lista}`;
+        } catch {
+          return 'Não consegui buscar as vitórias recentes. Tente novamente.';
+        }
+      }
+      case 'total_value': {
+        try {
+          const { data } = await supabase
+            .from('licitacoes')
+            .select('valor')
+            .eq('status', 'Vencida');
+          if (!data || data.length === 0) return 'Ainda não há licitações vencidas para calcular o valor total.';
+          const total = data.reduce((sum, l) => sum + Number(l.valor), 0);
+          return `Valor total de licitações vencidas: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}, em ${data.length} licitações.`;
+        } catch {
+          return 'Não consegui calcular o valor total. Tente novamente.';
+        }
+      }
       default:
         return `Entendi que você quer ${label}. Pode me dar mais detalhes?`;
     }
@@ -393,11 +467,13 @@ export const VoiceCopilot = () => {
             <div className="flex flex-wrap gap-1 justify-center">
               {[
                 'Ler licitações',
-                'Abrir empresas',
+                'Resumo do dia',
+                'Próximas disputas',
+                'Autorizar todas',
+                'Últimas vitórias',
+                'Valor total ganho',
                 'Quantas licitações',
-                'Minhas disputas',
                 'Status do robô',
-                'Ver relatórios'
               ].map((a, i) => (
                 <button key={i} onClick={() => handleUserInput(a)}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border hover:bg-muted transition-colors">
