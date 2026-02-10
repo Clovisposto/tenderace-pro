@@ -10,10 +10,12 @@ interface NavigationCommand {
 
 const NAVIGATION_COMMANDS: NavigationCommand[] = [
   { keywords: ['início', 'inicio', 'dashboard', 'painel', 'home', 'principal'], path: '/', label: 'Dashboard' },
-  { keywords: ['licitações', 'licitacoes', 'licitação', 'licitacao', 'buscar licitações', 'portal de licitações', 'portal licitações', 'portal licitacoes'], path: '/licitacoes', label: 'Licitações' },
+  // More specific commands MUST come before generic ones
+  { keywords: ['última licitação', 'ultima licitacao', 'licitação encontrada', 'licitacao encontrada', 'ver licitação', 'ver licitacao'], path: '/licitacoes?highlight=latest', label: 'Última Licitação Encontrada' },
+  { keywords: ['criar empresa', 'nova empresa', 'cadastrar nova empresa', 'registrar empresa', 'adicionar empresa'], path: '/empresas?action=criar', label: 'Criar Nova Empresa' },
+  { keywords: ['licitações', 'licitacoes', 'buscar licitações', 'portal de licitações', 'portal licitações', 'portal licitacoes'], path: '/licitacoes', label: 'Licitações' },
   { keywords: ['portal', 'bll', 'portal bll', 'portal de captação', 'captação'], path: '/portal', label: 'Portal de Captação' },
   { keywords: ['empresas', 'empresa', 'cnpj', 'minha empresa', 'cadastro', 'cadastrar empresa', 'cadastro empresa'], path: '/empresas', label: 'Cadastro de Empresas' },
-  { keywords: ['criar empresa', 'nova empresa', 'cadastrar nova empresa', 'registrar empresa', 'adicionar empresa'], path: '/empresas?action=criar', label: 'Criar Nova Empresa' },
   { keywords: ['relatórios', 'relatorios', 'relatório', 'relatorio', 'report', 'ver relatórios'], path: '/relatorios', label: 'Relatórios' },
   { keywords: ['configurações', 'configuracoes', 'config', 'ajustes', 'preferências'], path: '/configuracoes', label: 'Configurações' },
   { keywords: ['manual', 'ajuda', 'help', 'documentação', 'tutorial', 'como usar'], path: '/manual', label: 'Manual' },
@@ -22,7 +24,6 @@ const NAVIGATION_COMMANDS: NavigationCommand[] = [
   { keywords: ['admin', 'administração', 'administracao', 'painel admin'], path: '/admin', label: 'Admin' },
   { keywords: ['medicamentos', 'remédios', 'remedios', 'fármacos', 'farmacos'], path: '/portal?segmento=medicamentos', label: 'Licitações de Medicamentos' },
   { keywords: ['empreendimentos', 'obras', 'serviços', 'servicos', 'ti', 'tecnologia'], path: '/portal?segmento=empreendimentos', label: 'Licitações de Empreendimentos' },
-  { keywords: ['última licitação', 'ultima licitacao', 'licitação encontrada', 'licitacao encontrada', 'ver licitação', 'ver licitacao'], path: '/licitacoes?highlight=latest', label: 'Última Licitação Encontrada' },
 ];
 
 // Action commands the voice copilot can understand
