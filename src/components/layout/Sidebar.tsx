@@ -1,11 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  FileSearch, 
   Building2, 
   Settings,
-  Pill,
-  Briefcase,
   Bot,
   BarChart3,
   Globe,
@@ -18,12 +15,9 @@ import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Portal BLL', href: '/portal', icon: Globe },
-  { name: 'Licitações', href: '/licitacoes', icon: FileSearch },
-  { name: 'Participações', href: '/participacoes', icon: Trophy },
-  { name: 'Medicamentos', href: '/medicamentos', icon: Pill },
-  { name: 'Empreendimentos', href: '/empreendimentos', icon: Briefcase },
+  { name: 'Portal de Captação', href: '/portal', icon: Globe },
   { name: 'Empresas', href: '/empresas', icon: Building2 },
+  { name: 'Participações', href: '/participacoes', icon: Trophy },
   { name: 'Conectores', href: '/conectores', icon: Plug },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
   { name: 'Manual', href: '/manual', icon: BookOpen },
