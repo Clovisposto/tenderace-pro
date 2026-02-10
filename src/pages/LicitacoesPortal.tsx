@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { BLLFiltersBar, BLLFiltersState } from '@/components/licitacao/BLLFiltersBar';
 import { BLLTable } from '@/components/licitacao/BLLTable';
@@ -50,13 +51,26 @@ const PAGE_SIZE = 20;
 
 const LicitacoesPortal = () => {
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
+  
+  // Read segment from URL query param (e.g., ?segmento=medicamentos)
+  const initialSegment = (searchParams.get('segmento') as SegmentTabType) || 'todos';
+  
   const [mainTab, setMainTab] = useState<MainTabType>('todos');
-  const [segmentTab, setSegmentTab] = useState<SegmentTabType>('todos');
+  const [segmentTab, setSegmentTab] = useState<SegmentTabType>(initialSegment);
   const [filters, setFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<BLLFiltersState>(INITIAL_FILTERS);
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [page, setPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  
+  // Sync segment tab with URL changes
+  useEffect(() => {
+    const seg = searchParams.get('segmento') as SegmentTabType;
+    if (seg && ['medicamentos', 'empreendimentos'].includes(seg)) {
+      setSegmentTab(seg);
+    }
+  }, [searchParams]);
 
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { setupRealtime } = useLicitacoesRealtime();
