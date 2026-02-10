@@ -47,27 +47,51 @@ export function useVoiceNavigation() {
   const navigate = useNavigate();
 
   const tryNavigate = useCallback((text: string): { navigated: boolean; label?: string; action?: string } => {
-    const normalized = text.toLowerCase().trim();
+    const normalized = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
     // Check for navigation intent
-    const navPhrases = ['abrir', 'ir para', 'vai para', 'abre', 'mostrar', 'mostra', 'navegar', 'navega', 'vá para', 'va para', 'me leva', 'me leve', 'quero ver', 'quero ir', 'acessar', 'acessa', 'entrar'];
+    const navPhrases = ['abrir', 'ir para', 'vai para', 'abre', 'mostrar', 'mostra', 'navegar', 'navega', 'va para', 'me leva', 'me leve', 'quero ver', 'quero ir', 'acessar', 'acessa', 'entrar'];
     const hasNavIntent = navPhrases.some(p => normalized.includes(p));
 
-    // Check for action commands first
-    for (const cmd of ACTION_COMMANDS) {
-      const match = cmd.keywords.some(kw => normalized.includes(kw));
-      if (match) {
-        return { navigated: false, action: cmd.action, label: cmd.label };
+    // Check for action commands first (only if NOT a clear navigation intent for a specific page)
+    if (!hasNavIntent) {
+      for (const cmd of ACTION_COMMANDS) {
+        const match = cmd.keywords.some(kw => {
+          const nkw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return normalized.includes(nkw);
+        });
+        if (match) {
+          return { navigated: false, action: cmd.action, label: cmd.label };
+        }
       }
     }
 
     // Check navigation commands
     for (const cmd of NAVIGATION_COMMANDS) {
-      const match = cmd.keywords.some(kw => normalized.includes(kw));
-      if (match && (hasNavIntent || cmd.keywords.some(kw => normalized === kw))) {
+      const match = cmd.keywords.some(kw => {
+        const nkw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normalized.includes(nkw);
+      });
+      if (match && (hasNavIntent || cmd.keywords.some(kw => {
+        const nkw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normalized === nkw;
+      }))) {
         navigate(cmd.path);
         toast.success(`Navegando para ${cmd.label}`);
         return { navigated: true, label: cmd.label };
+      }
+    }
+
+    // If no navigation matched but has nav intent, check action commands as fallback
+    if (hasNavIntent) {
+      for (const cmd of ACTION_COMMANDS) {
+        const match = cmd.keywords.some(kw => {
+          const nkw = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return normalized.includes(nkw);
+        });
+        if (match) {
+          return { navigated: false, action: cmd.action, label: cmd.label };
+        }
       }
     }
 

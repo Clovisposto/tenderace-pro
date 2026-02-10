@@ -29,18 +29,26 @@ export const VoiceCopilot = () => {
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
   const { pendingCount } = usePendingAlerts();
-  const lastTranscriptRef = useRef('');
+  const processedTranscriptId = useRef(0);
   const lastAlertCountRef = useRef(0);
+  const handleUserInputRef = useRef<(text: string) => Promise<void>>();
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Auto-send when speech ends
+  // Auto-send when speech recognition finishes with a result
   useEffect(() => {
-    if (!isListening && transcript && transcript !== lastTranscriptRef.current) {
-      lastTranscriptRef.current = transcript;
-      handleUserInput(transcript);
+    if (!isListening && transcript && transcript.trim().length > 0) {
+      // Use a unique ID to avoid duplicate processing
+      const currentId = ++processedTranscriptId.current;
+      // Small delay to ensure final transcript is settled
+      const timer = setTimeout(() => {
+        if (currentId === processedTranscriptId.current && handleUserInputRef.current) {
+          handleUserInputRef.current(transcript);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [isListening, transcript]);
 
@@ -168,18 +176,19 @@ export const VoiceCopilot = () => {
     }
   }, []);
 
-  const handleUserInput = async (text: string) => {
+  const handleUserInput = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
-    const userMessage: Message = { role: 'user', content: text.trim() };
+    const cleanText = text.trim();
+    const userMessage: Message = { role: 'user', content: cleanText };
     setMessages(prev => [...prev, userMessage]);
 
     // Try navigation first
-    const result = tryNavigate(text);
+    const result = tryNavigate(cleanText);
     
     if (result.navigated) {
       const navMsg = `Pronto, abri ${result.label} pra você.`;
       setMessages(prev => [...prev, { role: 'assistant', content: navMsg }]);
-      await speakText(navMsg);
+      speakText(navMsg);
       return;
     }
 
@@ -189,7 +198,7 @@ export const VoiceCopilot = () => {
       try {
         const response = await handleAction(result.action, result.label || '');
         setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-        await speakText(response);
+        speakText(response);
       } finally {
         setIsLoading(false);
       }
@@ -200,20 +209,26 @@ export const VoiceCopilot = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) }
+        body: { messages: [{ role: 'user', content: cleanText }] }
       });
       if (error) throw error;
-      const content = data.content || 'Desculpe, não entendi. Pode repetir?';
+      const content = data?.content || 'Desculpe, não entendi. Pode repetir?';
       setMessages(prev => [...prev, { role: 'assistant', content }]);
       const aiNavResult = tryNavigate(content);
-      if (!aiNavResult.navigated) await speakText(content);
+      if (!aiNavResult.navigated) speakText(content);
     } catch {
       const fallback = 'Tive um problema ao processar. Tente falar novamente ou use um comando como "abrir licitações" ou "ler para mim".';
       setMessages(prev => [...prev, { role: 'assistant', content: fallback }]);
+      speakText(fallback);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading, tryNavigate, handleAction, speakText]);
+
+  // Keep ref always pointing to latest handleUserInput
+  useEffect(() => {
+    handleUserInputRef.current = handleUserInput;
+  }, [handleUserInput]);
 
   const handleMicToggle = () => {
     if (isListening) stopListening();
