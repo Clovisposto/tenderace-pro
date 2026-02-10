@@ -548,6 +548,7 @@ async function generateCaixaDemoData(supabase: any, uf: string): Promise<Capture
       edital_analisado: false,
       roi_score: calculateROI(valor, 'Dispensa com Disputa'),
       risco_score: calculateRisco(diasFuturos),
+      edital_url: `https://licitacoes.caixa.gov.br/Paginas/Resultado-da-Pesquisa.aspx`,
     };
 
     const { error } = await supabase
@@ -694,6 +695,7 @@ async function generateBBDemoData(supabase: any, uf: string): Promise<CaptureRes
       edital_analisado: false,
       roi_score: calculateROI(valor, 'Dispensa com Disputa'),
       risco_score: calculateRisco(diasFuturos),
+      edital_url: `https://www.licitacoes-e.com.br/aop/lct/licitacoes/consultaLicitacoes.aop`,
     };
 
     const { error } = await supabase
@@ -739,6 +741,15 @@ async function generatePortalDemoData(
     const diasFuturos = 2 + Math.floor(Math.random() * 14);
     const orgao = munData.orgaos[Math.floor(Math.random() * munData.orgaos.length)];
 
+    const portalUrlMap: Record<string, string> = {
+      'PNCP': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta&ufs=${uf}`,
+      'BLL': `https://bllcompras.com/Process/ProcessSearchPublic`,
+      'ComprasNet': `https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras`,
+      'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Processos/`,
+      'Portal Estadual': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta&ufs=${uf}`,
+      'Portal Municipal': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta&ufs=${uf}`,
+    };
+
     const licitacao = {
       numero: `${portal.toUpperCase().replace(/\s+/g, '')}-${uf}-2026-${Date.now()}-${i}`,
       portal: portal as any,
@@ -756,6 +767,7 @@ async function generatePortalDemoData(
       edital_analisado: false,
       roi_score: calculateROI(valor, modalidade),
       risco_score: calculateRisco(diasFuturos),
+      edital_url: portalUrlMap[portal] || `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta&ufs=${uf}`,
     };
 
     const { error } = await supabase
