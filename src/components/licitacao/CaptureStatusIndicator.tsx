@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Zap,
   Radio,
-  Clock
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,36 +38,50 @@ interface CaptureStatusIndicatorProps {
   onCapture: () => Promise<any>;
   isCapturing: boolean;
   autoCapture?: boolean;
-  autoInterval?: number; // in seconds
+  autoInterval?: number;
 }
+
+// UFs and cities being monitored
+const MONITORED_REGIONS = [
+  { uf: 'PA', cidades: ['Belém', 'Ananindeua', 'Santarém', 'Marabá'] },
+  { uf: 'TO', cidades: ['Palmas', 'Araguaína', 'Gurupi'] },
+  { uf: 'MA', cidades: ['São Luís', 'Imperatriz', 'Caxias'] },
+  { uf: 'GO', cidades: ['Goiânia', 'Anápolis', 'Rio Verde'] },
+  { uf: 'MT', cidades: ['Cuiabá', 'Várzea Grande', 'Rondonópolis'] },
+];
 
 export const CaptureStatusIndicator = ({ 
   onCapture, 
   isCapturing,
   autoCapture = true,
-  autoInterval = 60 // 60 seconds default
+  autoInterval = 60
 }: CaptureStatusIndicatorProps) => {
   const [lastStatus, setLastStatus] = useState<CaptureStatus | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [nextCaptureIn, setNextCaptureIn] = useState(autoInterval);
   const [autoCaptureEnabled, setAutoCaptureEnabled] = useState(autoCapture);
+  const [scanningRegion, setScanningRegion] = useState(0);
 
-  // Format time
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
-  // Handle capture and update status
+  // Rotate scanning region animation
+  useEffect(() => {
+    if (!autoCaptureEnabled) return;
+    const interval = setInterval(() => {
+      setScanningRegion(prev => (prev + 1) % MONITORED_REGIONS.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [autoCaptureEnabled]);
+
   const handleCapture = useCallback(async () => {
     try {
       const result = await onCapture();
       if (result) {
-        setLastStatus({
-          ...result,
-          timestamp: new Date().toISOString()
-        });
+        setLastStatus({ ...result, timestamp: new Date().toISOString() });
       }
       setNextCaptureIn(autoInterval);
     } catch (error) {
@@ -74,39 +89,26 @@ export const CaptureStatusIndicator = ({
     }
   }, [onCapture, autoInterval]);
 
-  // Auto-capture timer
   useEffect(() => {
     if (!autoCaptureEnabled || isCapturing) return;
-
     const timer = setInterval(() => {
       setNextCaptureIn(prev => {
-        if (prev <= 1) {
-          handleCapture();
-          return autoInterval;
-        }
+        if (prev <= 1) { handleCapture(); return autoInterval; }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [autoCaptureEnabled, isCapturing, handleCapture, autoInterval]);
 
-  // Initial capture on mount
   useEffect(() => {
     if (autoCaptureEnabled && !lastStatus) {
-      const timeout = setTimeout(() => {
-        handleCapture();
-      }, 2000);
+      const timeout = setTimeout(() => handleCapture(), 2000);
       return () => clearTimeout(timeout);
     }
   }, []);
 
   const getStatusIcon = (success: boolean) => {
-    return success ? (
-      <CheckCircle2 className="w-4 h-4 text-success" />
-    ) : (
-      <XCircle className="w-4 h-4 text-destructive" />
-    );
+    return success ? <CheckCircle2 className="w-4 h-4 text-success" /> : <XCircle className="w-4 h-4 text-destructive" />;
   };
 
   const getPortalColor = (portal: string) => {
@@ -118,12 +120,13 @@ export const CaptureStatusIndicator = ({
     }
   };
 
+  const currentRegion = MONITORED_REGIONS[scanningRegion];
+
   return (
     <Card className="border border-border bg-card/50 backdrop-blur-sm">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div className="p-3">
           <div className="flex items-center justify-between gap-3">
-            {/* Status indicator */}
             <div className="flex items-center gap-2">
               <div className={cn(
                 "w-2 h-2 rounded-full",
@@ -150,9 +153,16 @@ export const CaptureStatusIndicator = ({
                   Capturando...
                 </Badge>
               )}
+
+              {/* Scanning region indicator */}
+              {autoCaptureEnabled && currentRegion && (
+                <Badge variant="outline" className="text-xs gap-1 hidden md:flex animate-in fade-in duration-500">
+                  <MapPin className="w-3 h-3" />
+                  {currentRegion.uf} • {currentRegion.cidades[0]}
+                </Badge>
+              )}
             </div>
 
-            {/* Quick stats */}
             <div className="flex items-center gap-2">
               {lastStatus && (
                 <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
@@ -171,10 +181,7 @@ export const CaptureStatusIndicator = ({
 
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                  <ChevronDown className={cn(
-                    "w-4 h-4 transition-transform",
-                    isOpen && "rotate-180"
-                  )} />
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", isOpen && "rotate-180")} />
                 </Button>
               </CollapsibleTrigger>
 
@@ -193,6 +200,42 @@ export const CaptureStatusIndicator = ({
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-0 border-t border-border">
             <div className="pt-3 space-y-3">
+              {/* Monitored Regions */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Regiões Monitoradas 24/7
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {MONITORED_REGIONS.map((region, idx) => (
+                    <Badge
+                      key={region.uf}
+                      variant="outline"
+                      className={cn(
+                        "text-xs transition-all duration-300",
+                        idx === scanningRegion && autoCaptureEnabled
+                          ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-1.5 h-1.5 rounded-full mr-1",
+                        idx === scanningRegion && autoCaptureEnabled ? "bg-success animate-pulse" : "bg-muted-foreground/30"
+                      )} />
+                      {region.uf}
+                      <span className="ml-1 text-[10px] opacity-70">
+                        ({region.cidades.length})
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+                {autoCaptureEnabled && currentRegion && (
+                  <p className="text-[10px] text-muted-foreground animate-in fade-in duration-500">
+                    Escaneando: {currentRegion.cidades.join(', ')} ({currentRegion.uf})
+                  </p>
+                )}
+              </div>
+
               {/* Portal Status Grid */}
               {lastStatus ? (
                 <>
@@ -221,7 +264,6 @@ export const CaptureStatusIndicator = ({
                     ))}
                   </div>
 
-                  {/* Metadata */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
                     <span>
                       Última captura: {new Date(lastStatus.timestamp).toLocaleTimeString('pt-BR')}
