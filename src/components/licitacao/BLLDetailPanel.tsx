@@ -59,14 +59,20 @@ import type { Licitacao } from '@/hooks/useLicitacoes';
 function getPortalUrl(portal: string, numero: string, editalUrl?: string | null): string | null {
   if (editalUrl) return editalUrl;
   
+  // Para PNCP com número real (formato: CNPJ-tipo-seq/ano)
+  if (portal === 'PNCP' && numero.includes('/')) {
+    return `https://pncp.gov.br/app/editais/${encodeURIComponent(numero)}`;
+  }
+  
   const portalUrls: Record<string, string> = {
-    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}`,
-    'BLL': `https://bllcompras.com/DirectBuy/DirectBuySearchPublic?numero=${encodeURIComponent(numero)}`,
-    'ComprasNet': `https://www.gov.br/compras/pt-br/acesso-a-informacao/consultas?numero=${encodeURIComponent(numero)}`,
-    'Caixa': `https://licitacoes1.caixa.gov.br/sicve-web/private/view/licitante/listaAtividadesLicitante.jsf`,
+    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}&status=recebendo_proposta`,
+    'BLL': `https://bllcompras.com/Process/ProcessSearchPublic`,
+    'ComprasNet': `https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras`,
+    'Caixa': `https://licitacoes.caixa.gov.br/Paginas/Resultado-da-Pesquisa.aspx`,
     'BB': `https://www.licitacoes-e.com.br/aop/lct/licitacoes/consultaLicitacoes.aop`,
-    'Banpara': `https://cotacao.banpara.b.br/core/default.aspx`,
-    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Licitacoes/`,
+    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Processos/`,
+    'Portal Estadual': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta`,
+    'Portal Municipal': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta`,
   };
   
   return portalUrls[portal] || null;
