@@ -46,6 +46,7 @@ const ACTION_COMMANDS: ActionCommand[] = [
   { keywords: ['autorizar todas', 'autoriza todas', 'aprovar todas', 'autorizar tudo', 'aprovar tudo'], action: 'authorize_all', label: 'Autorizar todas' },
   { keywords: ['próximas disputas', 'proximas disputas', 'ver próximas disputas', 'ver disputas', 'disputas hoje', 'disputas agendadas', 'agenda de disputas'], action: 'next_disputes', label: 'Próximas disputas' },
   { keywords: ['resumo do dia', 'resumo diário', 'resumo diario', 'como está hoje', 'como esta hoje', 'resumo geral'], action: 'daily_summary', label: 'Resumo do dia' },
+  { keywords: ['resumo por voz', 'resumo voz', 'narrar resumo', 'falar resumo', 'leia resumo'], action: 'voice_summary', label: 'Resumo por voz' },
   { keywords: ['últimas vitórias', 'ultimas vitorias', 'licitações vencidas', 'licitacoes vencidas', 'vitórias recentes'], action: 'recent_wins', label: 'Últimas vitórias' },
   { keywords: ['valor total', 'quanto ganhei', 'total ganho', 'faturamento', 'valor ganho'], action: 'total_value', label: 'Valor total ganho' },
   { keywords: ['alterar', 'altera', 'mudar', 'trocar', 'editar', 'modificar'], action: 'edit', label: 'Editar' },
