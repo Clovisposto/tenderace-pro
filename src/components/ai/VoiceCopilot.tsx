@@ -384,10 +384,12 @@ export const VoiceCopilot = () => {
           )}
         </div>
 
-        {/* Quick actions */}
-        {messages.length <= 2 && !isLoading && !isListening && (
+        {/* Quick actions - always visible */}
+        {!isLoading && !isListening && (
           <div className="mt-3 space-y-1.5">
-            <p className="text-[9px] text-muted-foreground text-center">Diga ou clique:</p>
+            <p className="text-[9px] text-muted-foreground text-center">
+              {!isSupported ? '⚠️ Microfone não disponível neste navegador. Use os botões:' : 'Diga ou clique:'}
+            </p>
             <div className="flex flex-wrap gap-1 justify-center">
               {[
                 'Ler licitações',

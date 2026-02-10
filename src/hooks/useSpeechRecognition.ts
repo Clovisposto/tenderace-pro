@@ -52,7 +52,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
-        setError('Permissão de microfone negada. Ative nas configurações do navegador.');
+        setError('Microfone bloqueado. Na prévia do Lovable isso é normal — use os botões de comando. Após publicar, o microfone funcionará.');
       } else if (event.error !== 'aborted') {
         setError('Erro no reconhecimento de voz. Tente novamente.');
       }
