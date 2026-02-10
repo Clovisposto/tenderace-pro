@@ -42,7 +42,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         }
       }
       
-      setTranscript(finalTranscript || interimTranscript);
+      const text = finalTranscript || interimTranscript;
+      if (text) {
+        setTranscript(text);
+        setError(null);
+      }
     };
 
     recognition.onerror = (event: any) => {
