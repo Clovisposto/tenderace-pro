@@ -470,10 +470,10 @@ export const VoiceCopilot = () => {
                 'Resumo do dia',
                 'Próximas disputas',
                 'Autorizar todas',
+                'Criar empresa',
+                'Ver licitação',
                 'Últimas vitórias',
                 'Valor total ganho',
-                'Quantas licitações',
-                'Status do robô',
               ].map((a, i) => (
                 <button key={i} onClick={() => handleUserInput(a)}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border hover:bg-muted transition-colors">
