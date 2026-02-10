@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,12 +59,23 @@ const Empresas = () => {
   const { data: empresas, isLoading } = useEmpresas();
   const createEmpresa = useCreateEmpresa();
   const deleteEmpresa = useDeleteEmpresa();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<EmpresaFormData>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('todos');
   const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
+
+  // Auto-open create dialog when navigated with ?action=criar
+  useEffect(() => {
+    if (searchParams.get('action') === 'criar') {
+      setFormData(EMPTY_FORM);
+      setIsDialogOpen(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const openNew = () => {
     setFormData(EMPTY_FORM);
