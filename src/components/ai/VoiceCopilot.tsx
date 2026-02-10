@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useLicitacoesRealtimeNotifications } from '@/hooks/useLicitacoesRealtimeNotifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -29,6 +30,7 @@ export const VoiceCopilot = () => {
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
   const { pendingCount } = usePendingAlerts();
+  const { narrateVoiceSummary } = useLicitacoesRealtimeNotifications();
   const processedTranscriptId = useRef(0);
   const lastAlertCountRef = useRef(0);
   const handleUserInputRef = useRef<(text: string) => Promise<void>>();
@@ -245,10 +247,18 @@ export const VoiceCopilot = () => {
           return 'Não consegui calcular o valor total. Tente novamente.';
         }
       }
+      case 'voice_summary': {
+        try {
+          const summary = await narrateVoiceSummary();
+          return summary;
+        } catch {
+          return 'Não consegui gerar o resumo por voz. Tente novamente.';
+        }
+      }
       default:
         return `Entendi que você quer ${label}. Pode me dar mais detalhes?`;
     }
-  }, []);
+  }, [narrateVoiceSummary]);
 
   const handleUserInput = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -467,6 +477,7 @@ export const VoiceCopilot = () => {
             <div className="flex flex-wrap gap-1 justify-center">
               {[
                 'Ler licitações',
+                'Resumo por voz',
                 'Resumo do dia',
                 'Próximas disputas',
                 'Autorizar todas',

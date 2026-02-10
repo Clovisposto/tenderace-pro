@@ -7,14 +7,18 @@ import type { Licitacao } from './useLicitacoes';
 interface RealtimeNotificationOptions {
   enableSound?: boolean;
   enableToast?: boolean;
+  enableVoice?: boolean;
   segmentoFilter?: 'Medicamentos' | 'Empreendimentos';
 }
 
 export function useLicitacoesRealtimeNotifications(options: RealtimeNotificationOptions = {}) {
-  const { enableSound = true, enableToast = true, segmentoFilter } = options;
+  const { enableSound = true, enableToast = true, enableVoice = true, segmentoFilter } = options;
   const queryClient = useQueryClient();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastNotifiedRef = useRef<Set<string>>(new Set());
+  const voiceQueueRef = useRef<string[]>([]);
+  const isNarratingRef = useRef(false);
+  const todayCapturesRef = useRef(0);
 
   // Create audio element for notification sound
   useEffect(() => {
@@ -36,6 +40,30 @@ export function useLicitacoesRealtimeNotifications(options: RealtimeNotification
       });
     }
   }, [enableSound]);
+
+  // Voice narration using browser TTS
+  const narrateText = useCallback((text: string) => {
+    if (!enableVoice || !('speechSynthesis' in window)) return;
+    const voiceEnabled = localStorage.getItem('voiceAlertsEnabled') !== 'false';
+    if (!voiceEnabled) return;
+    
+    voiceQueueRef.current.push(text);
+    if (isNarratingRef.current) return;
+    
+    const processQueue = () => {
+      const next = voiceQueueRef.current.shift();
+      if (!next) { isNarratingRef.current = false; return; }
+      isNarratingRef.current = true;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(next);
+      u.lang = 'pt-BR';
+      u.rate = 1.05;
+      u.onend = () => setTimeout(processQueue, 300);
+      u.onerror = () => setTimeout(processQueue, 300);
+      window.speechSynthesis.speak(u);
+    };
+    processQueue();
+  }, [enableVoice]);
 
   const showNotification = useCallback((licitacao: Partial<Licitacao>) => {
     const valorFormatted = new Intl.NumberFormat('pt-BR', {
@@ -76,7 +104,13 @@ export function useLicitacoesRealtimeNotifications(options: RealtimeNotification
         tag: licitacao.id,
       });
     }
-  }, [enableToast, playNotificationSound]);
+
+    // Voice narration for high-value or medication tenders
+    todayCapturesRef.current++;
+    if (isHighValue || isMedicamentos) {
+      narrateText(`Nova licitação capturada. ${licitacao.segmento}, ${licitacao.municipio}, ${licitacao.uf}, valor ${valorFormatted}.`);
+    }
+  }, [enableToast, playNotificationSound, narrateText]);
 
   // Set up realtime subscription with notifications
   useEffect(() => {
@@ -144,11 +178,13 @@ export function useLicitacoesRealtimeNotifications(options: RealtimeNotification
                 description: `Você venceu: ${updatedLicitacao.objeto_resumido}`,
                 duration: 8000,
               });
+              narrateText(`Parabéns! Vitória na licitação ${updatedLicitacao.numero}. ${updatedLicitacao.objeto_resumido || ''}`);
             } else if (updatedLicitacao.status === 'Em Disputa') {
               toast.info('⚡ Disputa Iniciada', {
                 description: `${updatedLicitacao.numero} - Acompanhe em tempo real`,
                 duration: 5000,
               });
+              narrateText(`Atenção! Disputa iniciada na licitação ${updatedLicitacao.numero}.`);
             }
           }
           
@@ -164,10 +200,53 @@ export function useLicitacoesRealtimeNotifications(options: RealtimeNotification
       console.log('[Realtime] Cleaning up subscription...');
       supabase.removeChannel(channel);
     };
-  }, [queryClient, segmentoFilter, showNotification, playNotificationSound]);
+  }, [queryClient, segmentoFilter, showNotification, playNotificationSound, narrateText]);
+
+  // Voice summary of today's captures
+  const narrateVoiceSummary = useCallback(async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: todayData, count: todayCount } = await supabase
+        .from('licitacoes')
+        .select('segmento, valor, uf, municipio, orgao, portal', { count: 'exact' })
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false });
+
+      const { count: novas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Nova');
+      const { count: disputas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Em Disputa');
+      const { count: vencidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Vencida');
+      const { count: aguardando } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Aguardando Autorização');
+
+      const totalValorHoje = todayData?.reduce((sum, l) => sum + Number(l.valor), 0) || 0;
+      const valorFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValorHoje);
+      
+      // Count by portal
+      const portalCounts: Record<string, number> = {};
+      todayData?.forEach(l => {
+        portalCounts[l.portal] = (portalCounts[l.portal] || 0) + 1;
+      });
+      const portalSummary = Object.entries(portalCounts).map(([p, c]) => `${p}: ${c}`).join(', ');
+
+      const summary = `Resumo do dia. Hoje foram capturadas ${todayCount || 0} licitações, totalizando ${valorFormatted}. ` +
+        `Portais: ${portalSummary || 'nenhum'}. ` +
+        `Status geral: ${novas || 0} novas, ${aguardando || 0} aguardando autorização, ${disputas || 0} em disputa, ${vencidas || 0} vencidas. ` +
+        `${(aguardando || 0) > 0 ? 'Atenção: há licitações esperando sua autorização!' : 'Tudo em dia.'}`;
+
+      narrateText(summary);
+      return summary;
+    } catch {
+      const fallback = 'Não consegui gerar o resumo por voz no momento.';
+      narrateText(fallback);
+      return fallback;
+    }
+  }, [narrateText]);
 
   return {
     playNotificationSound,
     showNotification,
+    narrateVoiceSummary,
+    todayCaptures: todayCapturesRef.current,
   };
 }
