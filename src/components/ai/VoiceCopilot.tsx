@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { useLicitacoesRealtimeNotifications } from '@/hooks/useLicitacoesRealtimeNotifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -20,7 +19,7 @@ export const VoiceCopilot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(() => localStorage.getItem('copilotActive') !== 'false');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Estou aqui em segundo plano. Pode falar a qualquer momento — eu navego, informo e opero o sistema pra você. Diga "ler licitações" para eu ler, ou "abrir empresas" para navegar.' }
+    { role: 'assistant', content: 'Estou aqui em segundo plano. Pode falar a qualquer momento — eu navego, informo e opero o sistema pra você.' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -29,28 +28,19 @@ export const VoiceCopilot = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
   const { tryNavigate } = useVoiceNavigation();
-  const { pendingCount } = usePendingAlerts();
-  const { narrateVoiceSummary } = useLicitacoesRealtimeNotifications();
-  const processedTranscriptId = useRef(0);
+  const { pendingCount, pendingAlerts } = usePendingAlerts();
+  const lastTranscriptRef = useRef('');
   const lastAlertCountRef = useRef(0);
-  const handleUserInputRef = useRef<(text: string) => Promise<void>>();
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Auto-send when speech recognition finishes with a result
+  // Auto-send when speech ends
   useEffect(() => {
-    if (!isListening && transcript && transcript.trim().length > 0) {
-      // Use a unique ID to avoid duplicate processing
-      const currentId = ++processedTranscriptId.current;
-      // Small delay to ensure final transcript is settled
-      const timer = setTimeout(() => {
-        if (currentId === processedTranscriptId.current && handleUserInputRef.current) {
-          handleUserInputRef.current(transcript);
-        }
-      }, 300);
-      return () => clearTimeout(timer);
+    if (!isListening && transcript && transcript !== lastTranscriptRef.current) {
+      lastTranscriptRef.current = transcript;
+      handleUserInput(transcript);
     }
   }, [isListening, transcript]);
 
@@ -63,11 +53,16 @@ export const VoiceCopilot = () => {
         ? `Atenção, tem uma licitação nova aguardando sua autorização.`
         : `Atenção, tem ${pendingCount} licitações novas aguardando sua autorização.`;
       
+      // Show toast notification (non-intrusive)
       toast.info(msg, {
         duration: 8000,
-        action: { label: 'Ver', onClick: () => setIsOpen(true) },
+        action: {
+          label: 'Ver',
+          onClick: () => setIsOpen(true),
+        },
       });
 
+      // Speak if autoSpeak and panel is closed (background alert)
       if (autoSpeak && !isOpen) {
         speakText(msg);
       }
@@ -77,23 +72,16 @@ export const VoiceCopilot = () => {
   const speakText = useCallback(async (text: string) => {
     if (!autoSpeak) return;
     setIsSpeaking(true);
-    
-    // Always use browser TTS - it's reliable and free
     const useBrowserTTS = (t: string) => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(t);
-        u.lang = 'pt-BR';
-        u.rate = 1.0;
+        u.lang = 'pt-BR'; u.rate = 1.0;
         u.onend = () => setIsSpeaking(false);
         u.onerror = () => setIsSpeaking(false);
         window.speechSynthesis.speak(u);
-      } else {
-        setIsSpeaking(false);
-      }
+      } else setIsSpeaking(false);
     };
-
-    // Try ElevenLabs first, fallback to browser
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
@@ -107,10 +95,7 @@ export const VoiceCopilot = () => {
           body: JSON.stringify({ text: text.substring(0, 800), alertType: 'normal' }),
         }
       );
-      if (!response.ok) {
-        useBrowserTTS(text);
-        return;
-      }
+      if (!response.ok) { useBrowserTTS(text); return; }
       const data = await response.json();
       if (data.audioContent) {
         if (audioRef.current) audioRef.current.pause();
@@ -118,12 +103,8 @@ export const VoiceCopilot = () => {
         audioRef.current.onended = () => setIsSpeaking(false);
         audioRef.current.onerror = () => useBrowserTTS(text);
         await audioRef.current.play();
-      } else {
-        useBrowserTTS(text);
-      }
-    } catch {
-      useBrowserTTS(text);
-    }
+      } else useBrowserTTS(text);
+    } catch { useBrowserTTS(text); }
   }, [autoSpeak]);
 
   const stopSpeaking = useCallback(() => {
@@ -132,187 +113,34 @@ export const VoiceCopilot = () => {
     setIsSpeaking(false);
   }, []);
 
-  // Handle action commands from voice
-  const handleAction = useCallback(async (action: string, label: string): Promise<string> => {
-    switch (action) {
-      case 'read_licitacoes': {
-        try {
-          const { data } = await supabase
-            .from('licitacoes')
-            .select('numero, orgao, municipio, uf, valor, modalidade, segmento, status')
-            .in('status', ['Nova', 'Em Análise', 'Aguardando Autorização'])
-            .order('created_at', { ascending: false })
-            .limit(5);
-          
-          if (!data || data.length === 0) return 'Não encontrei licitações novas no momento.';
-          
-          const resumo = data.map((l, i) => 
-            `${i + 1}. ${l.segmento}, ${l.modalidade} em ${l.municipio} ${l.uf}, valor ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(l.valor)}, órgão ${l.orgao}, status ${l.status}`
-          ).join('. ');
-          
-          return `Encontrei ${data.length} licitações recentes. ${resumo}`;
-        } catch {
-          return 'Não consegui acessar as licitações no momento. Tente novamente.';
-        }
-      }
-      case 'count_licitacoes': {
-        try {
-          const { count: novas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Nova');
-          const { count: disputas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Em Disputa');
-          const { count: vencidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Vencida');
-          return `Você tem ${novas || 0} licitações novas, ${disputas || 0} em disputa e ${vencidas || 0} vencidas.`;
-        } catch {
-          return 'Não consegui contar as licitações no momento.';
-        }
-      }
-      case 'robot_status':
-        return 'O robô está ativo 24 horas por dia, monitorando todos os portais configurados. A captura automática está funcionando com intervalo de 60 segundos entre verificações.';
-      case 'capture':
-        return 'Para capturar novas licitações, vá ao Portal de Captação. O robô já faz isso automaticamente a cada 60 segundos.';
-      case 'filter_medicamentos':
-        return 'Para filtrar por medicamentos, acesse o Portal de Captação e clique na aba "Medicamentos". Vou te levar lá.';
-      case 'filter_empreendimentos':
-        return 'Para filtrar por empreendimentos, acesse o Portal de Captação e clique na aba "Empreendimentos". Vou te levar lá.';
-      case 'authorize_all': {
-        try {
-          const { data } = await supabase
-            .from('licitacoes')
-            .select('id, numero, orgao, municipio, uf, valor')
-            .eq('status', 'Aguardando Autorização')
-            .order('created_at', { ascending: false });
-          if (!data || data.length === 0) return 'Não há licitações aguardando autorização no momento.';
-          return `Existem ${data.length} licitações aguardando autorização. Para sua segurança, a autorização deve ser feita individualmente. Vou te levar para "Minhas Participações" onde você pode revisar e autorizar cada uma. Diga "abrir participações".`;
-        } catch {
-          return 'Não consegui verificar as licitações pendentes. Tente novamente.';
-        }
-      }
-      case 'next_disputes': {
-        try {
-          const { data } = await supabase
-            .from('licitacoes')
-            .select('numero, orgao, municipio, uf, valor, data_abertura')
-            .in('status', ['Autorizada', 'Em Disputa'])
-            .order('data_abertura', { ascending: true })
-            .limit(5);
-          if (!data || data.length === 0) return 'Não há disputas agendadas no momento.';
-          const lista = data.map((l, i) => {
-            const dt = new Date(l.data_abertura);
-            const dataStr = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            return `${i + 1}. ${l.orgao} em ${l.municipio}-${l.uf}, valor ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(l.valor)}, abertura ${dataStr}`;
-          }).join('. ');
-          return `Próximas ${data.length} disputas: ${lista}`;
-        } catch {
-          return 'Não consegui buscar as próximas disputas. Tente novamente.';
-        }
-      }
-      case 'daily_summary': {
-        try {
-          const { count: novas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Nova');
-          const { count: aguardando } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Aguardando Autorização');
-          const { count: disputas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Em Disputa');
-          const { count: vencidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Vencida');
-          const { count: perdidas } = await supabase.from('licitacoes').select('*', { count: 'exact', head: true }).eq('status', 'Perdida');
-          return `Resumo geral: ${novas || 0} novas capturadas, ${aguardando || 0} aguardando autorização, ${disputas || 0} em disputa, ${vencidas || 0} vencidas e ${perdidas || 0} perdidas. ${(aguardando || 0) > 0 ? 'Atenção: há licitações esperando sua autorização!' : 'Tudo em dia!'}`;
-        } catch {
-          return 'Não consegui gerar o resumo. Tente novamente.';
-        }
-      }
-      case 'recent_wins': {
-        try {
-          const { data } = await supabase
-            .from('licitacoes')
-            .select('numero, orgao, municipio, uf, valor')
-            .eq('status', 'Vencida')
-            .order('updated_at', { ascending: false })
-            .limit(5);
-          if (!data || data.length === 0) return 'Ainda não há licitações vencidas registradas.';
-          const lista = data.map((l, i) =>
-            `${i + 1}. ${l.orgao} em ${l.municipio}-${l.uf}, valor ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(l.valor)}`
-          ).join('. ');
-          return `Últimas ${data.length} vitórias: ${lista}`;
-        } catch {
-          return 'Não consegui buscar as vitórias recentes. Tente novamente.';
-        }
-      }
-      case 'total_value': {
-        try {
-          const { data } = await supabase
-            .from('licitacoes')
-            .select('valor')
-            .eq('status', 'Vencida');
-          if (!data || data.length === 0) return 'Ainda não há licitações vencidas para calcular o valor total.';
-          const total = data.reduce((sum, l) => sum + Number(l.valor), 0);
-          return `Valor total de licitações vencidas: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}, em ${data.length} licitações.`;
-        } catch {
-          return 'Não consegui calcular o valor total. Tente novamente.';
-        }
-      }
-      case 'voice_summary': {
-        try {
-          const summary = await narrateVoiceSummary();
-          return summary;
-        } catch {
-          return 'Não consegui gerar o resumo por voz. Tente novamente.';
-        }
-      }
-      default:
-        return `Entendi que você quer ${label}. Pode me dar mais detalhes?`;
-    }
-  }, [narrateVoiceSummary]);
-
-  const handleUserInput = useCallback(async (text: string) => {
+  const handleUserInput = async (text: string) => {
     if (!text.trim() || isLoading) return;
-    const cleanText = text.trim();
-    const userMessage: Message = { role: 'user', content: cleanText };
+    const userMessage: Message = { role: 'user', content: text.trim() };
     setMessages(prev => [...prev, userMessage]);
 
     // Try navigation first
-    const result = tryNavigate(cleanText);
-    
-    if (result.navigated) {
-      const navMsg = `Pronto, abri ${result.label} pra você.`;
+    const { navigated, label } = tryNavigate(text);
+    if (navigated) {
+      const navMsg = `Pronto, abri ${label} pra você.`;
       setMessages(prev => [...prev, { role: 'assistant', content: navMsg }]);
-      speakText(navMsg);
+      await speakText(navMsg);
       return;
     }
 
-    // Try action commands
-    if (result.action) {
-      setIsLoading(true);
-      try {
-        const response = await handleAction(result.action, result.label || '');
-        setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-        speakText(response);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // Fallback to AI assistant
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { messages: [{ role: 'user', content: cleanText }] }
+        body: { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) }
       });
       if (error) throw error;
-      const content = data?.content || 'Desculpe, não entendi. Pode repetir?';
+      const content = data.content || 'Desculpe, não entendi. Pode repetir?';
       setMessages(prev => [...prev, { role: 'assistant', content }]);
       const aiNavResult = tryNavigate(content);
-      if (!aiNavResult.navigated) speakText(content);
+      if (!aiNavResult.navigated) await speakText(content);
     } catch {
-      const fallback = 'Tive um problema ao processar. Tente falar novamente ou use um comando como "abrir licitações" ou "ler para mim".';
-      setMessages(prev => [...prev, { role: 'assistant', content: fallback }]);
-      speakText(fallback);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, tryNavigate, handleAction, speakText]);
-
-  // Keep ref always pointing to latest handleUserInput
-  useEffect(() => {
-    handleUserInputRef.current = handleUserInput;
-  }, [handleUserInput]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Tive um problema. Tente falar novamente.' }]);
+    } finally { setIsLoading(false); }
+  };
 
   const handleMicToggle = () => {
     if (isListening) stopListening();
@@ -327,7 +155,7 @@ export const VoiceCopilot = () => {
     toast(next ? 'Gerente Digital ativado' : 'Gerente Digital desativado');
   };
 
-  // ============ INACTIVE STATE ============
+  // ============ INACTIVE STATE — invisible dot ============
   if (!isActive) {
     return (
       <button
@@ -340,10 +168,11 @@ export const VoiceCopilot = () => {
     );
   }
 
-  // ============ ACTIVE BUT HIDDEN ============
+  // ============ ACTIVE BUT HIDDEN — tiny floating indicator ============
   if (!isOpen) {
     return (
       <div className="fixed bottom-3 right-3 z-50 flex items-center">
+        {/* Mic shortcut — always accessible */}
         <button
           onClick={handleMicToggle}
           disabled={!isSupported}
@@ -360,20 +189,27 @@ export const VoiceCopilot = () => {
           {isListening ? <MicOff className="w-3.5 h-3.5 relative z-10" /> : <Mic className="w-3.5 h-3.5 relative z-10" />}
         </button>
 
+        {/* Pending badge */}
         {pendingCount > 0 && (
-          <button onClick={() => setIsOpen(true)} className="ml-1 relative" title={`${pendingCount} licitações aguardando`}>
+          <button
+            onClick={() => setIsOpen(true)}
+            className="ml-1 relative"
+            title={`${pendingCount} licitações aguardando`}
+          >
             <Badge className="bg-warning text-warning-foreground text-[10px] px-1.5 py-0.5 animate-pulse cursor-pointer hover:scale-110 transition-transform">
               {pendingCount}
             </Badge>
           </button>
         )}
 
+        {/* Speaking indicator */}
         {isSpeaking && (
           <button onClick={stopSpeaking} className="ml-1 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center" title="Parar fala">
             <Volume2 className="w-3 h-3 text-primary animate-pulse" />
           </button>
         )}
 
+        {/* Expand chat */}
         <button
           onClick={() => setIsOpen(true)}
           className="ml-1 h-6 w-6 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center opacity-40 hover:opacity-100 transition-all"
@@ -385,7 +221,7 @@ export const VoiceCopilot = () => {
     );
   }
 
-  // ============ OPEN PANEL ============
+  // ============ OPEN PANEL — compact chat ============
   return (
     <div className="fixed bottom-3 right-3 z-50 w-[360px] max-w-[calc(100vw-1.5rem)] h-[460px] max-h-[calc(100vh-3rem)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
       {/* Header */}
@@ -400,7 +236,7 @@ export const VoiceCopilot = () => {
           <div>
             <span className="font-semibold text-primary-foreground text-xs">Gerente Digital</span>
             <p className="text-[9px] text-primary-foreground/60 leading-none mt-0.5">
-              {isListening ? '🎤 Te ouvindo...' : isSpeaking ? '🔊 Falando...' : isLoading ? '🧠 Pensando...' : '24h ativo • IA + Robô integrados'}
+              {isListening ? '🎤 Te ouvindo...' : isSpeaking ? '🔊 Falando...' : isLoading ? '🧠 Pensando...' : '24h ativo'}
             </p>
           </div>
           {pendingCount > 0 && (
@@ -468,24 +304,12 @@ export const VoiceCopilot = () => {
           )}
         </div>
 
-        {/* Quick actions - always visible */}
-        {!isLoading && !isListening && (
+        {/* Quick actions */}
+        {messages.length <= 2 && !isLoading && !isListening && (
           <div className="mt-3 space-y-1.5">
-            <p className="text-[9px] text-muted-foreground text-center">
-              {!isSupported ? '⚠️ Microfone não disponível neste navegador. Use os botões:' : 'Diga ou clique:'}
-            </p>
+            <p className="text-[9px] text-muted-foreground text-center">Diga ou clique:</p>
             <div className="flex flex-wrap gap-1 justify-center">
-              {[
-                'Ler licitações',
-                'Resumo por voz',
-                'Resumo do dia',
-                'Próximas disputas',
-                'Autorizar todas',
-                'Criar empresa',
-                'Ver licitação',
-                'Últimas vitórias',
-                'Valor total ganho',
-              ].map((a, i) => (
+              {['Abrir licitações', 'Minhas disputas', 'O que é SICAF?', 'Ver relatórios'].map((a, i) => (
                 <button key={i} onClick={() => handleUserInput(a)}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border hover:bg-muted transition-colors">
                   {a}

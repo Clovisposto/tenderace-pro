@@ -13,29 +13,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Licitacoes = () => {
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [filtros, setFiltros] = useState<any>({});
   const [activeTab, setActiveTab] = useState('todas');
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { data: configuracoes } = useConfiguracoes();
   const { setupRealtime } = useLicitacoesRealtime();
   const capturarPNCP = useCapturarPNCP();
   const queryClient = useQueryClient();
-
-  // Auto-open latest licitação when navigated with ?highlight=latest
-  useEffect(() => {
-    if (searchParams.get('highlight') === 'latest' && licitacoes && licitacoes.length > 0 && !selectedLicitacao) {
-      const latest = [...licitacoes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-      if (latest) setSelectedLicitacao(latest);
-      searchParams.delete('highlight');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, licitacoes, selectedLicitacao, setSearchParams]);
 
   // Estados prioritários do usuário ou padrão
   const ufsPrioritarias = useMemo(() => {

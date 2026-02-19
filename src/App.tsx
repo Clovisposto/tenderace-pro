@@ -18,6 +18,8 @@ const LicitacoesPortal = lazy(() => import("./pages/LicitacoesPortal"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Manual = lazy(() => import("./pages/Manual"));
 const Conectores = lazy(() => import("./pages/Conectores"));
+const Medicamentos = lazy(() => import("./pages/Medicamentos"));
+const Empreendimentos = lazy(() => import("./pages/Empreendimentos"));
 const Empresas = lazy(() => import("./pages/Empresas"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
@@ -66,8 +68,8 @@ const AppRoutes = () => (
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/licitacoes" element={<ProtectedRoute><Licitacoes /></ProtectedRoute>} />
     <Route path="/portal" element={<ProtectedRoute><LicitacoesPortal /></ProtectedRoute>} />
-    <Route path="/medicamentos" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
-    <Route path="/empreendimentos" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
+    <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
+    <Route path="/empreendimentos" element={<ProtectedRoute><Empreendimentos /></ProtectedRoute>} />
     <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
     <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />

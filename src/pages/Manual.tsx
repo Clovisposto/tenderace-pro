@@ -331,91 +331,18 @@ const Manual = () => {
                 <AccordionContent className="pb-4 text-sm text-muted-foreground space-y-3">
                   <p>
                     Cadastre e gerencie as empresas que participarão das licitações.
-                    Clique numa empresa para ver todos os detalhes e completar informações pendentes.
                   </p>
                   
                   <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-                    <p className="font-medium text-foreground">Dados da empresa (Lei 14.133/2021):</p>
+                    <p className="font-medium text-foreground">Dados da empresa:</p>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>CNPJ, Razão Social e Nome Fantasia</li>
-                      <li>Endereço completo (Município/UF)</li>
-                      <li>Segmento de atuação (Medicamentos / Empreendimentos)</li>
-                      <li>CNAE — Código e descrição da atividade econômica</li>
-                      <li>Certificado Digital (A1 ou A3) com validade e emissor</li>
-                      <li>Conta Gov.br vinculada</li>
-                      <li>Status SICAF (Regular / Pendente / Irregular)</li>
-                      <li>Certidões válidas (Fiscal, Trabalhista, FGTS)</li>
-                      <li>Licença Farmacêutica / AFE Anvisa (se Medicamentos)</li>
+                      <li>CNPJ e Razão Social</li>
+                      <li>Endereço (Município/UF)</li>
+                      <li>Segmento de atuação</li>
+                      <li>Status SICAF (quando disponível)</li>
+                      <li>Certidões válidas</li>
+                      <li>Licença farmacêutica (se aplicável)</li>
                     </ul>
-                  </div>
-
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
-                    <p className="font-medium text-foreground">🤖 IA Preencher (Busca Automática):</p>
-                    <p className="text-xs">
-                      Ao abrir os detalhes de uma empresa, clique no botão "IA Preencher" para que 
-                      a inteligência artificial busque automaticamente dados da empresa pelo CNPJ, 
-                      preenchendo campos vazios como Razão Social, CNAE, endereço e contatos.
-                    </p>
-                  </div>
-
-                  <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-                    <p className="font-medium text-foreground">Painel de Habilitação:</p>
-                    <p className="text-xs">
-                      Cada empresa mostra um resumo visual de habilitação indicando se está APTA 
-                      ou com PENDÊNCIAS. O robô só participará de licitações quando todos os itens 
-                      estiverem verificados (Gov.br, SICAF, Certificado, Certidões, CNAE).
-                    </p>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Controle por Voz */}
-              <AccordionItem value="voz" className="border-b border-border px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-primary" />
-                    <span className="font-medium">6.1 Gerente Digital (Controle por Voz)</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 text-sm text-muted-foreground space-y-3">
-                  <p>
-                    O Gerente Digital é um assistente de voz que permite controlar todo o sistema 
-                    falando em português. Ele funciona 24 horas e alerta sobre novas licitações.
-                  </p>
-
-                  <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-                    <p className="font-medium text-foreground">Como usar:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Clique no botão de microfone (canto inferior direito)</li>
-                      <li>Fale naturalmente em português</li>
-                      <li>O sistema responde por voz automaticamente</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-                    <p className="font-medium text-foreground">Comandos disponíveis:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>"Abrir empresas"</strong> — navega para cadastro de empresas</li>
-                      <li><strong>"Mostrar licitações"</strong> — abre o portal de licitações</li>
-                      <li><strong>"Ver relatórios"</strong> — vai para os relatórios</li>
-                      <li><strong>"Abrir configurações"</strong> — abre as configurações</li>
-                      <li><strong>"O que é SICAF?"</strong> — a IA explica por voz</li>
-                      <li><strong>"Ler para mim"</strong> — a IA lê as informações da tela</li>
-                      <li>Qualquer pergunta sobre licitações, a IA responde</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
-                      <div>
-                        <p className="font-medium text-foreground">Permissão de Microfone</p>
-                        <p className="text-xs">
-                          O navegador pedirá permissão para usar o microfone na primeira vez. 
-                          É necessário permitir para que o controle por voz funcione.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>

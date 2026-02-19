@@ -28,24 +28,19 @@ interface LicitacaoCardProps {
 }
 
 // Generate portal URL based on portal type and tender number
-function getPortalUrl(portal: string, numero: string, editalUrl?: string | null): string | null {
+function getPortalUrl(portal: string, numero: string, editalUrl?: string): string | null {
   if (editalUrl) return editalUrl;
   
-  // Para PNCP com número real (formato: CNPJ-tipo-seq/ano)
-  if (portal === 'PNCP' && numero.includes('/')) {
-    return `https://pncp.gov.br/app/editais/${encodeURIComponent(numero)}`;
-  }
-  
-  // URLs de busca direta por portal
   const portalUrls: Record<string, string> = {
-    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}&status=recebendo_proposta`,
-    'BLL': `https://bllcompras.com/Process/ProcessSearchPublic`,
-    'ComprasNet': `https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras`,
-    'Caixa': `https://licitacoes.caixa.gov.br/Paginas/Resultado-da-Pesquisa.aspx`,
+    'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(numero)}`,
+    'BLL': `https://bllcompras.com/DirectBuy/DirectBuySearchPublic?numero=${encodeURIComponent(numero)}`,
+    'ComprasNet': `https://www.gov.br/compras/pt-br/acesso-a-informacao/consultas?numero=${encodeURIComponent(numero)}`,
+    'Caixa': `https://licitacoes1.caixa.gov.br/sicve-web/private/view/licitante/listaAtividadesLicitante.jsf`,
     'BB': `https://www.licitacoes-e.com.br/aop/lct/licitacoes/consultaLicitacoes.aop`,
-    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Processos/`,
-    'Portal Estadual': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta`,
-    'Portal Municipal': `https://pncp.gov.br/app/editais?q=&status=recebendo_proposta`,
+    'Banpara': `https://cotacao.banpara.b.br/core/default.aspx`,
+    'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Licitacoes/`,
+    'Portal Estadual': null,
+    'Portal Municipal': null,
   };
   
   return portalUrls[portal] || null;
@@ -187,14 +182,14 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
           
           <div className="flex items-center gap-2">
             {/* Ver no Portal Original Button */}
-            {getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).edital_url) && (
+            {getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).editalUrl) && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const url = getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).edital_url);
+                  const url = getPortalUrl(licitacao.portal, licitacao.numero, (licitacao as any).editalUrl);
                   if (url) window.open(url, '_blank', 'noopener,noreferrer');
                 }}
               >
