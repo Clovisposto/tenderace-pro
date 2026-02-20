@@ -222,6 +222,15 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// CNAE verification types
+interface CnaeVerification {
+  status: 'loading' | 'ok' | 'warning' | 'error';
+  cnaeEmpresa?: string;
+  cnaeDescricao?: string;
+  mensagem: string;
+  detalhes?: string;
+}
+
 // Proposal Creation Modal
 const ProposalModal = ({ 
   licitacao, 
@@ -234,15 +243,18 @@ const ProposalModal = ({
   onClose: () => void;
   onSubmit: (data: any) => void;
 }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [valorProposta, setValorProposta] = useState('');
   const [justificativa, setJustificativa] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cnaeVerification, setCnaeVerification] = useState<CnaeVerification | null>(null);
   const [documentsReady, setDocumentsReady] = useState({
     edital: false,
     proposta: false,
     documentos: false,
     sicaf: false,
+    cnae: false,
   });
 
   useEffect(() => {
@@ -251,24 +263,99 @@ const ProposalModal = ({
     }
   }, [licitacao]);
 
+  // Verify CNAE when entering step 2
   useEffect(() => {
-    if (isOpen && step === 2) {
-      // Simulate document preparation
+    if (!isOpen || step !== 2 || !licitacao || !user) return;
+
+    // Reset state
+    setDocumentsReady({ edital: false, proposta: false, documentos: false, sicaf: false, cnae: false });
+    setCnaeVerification({ status: 'loading', mensagem: 'Verificando CNAE da empresa...' });
+
+    const run = async () => {
+      // 1. Fetch empresa with CNAE data
+      const { data: empresas } = await supabase
+        .from('empresas')
+        .select('cnae_codigo, cnae_descricao, nome, segmento')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      const empresa = empresas?.[0];
+
+      // 2. Check CNAE compatibility with edital segmento/objeto
+      if (!empresa?.cnae_codigo) {
+        setCnaeVerification({
+          status: 'warning',
+          mensagem: 'CNAE não cadastrado',
+          detalhes: 'A empresa não possui CNAE cadastrado. Cadastre o CNAE em Empresas antes de enviar propostas para garantir a habilitação.',
+        });
+      } else {
+        // Compatibility heuristic: check if CNAE group matches licitacao segment
+        const cnae = empresa.cnae_codigo;
+        const segmento = licitacao.segmento?.toLowerCase() || '';
+        const objeto = licitacao.objeto?.toLowerCase() || '';
+
+        // CNAE groups for Medicamentos: 21 (farmacêutico), 46 (comércio atacadista), 47 (comércio varejista)
+        const cnaeMedicamentos = ['21', '46.44', '46.45', '47.71', '47.72', '4771', '4772', '4644', '4645'];
+        // CNAE groups for Empreendimentos: 41, 42, 43 (construção), 71 (arquitetura/eng), 33 (manutenção)
+        const cnaeEmpreendimentos = ['41', '42', '43', '71', '33'];
+
+        const isMedSegment = segmento.includes('medicamento') || objeto.includes('medicamento') || objeto.includes('farmac') || objeto.includes('drug');
+        const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('constru') || objeto.includes('reform');
+
+        let compatible = true;
+        let warningMsg = '';
+
+        if (isMedSegment) {
+          const cnaeOk = cnaeMedicamentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+          if (!cnaeOk) {
+            compatible = false;
+            warningMsg = `Seu CNAE ${cnae} pode não habilitar sua empresa para licitações de Medicamentos. CNAEs recomendados: 4771-7, 4772-5, 4644-3 (comércio farmacêutico).`;
+          }
+        } else if (isEmpSegment) {
+          const cnaeOk = cnaeEmpreendimentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+          if (!cnaeOk) {
+            compatible = false;
+            warningMsg = `Seu CNAE ${cnae} pode não habilitar sua empresa para licitações de Obras/Empreendimentos. CNAEs recomendados: 41, 42, 43 (construção civil).`;
+          }
+        }
+
+        if (compatible) {
+          setCnaeVerification({
+            status: 'ok',
+            cnaeEmpresa: cnae,
+            cnaeDescricao: empresa.cnae_descricao || '',
+            mensagem: `CNAE ${cnae} compatível com o edital`,
+            detalhes: empresa.cnae_descricao || 'Atividade econômica habilitada para participação.',
+          });
+        } else {
+          setCnaeVerification({
+            status: 'warning',
+            cnaeEmpresa: cnae,
+            cnaeDescricao: empresa.cnae_descricao || '',
+            mensagem: 'Atenção: CNAE pode ser incompatível',
+            detalhes: warningMsg,
+          });
+        }
+      }
+
+      // Sequential document preparation timers
       const timers = [
         setTimeout(() => setDocumentsReady(prev => ({ ...prev, edital: true })), 1000),
         setTimeout(() => setDocumentsReady(prev => ({ ...prev, proposta: true })), 2000),
         setTimeout(() => setDocumentsReady(prev => ({ ...prev, documentos: true })), 3000),
         setTimeout(() => setDocumentsReady(prev => ({ ...prev, sicaf: true })), 4000),
+        setTimeout(() => setDocumentsReady(prev => ({ ...prev, cnae: true })), 1500),
       ];
       return () => timers.forEach(t => clearTimeout(t));
-    }
-  }, [isOpen, step]);
+    };
+
+    run();
+  }, [isOpen, step, licitacao, user]);
 
   const handleSubmitProposal = async () => {
     setIsSubmitting(true);
     
-    // Simulate professional submission
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     onSubmit({
       licitacaoId: licitacao?.id,
@@ -286,6 +373,7 @@ const ProposalModal = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const allDocumentsReady = Object.values(documentsReady).every(Boolean);
+  const cnaeBlocked = cnaeVerification?.status === 'error';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -371,6 +459,49 @@ const ProposalModal = ({
 
         {step === 2 && (
           <div className="space-y-4">
+            {/* CNAE Verification Banner */}
+            {cnaeVerification && cnaeVerification.status !== 'loading' && (
+              <div className={`p-4 rounded-lg border flex items-start gap-3 ${
+                cnaeVerification.status === 'ok'
+                  ? 'bg-success/10 border-success/40'
+                  : cnaeVerification.status === 'warning'
+                  ? 'bg-amber-500/10 border-amber-500/40'
+                  : 'bg-destructive/10 border-destructive/40'
+              }`}>
+                <div className="shrink-0 mt-0.5">
+                  {cnaeVerification.status === 'ok' ? (
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                  ) : cnaeVerification.status === 'warning' ? (
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-destructive" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-semibold text-sm ${
+                    cnaeVerification.status === 'ok' ? 'text-success' :
+                    cnaeVerification.status === 'warning' ? 'text-amber-600' : 'text-destructive'
+                  }`}>
+                    {cnaeVerification.mensagem}
+                  </p>
+                  {cnaeVerification.cnaeEmpresa && (
+                    <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                      CNAE: <strong>{cnaeVerification.cnaeEmpresa}</strong>
+                      {cnaeVerification.cnaeDescricao && ` — ${cnaeVerification.cnaeDescricao}`}
+                    </p>
+                  )}
+                  {cnaeVerification.detalhes && (
+                    <p className="text-xs text-muted-foreground mt-1">{cnaeVerification.detalhes}</p>
+                  )}
+                  {cnaeVerification.status === 'warning' && !cnaeVerification.cnaeEmpresa && (
+                    <p className="text-xs text-amber-600 mt-1 font-medium">
+                      ⚠️ Acesse <strong>Empresas</strong> e cadastre o CNAE para garantir a habilitação no edital.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -379,6 +510,44 @@ const ProposalModal = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* CNAE Check Item */}
+                <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                  cnaeVerification?.status === 'ok' ? 'bg-success/5 border-success/30' :
+                  cnaeVerification?.status === 'warning' ? 'bg-amber-500/5 border-amber-500/30' :
+                  'bg-muted/50 border-transparent'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {cnaeVerification?.status === 'loading' || !documentsReady.cnae ? (
+                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                    ) : cnaeVerification?.status === 'ok' ? (
+                      <CheckCircle2 className="w-5 h-5 text-success" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">Verificação de CNAE</p>
+                      <p className="text-xs text-muted-foreground">
+                        {cnaeVerification?.status === 'loading' || !documentsReady.cnae
+                          ? 'Consultando cadastro da empresa...'
+                          : cnaeVerification?.cnaeEmpresa
+                          ? `CNAE ${cnaeVerification.cnaeEmpresa} verificado contra o edital`
+                          : 'CNAE não cadastrado na empresa'}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant={
+                    !documentsReady.cnae ? 'secondary' :
+                    cnaeVerification?.status === 'ok' ? 'default' : 'outline'
+                  } className={
+                    documentsReady.cnae && cnaeVerification?.status === 'warning'
+                      ? 'border-amber-500 text-amber-600'
+                      : ''
+                  }>
+                    {!documentsReady.cnae ? 'Verificando...' :
+                     cnaeVerification?.status === 'ok' ? 'Compatível' : 'Atenção'}
+                  </Badge>
+                </div>
+
                 {[
                   { key: 'edital', label: 'Análise do Edital', desc: 'Lei 14.133/2021 verificada' },
                   { key: 'proposta', label: 'Proposta Comercial', desc: 'Formatação profissional' },
@@ -409,7 +578,11 @@ const ProposalModal = ({
               <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                 Voltar
               </Button>
-              <Button onClick={() => setStep(3)} disabled={!allDocumentsReady} className="flex-1">
+              <Button 
+                onClick={() => setStep(3)} 
+                disabled={!allDocumentsReady || cnaeBlocked} 
+                className="flex-1"
+              >
                 Próximo: Revisar e Enviar <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
@@ -449,16 +622,39 @@ const ProposalModal = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Documentos:</span>
-                    <span className="text-success">4 anexados</span>
+                    <span className="text-success">5 anexados (incl. CNAE)</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Verificação CNAE:</span>
+                    <span className={`flex items-center gap-1 font-medium text-xs ${
+                      cnaeVerification?.status === 'ok' ? 'text-success' :
+                      cnaeVerification?.status === 'warning' ? 'text-amber-600' : 'text-muted-foreground'
+                    }`}>
+                      {cnaeVerification?.status === 'ok' ? (
+                        <><CheckCircle2 className="w-3 h-3" /> {cnaeVerification.cnaeEmpresa} — Compatível</>
+                      ) : cnaeVerification?.status === 'warning' ? (
+                        <><AlertTriangle className="w-3 h-3" /> Atenção — Verifique o CNAE</>
+                      ) : (
+                        'N/A'
+                      )}
+                    </span>
                   </div>
                 </div>
+
+                {cnaeVerification?.status === 'warning' && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-amber-700 dark:text-amber-400">
+                      <strong>CNAE com ressalva:</strong> Você pode prosseguir, mas verifique se o CNAE da empresa atende às exigências de habilitação do edital antes de enviá-la ao portal.
+                    </p>
+                  </div>
+                )}
 
                 <div className="p-3 rounded-lg bg-muted/50 text-xs">
                   <div className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 text-primary mt-0.5" />
                     <p>
-                      <strong>Lei 14.133/2021:</strong> Esta proposta está em conformidade com a Nova Lei de Licitações.
-                      O envio será realizado de forma profissional, simulando comportamento humano natural.
+                      <strong>Lei 14.133/2021:</strong> Esta proposta foi verificada contra o edital. O envio será realizado de forma profissional, conforme as exigências de habilitação.
                     </p>
                   </div>
                 </div>
