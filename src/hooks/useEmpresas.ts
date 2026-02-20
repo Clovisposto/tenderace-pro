@@ -54,13 +54,35 @@ export function useCreateEmpresa() {
   return useMutation({
     mutationFn: async (empresa: Omit<EmpresaInsert, 'user_id'>) => {
       if (!user) throw new Error('User not authenticated');
-      
+
+      // Check if CNPJ already exists for this user before inserting
+      const cnpj = empresa.cnpj.replace(/\D/g, '');
+      const { data: existing } = await supabase
+        .from('empresas')
+        .select('id, nome')
+        .eq('user_id', user.id)
+        .ilike('cnpj', `%${cnpj.slice(-8)}%`)
+        .maybeSingle();
+
+      if (existing) {
+        throw Object.assign(new Error('CNPJ_DUPLICADO'), {
+          nomeDuplicado: existing.nome,
+        });
+      }
+
       const { data, error } = await supabase
         .from('empresas')
         .insert({ ...empresa, user_id: user.id })
         .select()
         .single();
-      if (error) throw error;
+
+      if (error) {
+        // Postgres unique violation code
+        if (error.code === '23505' && error.message.includes('cnpj')) {
+          throw Object.assign(new Error('CNPJ_DUPLICADO'), {});
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -70,7 +92,17 @@ export function useCreateEmpresa() {
         description: 'Empresa adicionada com sucesso ao sistema.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      if (error?.message === 'CNPJ_DUPLICADO') {
+        toast({
+          title: 'CNPJ já cadastrado',
+          description: error?.nomeDuplicado
+            ? `O CNPJ informado já está vinculado à empresa "${error.nomeDuplicado}". Use o botão Editar para atualizar os dados.`
+            : 'Este CNPJ já está cadastrado na sua conta. Use o botão Editar para atualizar os dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
       toast({
         title: 'Erro ao cadastrar',
         description: getSafeErrorMessage(error),
