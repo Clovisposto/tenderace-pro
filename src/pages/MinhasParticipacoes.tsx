@@ -158,7 +158,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 // Card para licitações autorizadas (robô vai participar)
 const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?: boolean }) => {
   const [robotStatus, setRobotStatus] = useState<'aguardando' | 'preparando' | 'monitorando' | 'disputando'>('aguardando');
-  const [posicaoSimulada] = useState(() => ({ posicao: Math.floor(Math.random() * 3) + 1, total: Math.floor(Math.random() * 5) + 4 }));
   
   useEffect(() => {
     // Simular estados do robô baseado no tempo até a abertura
@@ -225,18 +224,6 @@ const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?
           <span className="font-medium text-sm">{status.label}</span>
         </div>
         <div className="flex items-center gap-3">
-          {robotStatus === 'disputando' && (
-            <Badge className={`text-xs font-bold ${
-              posicaoSimulada.posicao === 1 
-                ? 'bg-green-500 text-white' 
-                : posicaoSimulada.posicao <= 3 
-                  ? 'bg-amber-500 text-white' 
-                  : 'bg-red-500 text-white'
-            }`}>
-              <Target className="w-3 h-3 mr-1" />
-              {posicaoSimulada.posicao}º de {posicaoSimulada.total}
-            </Badge>
-          )}
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5" />
             <span className="text-xs font-medium">ROBÔ ATIVO</span>
@@ -348,16 +335,7 @@ const VencedoraCard = ({ participacao, isRealtime, onOpenDetails }: {
 }) => {
   const { licitacao, empresa } = participacao;
   
-  // Informações simuladas do contrato
-  const infoContrato = {
-    prazoEntrega: '30 dias corridos após emissão da Nota de Empenho',
-    localEntrega: `${licitacao.municipio}/${licitacao.uf} - Sede do Órgão`,
-    vigenciaContrato: '12 meses a partir da assinatura',
-    formaPagamento: '30 dias após entrega e aceite definitivo',
-    telefoneContato: '(XX) XXXX-XXXX',
-    emailContato: `licitacao@${licitacao.municipio.toLowerCase().replace(/\s/g, '')}.gov.br`,
-    responsavel: 'Setor de Licitações e Contratos',
-  };
+  
   
   return (
     <Card className="relative overflow-hidden transition-all hover:shadow-xl border-2 border-success/40 bg-gradient-to-br from-success/5 to-success/10">
@@ -441,49 +419,34 @@ const VencedoraCard = ({ participacao, isRealtime, onOpenDetails }: {
             <FileSignature className="w-4 h-4 text-success" />
             <h4 className="font-semibold text-sm text-success">Informações do Contrato</h4>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="flex items-start gap-2">
-              <Truck className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <Building2 className="w-4 h-4 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-muted-foreground">Prazo de Entrega</p>
-                <p className="font-medium">{infoContrato.prazoEntrega}</p>
+                <p className="text-muted-foreground">Órgão Contratante</p>
+                <p className="font-medium">{licitacao.orgao}</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-muted-foreground">Local de Entrega</p>
-                <p className="font-medium">{infoContrato.localEntrega}</p>
+                <p className="text-muted-foreground">Local</p>
+                <p className="font-medium">{licitacao.municipio}, {licitacao.uf}</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <CalendarClock className="w-4 h-4 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-muted-foreground">Vigência</p>
-                <p className="font-medium">{infoContrato.vigenciaContrato}</p>
+                <p className="text-muted-foreground">Data Limite</p>
+                <p className="font-medium">{format(new Date(licitacao.data_limite), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <CreditCard className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-muted-foreground">Forma de Pagamento</p>
-                <p className="font-medium">{infoContrato.formaPagamento}</p>
+                <p className="text-muted-foreground">Modalidade</p>
+                <p className="font-medium">{licitacao.modalidade}</p>
               </div>
-            </div>
-          </div>
-          
-          <Separator className="my-3" />
-          
-          {/* Contato */}
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <Phone className="w-3 h-3 text-muted-foreground" />
-              <span>{infoContrato.telefoneContato}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Mail className="w-3 h-3 text-muted-foreground" />
-              <span>{infoContrato.emailContato}</span>
             </div>
           </div>
         </div>
@@ -892,6 +855,7 @@ const MinhasParticipacoes = () => {
         .from('licitacoes')
         .select('*')
         .eq('status', 'Autorizada')
+        .gt('data_limite', new Date().toISOString())
         .order('data_abertura', { ascending: true });
 
       if (error) throw error;
@@ -950,19 +914,6 @@ const MinhasParticipacoes = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
-              onClick={handleCreateTestProposals} 
-              variant="default" 
-              className="gap-2"
-              disabled={creatingTest || createTestProposalMutation.isPending}
-            >
-              {creatingTest ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              Criar Propostas de Teste
-            </Button>
             <Button 
               onClick={handleAIGlobalUpdate} 
               variant="outline" 
