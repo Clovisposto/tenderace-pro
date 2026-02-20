@@ -55,6 +55,7 @@ import {
   Copy,
   MessageSquare,
   AlertTriangle,
+  MonitorPlay,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -493,6 +494,28 @@ const ProposalModal = ({
   );
 };
 
+// Helper: gera URL da sala de disputa real conforme o portal
+const getSalaDisputaUrl = (lic: LicitacaoAutorizada): string | null => {
+  if (lic.edital_url) return lic.edital_url;
+  const portal = lic.portal?.toLowerCase() || '';
+  if (portal.includes('pncp')) {
+    return `https://www.gov.br/compras/pt-br/sistemas/pncp`;
+  }
+  if (portal.includes('comprasnet') || portal.includes('compras.gov')) {
+    return `https://www.gov.br/compras/pt-br`;
+  }
+  if (portal.includes('bll') || portal.includes('bolsalicitacoes')) {
+    return `https://bll.org.br`;
+  }
+  if (portal.includes('caixa') || portal.includes('bb')) {
+    return `https://www.caixa.gov.br/poder-publico/licitacoes/Paginas/default.aspx`;
+  }
+  if (portal.includes('licitanet')) {
+    return `https://www.licitanet.com.br`;
+  }
+  return null;
+};
+
 // Main Component
 export function ParticipacoesDashboardTab() {
   const queryClient = useQueryClient();
@@ -903,6 +926,17 @@ export function ParticipacoesDashboardTab() {
                           <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
                             <span className="font-bold text-primary text-lg">{formatCurrency(lic.valor)}</span>
                             <div className="flex gap-1 flex-wrap">
+                              {/* Botão principal: Sala de Disputa Real */}
+                              {getSalaDisputaUrl(lic) && (
+                                <Button
+                                  size="sm"
+                                  className="bg-success hover:bg-success/90 text-success-foreground gap-1 font-semibold"
+                                  onClick={() => window.open(getSalaDisputaUrl(lic)!, '_blank', 'noopener,noreferrer')}
+                                >
+                                  <MonitorPlay className="w-3 h-3" />
+                                  Sala de Disputa
+                                </Button>
+                              )}
                               <Button 
                                 variant="outline"
                                 size="sm" 
@@ -923,6 +957,7 @@ export function ParticipacoesDashboardTab() {
                                 Log
                               </Button>
                               <Button 
+                                variant="outline"
                                 size="sm" 
                                 onClick={() => {
                                   setSelectedLicitacao(lic);
@@ -1024,15 +1059,24 @@ export function ParticipacoesDashboardTab() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2 pt-2">
+                        <div className="flex gap-2 pt-2 flex-wrap">
+                          {getSalaDisputaUrl(part.licitacao as LicitacaoAutorizada) && (
+                            <Button
+                              size="sm"
+                              className="bg-success hover:bg-success/90 text-success-foreground gap-1 font-semibold flex-1"
+                              onClick={() => window.open(getSalaDisputaUrl(part.licitacao as LicitacaoAutorizada)!, '_blank', 'noopener,noreferrer')}
+                            >
+                              <MonitorPlay className="w-3 h-3" />
+                              Sala de Disputa
+                            </Button>
+                          )}
                           <Button 
                             variant="outline" 
-                            size="sm" 
-                            className="flex-1"
+                            size="sm"
                             onClick={() => setSelectedRobotLog(part.licitacao as LicitacaoAutorizada)}
                           >
                             <Activity className="w-3 h-3 mr-1" />
-                            Ver Log do Robô
+                            Log Robô
                           </Button>
                           <Button
                             variant="ghost"
