@@ -13,9 +13,11 @@ interface AuthResult {
   userId?: string;
 }
 
-async function authenticateAndAuthorize(req: Request, supabase: any): Promise<AuthResult> {
+async function authenticateAndAuthorize(req: Request, _supabase: any): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
   if (!authHeader) {
     console.log('[Auth] Missing Authorization header');
@@ -30,7 +32,11 @@ async function authenticateAndAuthorize(req: Request, supabase: any): Promise<Au
   }
 
   try {
-    const { data, error: authError } = await supabase.auth.getClaims(token);
+    // Use a client with the user's token to verify identity
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data, error: authError } = await userClient.auth.getClaims(token);
     
     if (authError || !data?.claims) {
       console.log('[Auth] Invalid token:', authError?.message);
@@ -44,7 +50,9 @@ async function authenticateAndAuthorize(req: Request, supabase: any): Promise<Au
       return { authorized: false, error: 'Invalid token: missing user ID' };
     }
 
-    const { data: roleData, error: roleError } = await supabase
+    // Use service role client to bypass RLS on user_roles table
+    const adminClient = createClient(supabaseUrl, serviceRoleKey!);
+    const { data: roleData, error: roleError } = await adminClient
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
