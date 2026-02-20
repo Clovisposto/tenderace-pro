@@ -192,8 +192,8 @@ export function ParticipacaoDetalheModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
             {isVencedora && <Trophy className="w-6 h-6 text-success" />}
             <span>Detalhes da Participação</span>
@@ -210,31 +210,31 @@ export function ParticipacaoDetalheModal({
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-5 shrink-0">
-            <TabsTrigger value="resumo" className="gap-1.5">
+          <TabsList className="grid w-full grid-cols-5 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
+            <TabsTrigger value="resumo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Resumo</span>
             </TabsTrigger>
-            <TabsTrigger value="robo" className="gap-1.5">
+            <TabsTrigger value="robo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Gavel className="w-4 h-4" />
               <span className="hidden sm:inline">Robô</span>
             </TabsTrigger>
-            <TabsTrigger value="contrato" className="gap-1.5">
+            <TabsTrigger value="contrato" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileSignature className="w-4 h-4" />
               <span className="hidden sm:inline">Contrato</span>
             </TabsTrigger>
-            <TabsTrigger value="atualizacao" className="gap-1.5">
+            <TabsTrigger value="atualizacao" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">IA 24/7</span>
             </TabsTrigger>
-            <TabsTrigger value="historico" className="gap-1.5">
+            <TabsTrigger value="historico" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 mt-4">
-            {/* Resumo Tab */}
+          <ScrollArea className="flex-1">
+            <div className="px-6 py-4">
             <TabsContent value="resumo" className="m-0 space-y-4">
               {/* Info Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -762,6 +762,7 @@ export function ParticipacaoDetalheModal({
                 </CardContent>
               </Card>
             </TabsContent>
+            </div>
           </ScrollArea>
         </Tabs>
       </DialogContent>
