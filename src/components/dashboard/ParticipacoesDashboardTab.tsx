@@ -296,8 +296,10 @@ const ProposalModal = ({
 
         // CNAE groups for Medicamentos: 21 (farmacêutico), 46 (comércio atacadista), 47 (comércio varejista)
         const cnaeMedicamentos = ['21', '46.44', '46.45', '47.71', '47.72', '4771', '4772', '4644', '4645'];
-        // CNAE groups for Empreendimentos: 41, 42, 43 (construção), 71 (arquitetura/eng), 33 (manutenção)
-        const cnaeEmpreendimentos = ['41', '42', '43', '71', '33'];
+        // CNAE groups for Construção civil: 41, 42, 43; Arquitetura/Eng: 711 (NOT 71 — evita mineração 710xxx); Manutenção: 33
+        const cnaeConstructionCivil = ['41', '42', '43', '711', '33'];
+        // CNAE groups for TI/Internet/Telecom: 61 (telecom), 620-629 (software/TI), 63 (portais/info), 26 (hardware), 95 (manut. equip.)
+        const cnaeTI = ['61', '620', '621', '622', '623', '624', '625', '626', '627', '628', '629', '6209', '63', '26', '95'];
 
         const isMedSegment = segmento.includes('medicamento') || objeto.includes('medicamento') || objeto.includes('farmac') || objeto.includes('drug');
         const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('construção') || objeto.includes('reforma')
@@ -329,25 +331,37 @@ const ProposalModal = ({
             warningMsg = `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa (primário: ${cnae}) habilita para licitações de Medicamentos. CNAEs recomendados: 4771-7, 4772-5, 4644-3 (comércio farmacêutico).`;
           }
         } else if (isEmpSegment) {
-          // Check if ANY CNAE is compatible with empreendimentos/TI/internet
-          const cnaeEmpreendimentosTI = [...cnaeEmpreendimentos, '61', '62', '63', '26', '95']; // adiciona TI/telecomunicações
+          // Determine the correct CNAE list based on whether it's a TI/internet or construction tender
+          const isInternetTI = objeto.includes('internet') || objeto.includes('telecomunicação') || objeto.includes('satélite')
+            || objeto.includes('satelite') || objeto.includes('starlink') || objeto.includes('link')
+            || objeto.includes('banda larga') || objeto.includes('fibra') || objeto.includes('rede')
+            || objeto.includes('conectividade') || objeto.includes('informática') || objeto.includes('informatica')
+            || objeto.includes('software') || objeto.includes('suporte técnico') || objeto.includes('suporte tecnico')
+            || objeto.includes('ti ') || objeto.includes('tecnologia');
+
+          // For TI/internet tenders: only TI CNAEs; for construction: only construction CNAEs; for generic: both
+          const cnaeListToCheck = isInternetTI
+            ? cnaeTI
+            : [...cnaeConstructionCivil, ...cnaeTI];
+
           const cnaeOk = todosOsCnaes.some(c =>
-            cnaeEmpreendimentosTI.some(prefix => c.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
+            cnaeListToCheck.some(prefix => c.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
           );
           if (!cnaeOk) {
             compatible = false;
-            warningMsg = `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa (primário: ${cnae}) habilita para este tipo de licitação. CNAEs recomendados: 41-43 (construção), 61-62 (TI/internet).`;
+            warningMsg = isInternetTI
+              ? `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa habilita para fornecimento de TI/Internet. CNAEs recomendados: 6120 (telecom sem fio), 6209-1 (suporte em TI), 6311 (portais).`
+              : `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa (primário: ${cnae}) habilita para este tipo de licitação. CNAEs recomendados: 41-43 (construção), 61-62 (TI/internet).`;
           }
         }
 
         if (compatible) {
-          // Detect if approval came from secondary CNAE
-          const primaryOk = isMedSegment
-            ? cnaeMedicamentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
-            : [...cnaeEmpreendimentos, '61', '62', '63', '26', '95'].some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+          // Detect if approval came from secondary CNAE (not the primary)
+          const activeList = isMedSegment ? cnaeMedicamentos : cnaeTI.concat(cnaeConstructionCivil);
+          const primaryOk = activeList.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
 
           const approvedBy = !primaryOk
-            ? cnaesSecundarios.find(c => [...cnaeEmpreendimentos, '61', '62', '63', '26', '95', ...cnaeMedicamentos].some(p => c.codigo.replace(/\D/g, '').startsWith(p.replace(/\D/g, ''))))
+            ? cnaesSecundarios.find(c => activeList.some(p => c.codigo.replace(/\D/g, '').startsWith(p.replace(/\D/g, ''))))
             : null;
 
           setCnaeVerification({
