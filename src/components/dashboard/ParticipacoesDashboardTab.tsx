@@ -300,7 +300,14 @@ const ProposalModal = ({
         const cnaeEmpreendimentos = ['41', '42', '43', '71', '33'];
 
         const isMedSegment = segmento.includes('medicamento') || objeto.includes('medicamento') || objeto.includes('farmac') || objeto.includes('drug');
-        const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('construção') || objeto.includes('reforma') || objeto.includes('internet') || objeto.includes('telecomunicação') || objeto.includes('ti ') || objeto.includes('tecnologia');
+        const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('construção') || objeto.includes('reforma')
+          || objeto.includes('internet') || objeto.includes('telecomunicação') || objeto.includes('ti ')
+          || objeto.includes('tecnologia') || objeto.includes('satélite') || objeto.includes('satelite')
+          || objeto.includes('starlink') || objeto.includes('link') || objeto.includes('banda larga')
+          || objeto.includes('fibra') || objeto.includes('rede') || objeto.includes('conectividade')
+          || objeto.includes('informática') || objeto.includes('informatica') || objeto.includes('software')
+          || objeto.includes('sistema') || objeto.includes('suporte técnico') || objeto.includes('suporte tecnico')
+          || objeto.includes('fornecimento de link') || objeto.includes('acesso à internet');
 
         // Collect ALL CNAEs: primary + secondary
         const cnaesSecundarios = (empresa.cnaes_secundarios as Array<{ codigo: string; descricao: string }> | null) ?? [];
@@ -334,12 +341,25 @@ const ProposalModal = ({
         }
 
         if (compatible) {
+          // Detect if approval came from secondary CNAE
+          const primaryOk = isMedSegment
+            ? cnaeMedicamentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
+            : [...cnaeEmpreendimentos, '61', '62', '63', '26', '95'].some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+
+          const approvedBy = !primaryOk
+            ? cnaesSecundarios.find(c => [...cnaeEmpreendimentos, '61', '62', '63', '26', '95', ...cnaeMedicamentos].some(p => c.codigo.replace(/\D/g, '').startsWith(p.replace(/\D/g, ''))))
+            : null;
+
           setCnaeVerification({
             status: 'ok',
             cnaeEmpresa: cnae,
             cnaeDescricao: empresa.cnae_descricao || '',
-            mensagem: `CNAE ${cnae} compatível com o edital`,
-            detalhes: empresa.cnae_descricao || 'Atividade econômica habilitada para participação.',
+            mensagem: approvedBy
+              ? `CNAE secundário ${approvedBy.codigo} habilitado para este edital`
+              : `CNAE ${cnae} compatível com o edital`,
+            detalhes: approvedBy
+              ? `${approvedBy.descricao || approvedBy.codigo} — atividade secundária da empresa habilitada para participação.`
+              : (empresa.cnae_descricao || 'Atividade econômica habilitada para participação.'),
           });
         } else {
           setCnaeVerification({
