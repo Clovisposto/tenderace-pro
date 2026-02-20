@@ -275,7 +275,7 @@ const ProposalModal = ({
       // 1. Fetch empresa with CNAE data
       const { data: empresas } = await supabase
         .from('empresas')
-        .select('cnae_codigo, cnae_descricao, nome, segmento')
+        .select('cnae_codigo, cnae_descricao, cnaes_secundarios, nome, segmento')
         .eq('user_id', user.id)
         .limit(1);
 
@@ -300,22 +300,36 @@ const ProposalModal = ({
         const cnaeEmpreendimentos = ['41', '42', '43', '71', '33'];
 
         const isMedSegment = segmento.includes('medicamento') || objeto.includes('medicamento') || objeto.includes('farmac') || objeto.includes('drug');
-        const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('constru') || objeto.includes('reform');
+        const isEmpSegment = segmento.includes('empreendimento') || objeto.includes('obra') || objeto.includes('construção') || objeto.includes('reforma') || objeto.includes('internet') || objeto.includes('telecomunicação') || objeto.includes('ti ') || objeto.includes('tecnologia');
+
+        // Collect ALL CNAEs: primary + secondary
+        const cnaesSecundarios = (empresa.cnaes_secundarios as Array<{ codigo: string; descricao: string }> | null) ?? [];
+        const todosOsCnaes = [
+          cnae, // primário
+          ...cnaesSecundarios.map(c => c.codigo),
+        ].filter(Boolean);
 
         let compatible = true;
         let warningMsg = '';
 
         if (isMedSegment) {
-          const cnaeOk = cnaeMedicamentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+          // Check if ANY CNAE is compatible with medicamentos
+          const cnaeOk = todosOsCnaes.some(c =>
+            cnaeMedicamentos.some(prefix => c.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
+          );
           if (!cnaeOk) {
             compatible = false;
-            warningMsg = `Seu CNAE ${cnae} pode não habilitar sua empresa para licitações de Medicamentos. CNAEs recomendados: 4771-7, 4772-5, 4644-3 (comércio farmacêutico).`;
+            warningMsg = `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa (primário: ${cnae}) habilita para licitações de Medicamentos. CNAEs recomendados: 4771-7, 4772-5, 4644-3 (comércio farmacêutico).`;
           }
         } else if (isEmpSegment) {
-          const cnaeOk = cnaeEmpreendimentos.some(prefix => cnae.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')));
+          // Check if ANY CNAE is compatible with empreendimentos/TI/internet
+          const cnaeEmpreendimentosTI = [...cnaeEmpreendimentos, '61', '62', '63', '26', '95']; // adiciona TI/telecomunicações
+          const cnaeOk = todosOsCnaes.some(c =>
+            cnaeEmpreendimentosTI.some(prefix => c.replace(/\D/g, '').startsWith(prefix.replace(/\D/g, '')))
+          );
           if (!cnaeOk) {
             compatible = false;
-            warningMsg = `Seu CNAE ${cnae} pode não habilitar sua empresa para licitações de Obras/Empreendimentos. CNAEs recomendados: 41, 42, 43 (construção civil).`;
+            warningMsg = `Nenhum dos ${todosOsCnaes.length} CNAE(s) da empresa (primário: ${cnae}) habilita para este tipo de licitação. CNAEs recomendados: 41-43 (construção), 61-62 (TI/internet).`;
           }
         }
 
