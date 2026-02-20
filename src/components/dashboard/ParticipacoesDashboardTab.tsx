@@ -557,7 +557,7 @@ export function ParticipacoesDashboardTab() {
     enabled: !!user,
   });
 
-  // Fetch licitações autorizadas
+  // Fetch licitações autorizadas (apenas não encerradas)
   const { data: licitacoesAutorizadas = [], isLoading: loadingAutorizadas } = useQuery({
     queryKey: ['dashboard-autorizadas'],
     queryFn: async () => {
@@ -565,6 +565,7 @@ export function ParticipacoesDashboardTab() {
         .from('licitacoes')
         .select('*')
         .eq('status', 'Autorizada')
+        .gt('data_limite', new Date().toISOString())
         .order('data_abertura', { ascending: true });
 
       if (error) throw error;
@@ -600,6 +601,45 @@ export function ParticipacoesDashboardTab() {
     
     setRobotStates(states);
   }, [licitacoesAutorizadas]);
+
+  // Remove proposal mutation
+  const removeProposalMutation = useMutation({
+    mutationFn: async (propostaId: string) => {
+      const { error } = await supabase
+        .from('propostas')
+        .delete()
+        .eq('id', propostaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-participacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['metricas'] });
+      toast({ title: '🗑️ Participação removida', description: 'A proposta foi removida com sucesso.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao remover', description: getSafeErrorMessage(error), variant: 'destructive' });
+    },
+  });
+
+  // Remove licitação autorizada (volta para Nova)
+  const removeAutorizadaMutation = useMutation({
+    mutationFn: async (licitacaoId: string) => {
+      const { error } = await supabase
+        .from('licitacoes')
+        .update({ status: 'Nova' })
+        .eq('id', licitacaoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-autorizadas'] });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['metricas'] });
+      toast({ title: '🗑️ Autorização removida', description: 'A licitação voltou para o status Nova.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao remover', description: getSafeErrorMessage(error), variant: 'destructive' });
+    },
+  });
 
   // Submit proposal mutation
   const submitProposalMutation = useMutation({
@@ -892,6 +932,20 @@ export function ParticipacoesDashboardTab() {
                                 <Send className="w-3 h-3 mr-1" />
                                 Proposta
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => removeAutorizadaMutation.mutate(lic.id)}
+                                disabled={removeAutorizadaMutation.isPending}
+                              >
+                                {removeAutorizadaMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                )}
+                                Remover
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -980,6 +1034,20 @@ export function ParticipacoesDashboardTab() {
                             <Activity className="w-3 h-3 mr-1" />
                             Ver Log do Robô
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeProposalMutation.mutate(part.id)}
+                            disabled={removeProposalMutation.isPending}
+                          >
+                            {removeProposalMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <XCircle className="w-3 h-3 mr-1" />
+                            )}
+                            Remover
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -1052,6 +1120,18 @@ export function ParticipacoesDashboardTab() {
                             <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
                           </div>
                         </div>
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeProposalMutation.mutate(part.id)}
+                            disabled={removeProposalMutation.isPending}
+                          >
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Remover
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))
@@ -1113,6 +1193,18 @@ export function ParticipacoesDashboardTab() {
                             <MapPin className="w-3 h-3" />
                             <span>{part.licitacao.municipio}, {part.licitacao.uf}</span>
                           </div>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeProposalMutation.mutate(part.id)}
+                            disabled={removeProposalMutation.isPending}
+                          >
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Remover
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
