@@ -32,6 +32,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2,
   Plus,
@@ -52,6 +54,12 @@ import {
   Search,
   RefreshCw,
   Sparkles,
+  KeyRound,
+  Globe,
+  Link2,
+  BadgeCheck,
+  Clock,
+  Upload,
 } from 'lucide-react';
 import { useEmpresas, useCreateEmpresa, useUpdateEmpresa, useDeleteEmpresa } from '@/hooks/useEmpresas';
 import type { Empresa, EmpresaInsert } from '@/hooks/useEmpresas';
@@ -98,6 +106,12 @@ const EMPTY_FORM = {
   cnae_descricao: '',
   sicaf_status: 'Pendente',
   certidoes_validas: false,
+  // Certificado Digital
+  certificado_digital_tipo: '',
+  certificado_digital_validade: '',
+  certificado_digital_emissor: '',
+  // Gov.br
+  govbr_vinculado: false,
 };
 
 const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => {
@@ -122,6 +136,12 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
           cnae_descricao: empresa.cnae_descricao ?? '',
           sicaf_status: empresa.sicaf_status ?? 'Pendente',
           certidoes_validas: empresa.certidoes_validas ?? false,
+          certificado_digital_tipo: empresa.certificado_digital_tipo ?? '',
+          certificado_digital_validade: empresa.certificado_digital_validade
+            ? empresa.certificado_digital_validade.split('T')[0]
+            : '',
+          certificado_digital_emissor: empresa.certificado_digital_emissor ?? '',
+          govbr_vinculado: empresa.govbr_vinculado ?? false,
         }
       : { ...EMPTY_FORM }
   );
@@ -163,16 +183,37 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
     }
   };
 
+  // Check certificate expiry
+  const getCertStatus = () => {
+    if (!form.certificado_digital_tipo) return 'none';
+    if (!form.certificado_digital_validade) return 'no_date';
+    const expiry = new Date(form.certificado_digital_validade);
+    const now = new Date();
+    const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) return 'expired';
+    if (daysLeft <= 30) return 'expiring';
+    return 'valid';
+  };
+
+  const certStatus = getCertStatus();
+
   const handleSubmit = async () => {
     if (!form.nome || !form.cnpj || !form.uf || !form.municipio) {
       toast({ title: 'Campos obrigatórios', description: 'Preencha nome, CNPJ, UF e município.', variant: 'destructive' });
       return;
     }
 
+    const payload = {
+      ...form,
+      certificado_digital_validade: form.certificado_digital_validade
+        ? new Date(form.certificado_digital_validade + 'T12:00:00').toISOString()
+        : null,
+    };
+
     if (isEditing && empresa) {
-      await updateEmpresa.mutateAsync({ id: empresa.id, ...form });
+      await updateEmpresa.mutateAsync({ id: empresa.id, ...payload });
     } else {
-      await createEmpresa.mutateAsync(form as Omit<EmpresaInsert, 'user_id'>);
+      await createEmpresa.mutateAsync(payload as Omit<EmpresaInsert, 'user_id'>);
     }
     onClose();
   };
@@ -192,117 +233,358 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6">
-          <div className="space-y-5 py-2 pb-6">
-            {/* CNPJ row com lookup */}
-            <div className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1.5">
-                <Label>CNPJ *</Label>
-                <Input
-                  value={form.cnpj}
-                  onChange={e => set('cnpj', e.target.value)}
-                  placeholder="00.000.000/0001-00"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCnpjLookup}
-                disabled={loadingCnpj}
-                className="gap-2 shrink-0"
-              >
-                {loadingCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
-                IA Preencher
-              </Button>
-            </div>
+        <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="mx-6 mt-2 shrink-0 grid grid-cols-3 w-auto">
+            <TabsTrigger value="dados" className="gap-1.5 text-xs">
+              <Building2 className="w-3.5 h-3.5" />
+              Dados da Empresa
+            </TabsTrigger>
+            <TabsTrigger value="certificado" className="gap-1.5 text-xs">
+              <KeyRound className="w-3.5 h-3.5" />
+              Certificado Digital
+              {form.certificado_digital_tipo && certStatus !== 'valid' && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-warning inline-block" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="govbr" className="gap-1.5 text-xs">
+              <Globe className="w-3.5 h-3.5" />
+              Gov.br
+              {form.govbr_vinculado && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-success inline-block" />
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Nome Fantasia *</Label>
-                <Input value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Nome da empresa" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Razão Social</Label>
-                <Input value={form.razao_social} onChange={e => set('razao_social', e.target.value)} placeholder="Razão social" />
-              </div>
-            </div>
+          {/* ── Aba: Dados da Empresa ── */}
+          <TabsContent value="dados" className="flex-1 overflow-hidden m-0">
+            <ScrollArea className="h-full px-6">
+              <div className="space-y-5 py-4 pb-6">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 space-y-1.5">
+                    <Label>CNPJ *</Label>
+                    <Input value={form.cnpj} onChange={e => set('cnpj', e.target.value)} placeholder="00.000.000/0001-00" />
+                  </div>
+                  <Button type="button" variant="outline" onClick={handleCnpjLookup} disabled={loadingCnpj} className="gap-2 shrink-0">
+                    {loadingCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
+                    IA Preencher
+                  </Button>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Município *</Label>
-                <Input value={form.municipio} onChange={e => set('municipio', e.target.value)} placeholder="Cidade" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>UF *</Label>
-                <Input value={form.uf} onChange={e => set('uf', e.target.value.toUpperCase().slice(0, 2))} placeholder="PA" maxLength={2} />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Nome Fantasia *</Label>
+                    <Input value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Nome da empresa" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Razão Social</Label>
+                    <Input value={form.razao_social} onChange={e => set('razao_social', e.target.value)} placeholder="Razão social" />
+                  </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <Label>Endereço</Label>
-              <Input value={form.endereco} onChange={e => set('endereco', e.target.value)} placeholder="Logradouro, número, bairro" />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Município *</Label>
+                    <Input value={form.municipio} onChange={e => set('municipio', e.target.value)} placeholder="Cidade" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>UF *</Label>
+                    <Input value={form.uf} onChange={e => set('uf', e.target.value.toUpperCase().slice(0, 2))} placeholder="PA" maxLength={2} />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Telefone</Label>
-                <Input value={form.telefone} onChange={e => set('telefone', e.target.value)} placeholder="(00) 00000-0000" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>E-mail</Label>
-                <Input value={form.email} onChange={e => set('email', e.target.value)} placeholder="contato@empresa.com.br" />
-              </div>
-            </div>
+                <div className="space-y-1.5">
+                  <Label>Endereço</Label>
+                  <Input value={form.endereco} onChange={e => set('endereco', e.target.value)} placeholder="Logradouro, número, bairro" />
+                </div>
 
-            <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Telefone</Label>
+                    <Input value={form.telefone} onChange={e => set('telefone', e.target.value)} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>E-mail</Label>
+                    <Input value={form.email} onChange={e => set('email', e.target.value)} placeholder="contato@empresa.com.br" />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>CNAE (Código)</Label>
-                <Input value={form.cnae_codigo} onChange={e => set('cnae_codigo', e.target.value)} placeholder="4771-7" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>CNAE (Descrição)</Label>
-                <Input value={form.cnae_descricao} onChange={e => set('cnae_descricao', e.target.value)} placeholder="Comércio varejista..." />
-              </div>
-            </div>
+                <Separator />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Segmento</Label>
-                <Select value={form.segmento} onValueChange={v => set('segmento', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Medicamentos">Medicamentos</SelectItem>
-                    <SelectItem value="Empreendimentos">Empreendimentos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status SICAF</Label>
-                <Select value={form.sicaf_status} onValueChange={v => set('sicaf_status', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Regular">Regular</SelectItem>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>CNAE (Código)</Label>
+                    <Input value={form.cnae_codigo} onChange={e => set('cnae_codigo', e.target.value)} placeholder="4771-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>CNAE (Descrição)</Label>
+                    <Input value={form.cnae_descricao} onChange={e => set('cnae_descricao', e.target.value)} placeholder="Comércio varejista..." />
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <input
-                type="checkbox"
-                id="certidoes"
-                checked={form.certidoes_validas}
-                onChange={e => set('certidoes_validas', e.target.checked)}
-                className="w-4 h-4 accent-primary"
-              />
-              <Label htmlFor="certidoes" className="cursor-pointer">Certidões válidas (fiscal, trabalhista, previdenciária)</Label>
-            </div>
-          </div>
-        </ScrollArea>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Segmento</Label>
+                    <Select value={form.segmento} onValueChange={v => set('segmento', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Medicamentos">Medicamentos</SelectItem>
+                        <SelectItem value="Empreendimentos">Empreendimentos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Status SICAF</Label>
+                    <Select value={form.sicaf_status} onValueChange={v => set('sicaf_status', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Regular">Regular</SelectItem>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Inativo">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <input
+                    type="checkbox"
+                    id="certidoes"
+                    checked={form.certidoes_validas}
+                    onChange={e => set('certidoes_validas', e.target.checked)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <Label htmlFor="certidoes" className="cursor-pointer">Certidões válidas (fiscal, trabalhista, previdenciária)</Label>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* ── Aba: Certificado Digital ── */}
+          <TabsContent value="certificado" className="flex-1 overflow-hidden m-0">
+            <ScrollArea className="h-full px-6">
+              <div className="space-y-5 py-4 pb-6">
+                {/* Status banner */}
+                {form.certificado_digital_tipo && (
+                  <div className={`p-3 rounded-lg border flex items-center gap-3 ${
+                    certStatus === 'valid' ? 'bg-success/10 border-success/30 text-success' :
+                    certStatus === 'expiring' ? 'bg-warning/10 border-warning/30 text-warning' :
+                    certStatus === 'expired' ? 'bg-destructive/10 border-destructive/30 text-destructive' :
+                    'bg-muted border-border text-muted-foreground'
+                  }`}>
+                    {certStatus === 'valid' && <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                    {certStatus === 'expiring' && <AlertTriangle className="w-5 h-5 shrink-0 animate-pulse" />}
+                    {certStatus === 'expired' && <XCircle className="w-5 h-5 shrink-0" />}
+                    {certStatus === 'no_date' && <Clock className="w-5 h-5 shrink-0" />}
+                    <div>
+                      <p className="font-semibold text-sm">
+                        {certStatus === 'valid' && 'Certificado Digital ativo e válido'}
+                        {certStatus === 'expiring' && 'Certificado vencendo em breve — renove agora!'}
+                        {certStatus === 'expired' && 'Certificado VENCIDO — necessita renovação urgente'}
+                        {certStatus === 'no_date' && 'Informe a data de validade do certificado'}
+                      </p>
+                      {form.certificado_digital_validade && (
+                        <p className="text-xs opacity-80">Validade: {format(new Date(form.certificado_digital_validade + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info box */}
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <KeyRound className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-sm text-primary mb-1">O que é o Certificado Digital?</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        O Certificado Digital ICP-Brasil (tipo A1 ou A3) é obrigatório para assinar documentos eletrônicos, 
+                        acessar sistemas governamentais e participar de licitações eletrônicas. 
+                        O <strong>A1</strong> fica instalado no computador e o <strong>A3</strong> em token físico ou cartão.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
+                    Tipo do Certificado
+                  </Label>
+                  <Select value={form.certificado_digital_tipo} onValueChange={v => set('certificado_digital_tipo', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A1">
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">A1 — Arquivo Digital</span>
+                          <span className="text-xs text-muted-foreground">Instalado no computador, validade 1 ano</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="A3">
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">A3 — Token / Cartão</span>
+                          <span className="text-xs text-muted-foreground">Dispositivo físico, validade até 3 anos</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="A1 e-CNPJ">A1 e-CNPJ</SelectItem>
+                      <SelectItem value="A3 e-CNPJ">A3 e-CNPJ</SelectItem>
+                      <SelectItem value="NF-e">NF-e (Nota Fiscal Eletrônica)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                      Data de Validade
+                    </Label>
+                    <Input
+                      type="date"
+                      value={form.certificado_digital_validade}
+                      onChange={e => set('certificado_digital_validade', e.target.value)}
+                    />
+                    {form.certificado_digital_validade && (() => {
+                      const expiry = new Date(form.certificado_digital_validade + 'T12:00:00');
+                      const daysLeft = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      return (
+                        <p className={`text-xs ${daysLeft < 0 ? 'text-destructive' : daysLeft <= 30 ? 'text-warning' : 'text-success'}`}>
+                          {daysLeft < 0 ? `Vencido há ${Math.abs(daysLeft)} dias` : `${daysLeft} dias restantes`}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                      Autoridade Certificadora (Emissor)
+                    </Label>
+                    <Select value={form.certificado_digital_emissor} onValueChange={v => set('certificado_digital_emissor', v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o emissor..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Serasa Experian">Serasa Experian</SelectItem>
+                        <SelectItem value="Certisign">Certisign</SelectItem>
+                        <SelectItem value="Valid Certificadora">Valid Certificadora</SelectItem>
+                        <SelectItem value="Soluti">Soluti</SelectItem>
+                        <SelectItem value="Safeweb">Safeweb</SelectItem>
+                        <SelectItem value="AC Certisign RFB">AC Certisign RFB</SelectItem>
+                        <SelectItem value="SERPRO">SERPRO</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {form.certificado_digital_emissor === 'Outro' && (
+                  <div className="space-y-1.5">
+                    <Label>Informe o emissor</Label>
+                    <Input
+                      placeholder="Nome da autoridade certificadora"
+                      onChange={e => set('certificado_digital_emissor', e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <strong>💡 Dica:</strong> Para participar de licitações no ComprasNet (PNCP) e outros portais federais, 
+                    é obrigatório o certificado e-CNPJ. Certifique-se que o certificado está instalado e válido no 
+                    computador que será usado para enviar propostas.
+                  </p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* ── Aba: Gov.br ── */}
+          <TabsContent value="govbr" className="flex-1 overflow-hidden m-0">
+            <ScrollArea className="h-full px-6">
+              <div className="space-y-5 py-4 pb-6">
+                {/* Status banner */}
+                <div className={`p-4 rounded-lg border-2 flex items-center gap-4 transition-all ${
+                  form.govbr_vinculado
+                    ? 'bg-success/10 border-success/40'
+                    : 'bg-muted border-dashed border-border'
+                }`}>
+                  <div className={`p-3 rounded-full ${form.govbr_vinculado ? 'bg-success/20' : 'bg-muted'}`}>
+                    <Globe className={`w-7 h-7 ${form.govbr_vinculado ? 'text-success' : 'text-muted-foreground'}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-bold text-base ${form.govbr_vinculado ? 'text-success' : 'text-foreground'}`}>
+                      {form.govbr_vinculado ? '✅ Gov.br Vinculado' : 'Gov.br não vinculado'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {form.govbr_vinculado
+                        ? 'A empresa possui acesso ao portal Gov.br para participação em licitações federais.'
+                        : 'Vincule o acesso Gov.br para participar de licitações em portais federais.'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.govbr_vinculado}
+                    onCheckedChange={v => set('govbr_vinculado', v)}
+                  />
+                </div>
+
+                {/* Info box */}
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Globe className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-sm text-primary mb-2">O que é o Gov.br?</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                        O <strong>Gov.br</strong> é o portal único do Governo Federal Brasileiro. 
+                        Para empresas, o acesso Gov.br com <strong>nível de confiabilidade Ouro ou Prata</strong> é 
+                        necessário para acessar sistemas como o SICAF, ComprasNet e outros portais de compras públicas.
+                      </p>
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-foreground">Passos para vincular:</p>
+                        <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                          <li>Acesse <strong>gov.br/empresas</strong> com seu CPF ou CNPJ</li>
+                          <li>Autentique-se com certificado digital ou banco credenciado</li>
+                          <li>Cadastre a empresa no portal e eleve o nível de confiabilidade</li>
+                          <li>Solicite acesso ao SICAF via Gov.br</li>
+                          <li>Marque a empresa como vinculada neste sistema</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick access links */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Acesso Rápido aos Portais</p>
+                  {[
+                    { label: 'Portal Gov.br — Empresas', url: 'https://www.gov.br/empresas-e-negocios', icon: Globe },
+                    { label: 'SICAF — Cadastro Fornecedores', url: 'https://www.gov.br/compras/pt-br/sistemas/sicaf', icon: ShieldCheck },
+                    { label: 'ComprasNet — Portal Federal', url: 'https://www.comprasnet.gov.br', icon: BadgeCheck },
+                    { label: 'PNCP — Portal Nacional', url: 'https://www.pncp.gov.br', icon: Link2 },
+                  ].map(link => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 hover:border-primary/30 transition-all group"
+                    >
+                      <link.icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="text-sm group-hover:text-primary transition-colors">{link.label}</span>
+                      <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity rotate-45" />
+                    </a>
+                  ))}
+                </div>
+
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                  <p className="text-xs text-warning leading-relaxed">
+                    <strong>⚠️ Importante:</strong> Marcar como "vinculado" aqui é apenas um registro informativo no sistema. 
+                    O vínculo real deve ser feito diretamente no portal Gov.br usando o CNPJ da empresa.
+                  </p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
           <Button variant="outline" onClick={onClose} disabled={isPending}>Cancelar</Button>
@@ -559,6 +841,34 @@ const Empresas = () => {
                         ) : (
                           <span className="flex items-center gap-1.5 text-warning text-xs">
                             <AlertTriangle className="w-3.5 h-3.5" /> CNAE Ausente
+                          </span>
+                        )}
+
+                        {empresa.certificado_digital_tipo ? (() => {
+                          const expiry = empresa.certificado_digital_validade ? new Date(empresa.certificado_digital_validade) : null;
+                          const daysLeft = expiry ? Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
+                          const isExpired = daysLeft !== null && daysLeft < 0;
+                          const isExpiring = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
+                          return (
+                            <span className={`flex items-center gap-1.5 text-xs ${isExpired ? 'text-destructive' : isExpiring ? 'text-warning' : 'text-success'}`}>
+                              <KeyRound className={`w-3.5 h-3.5 ${isExpiring ? 'animate-pulse' : ''}`} />
+                              Cert. {empresa.certificado_digital_tipo}
+                              {isExpired ? ' (Vencido)' : isExpiring ? ` (${daysLeft}d)` : ' ✓'}
+                            </span>
+                          );
+                        })() : (
+                          <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                            <KeyRound className="w-3.5 h-3.5" /> Sem Certificado Digital
+                          </span>
+                        )}
+
+                        {empresa.govbr_vinculado ? (
+                          <span className="flex items-center gap-1.5 text-success text-xs">
+                            <Globe className="w-3.5 h-3.5" /> Gov.br Vinculado
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                            <Globe className="w-3.5 h-3.5" /> Gov.br Pendente
                           </span>
                         )}
                       </div>
