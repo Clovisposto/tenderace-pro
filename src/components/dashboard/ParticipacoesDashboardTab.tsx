@@ -294,15 +294,28 @@ const ProposalModal = ({
         const segmento = licitacao.segmento?.toLowerCase() || '';
         const objeto = licitacao.objeto?.toLowerCase() || '';
 
-        // CNAE groups for Medicamentos: 21 (farmacêutico), 46 (comércio atacadista), 47 (comércio varejista)
+        // Helper to normalize CNAE code (digits only, strip dots/hyphens)
+        const normCnae = (c: string) => c.replace(/\D/g, '');
+
+        // CNAE groups for Medicamentos: 21 (farmacêutico), 4644, 4645, 4771, 4772
         const cnaeMedicamentos = ['21', '4644', '4645', '4771', '4772'];
-        // CNAE groups strictly for Construção civil: 41, 42, 43; Arquitetura/Eng: 711 (NOT 71 — evita mineração 710xxx)
-        // NOTE: removed '33' (manutenção geral) pois é muito amplo e não é específico de construção
+
+        // CNAE groups strictly for Construção civil: 41, 42, 43; Arquitetura/Eng: 711x
         const cnaeConstructionCivil = ['41', '42', '43', '711'];
+
         // CNAE groups strictly for TI/Internet/Telecom
-        // 61x=telecom, 620-629=dev/suporte TI, 6311=portais web, 26=hardware, 95=manut. equip. TI
-        // NOTE: prefixes must be long enough to avoid false matches (e.g. '62' would match 6200, but '620' avoids non-TI)
-        const cnaeTI = ['61', '6201', '6202', '6203', '6204', '6209', '6311', '6319', '26', '9511', '9512'];
+        // Must use full 4-digit group codes to avoid false matches:
+        // 611x=telecom cabeada, 612x=telecom sem fio, 613x=telecom via satélite, 619x=outras telecom
+        // 6201=desenvolv software, 6202=consultoria TI, 6203=gestão TI, 6204=consultoria em software, 6209=suporte TI
+        // 6311=tratamento de dados, 6319=portais web, 6391=agências de notícias
+        // 2610-2699=hardware/equipamentos eletrônicos, 9511=manutenção computadores, 9512=manutenção periféricos
+        const cnaeTI = [
+          '6110', '6120', '6130', '6190', // telecomunicações
+          '6201', '6202', '6203', '6204', '6209', // desenvolvimento e suporte TI
+          '6311', '6319', '6391', // tratamento de dados e portais
+          '2610', '2621', '2622', '2631', '2632', '2640', '2651', '2652', '2660', '2670', '2680', '2690', // hardware
+          '9511', '9512', // manutenção equipamentos TI
+        ];
 
         const isMedSegment = segmento.includes('medicamento') || objeto.includes('medicamento') || objeto.includes('farmac');
         
@@ -329,8 +342,7 @@ const ProposalModal = ({
           ...cnaesSecundarios.map(c => c.codigo),
         ].filter(Boolean);
 
-        // Helper to normalize CNAE code (digits only)
-        const normCnae = (c: string) => c.replace(/\D/g, '');
+
 
         let compatible = true;
         let warningMsg = '';
