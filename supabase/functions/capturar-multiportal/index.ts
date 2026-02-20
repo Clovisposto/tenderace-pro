@@ -217,7 +217,8 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
     const dataInicio = new Date(hoje);
     dataInicio.setDate(dataInicio.getDate() - 30);
     
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    // PNCP API requires YYYYMMDD format (no hyphens)
+    const formatDate = (d: Date) => d.toISOString().split('T')[0].replace(/-/g, '');
     
     let totalCount = 0;
     const errors: string[] = [];
@@ -227,6 +228,7 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
         const params = new URLSearchParams({
           dataInicial: formatDate(dataInicio),
           dataFinal: formatDate(hoje),
+          codigoModalidadeContratacao: '8',
           uf: uf,
           pagina: '1',
           tamanhoPagina: '50',
@@ -274,9 +276,9 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
         const contratacoes = data.data || data.resultado || data || [];
         console.log(`[PNCP] Recebidas ${contratacoes.length} contratações para ${uf}`);
 
-        for (const item of contratacoes.slice(0, 20)) {
+        for (const item of contratacoes.slice(0, 50)) {
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
-          if (valor < 1000 || valor > 35000) continue;
+          if (valor < 500 || valor > 500000) continue;
           
           const licitacao = {
             numero: item.numeroControlePNCP || `PNCP-${Date.now()}-${totalCount}`,
