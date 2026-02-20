@@ -124,6 +124,20 @@ interface CaptureResult {
   error?: string;
 }
 
+// Convert BRT (UTC-3) date string from PNCP to proper UTC ISO string
+// PNCP returns dates in Brasília time without timezone info (e.g., "2026-02-20T08:40:00")
+function brtToUtc(dateStr: string | null | undefined, fallback: string): string {
+  if (!dateStr) return fallback;
+  // If already has timezone info (+00:00, Z, etc.), use as-is
+  if (dateStr.includes('+') || dateStr.endsWith('Z')) {
+    return new Date(dateStr).toISOString();
+  }
+  // Treat as BRT (UTC-3): add 3 hours to get UTC
+  const d = new Date(dateStr + 'Z'); // parse as UTC first
+  d.setHours(d.getHours() + 3); // shift +3 hours (BRT -> UTC)
+  return d.toISOString();
+}
+
 function mapModalidade(texto: string): string {
   const lower = texto.toLowerCase();
   if (lower.includes('dispensa') && lower.includes('disputa')) {
@@ -266,8 +280,8 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
             objeto_resumido: (item.objetoCompra || item.descricao || '').substring(0, 80),
             valor: valor,
             modalidade: mapModalidade(item.modalidadeNome || item.modalidade || ''),
-            data_abertura: new Date(item.dataAberturaProposta || item.dataInicio || Date.now()).toISOString(),
-            data_limite: new Date(item.dataEncerramentoProposta || item.dataFim || Date.now() + 7 * 86400000).toISOString(),
+            data_abertura: brtToUtc(item.dataAberturaProposta || item.dataInicio, new Date().toISOString()),
+            data_limite: brtToUtc(item.dataEncerramentoProposta || item.dataFim, new Date(Date.now() + 7 * 86400000).toISOString()),
             status: 'Nova' as const,
             segmento: classifySegmento(item.objetoCompra || item.descricao || ''),
             edital_analisado: false,
