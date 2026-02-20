@@ -61,7 +61,11 @@ const Licitacoes = () => {
 
   const licitacoesFiltradas = useMemo(() => {
     if (!licitacoes) return [];
+    const agora = new Date();
     let result = [...licitacoes];
+
+    // Filtrar apenas licitações dentro do prazo (data_limite > agora)
+    result = result.filter(l => new Date(l.data_limite) > agora);
 
     // Filtrar apenas estados prioritários do usuário
     if (ufsPrioritarias.length > 0) {
@@ -105,19 +109,24 @@ const Licitacoes = () => {
   // Contagem por estado prioritário
   const countsPorUF = useMemo(() => {
     if (!licitacoes) return {};
+    const agora = new Date();
     return ufsPrioritarias.reduce((acc, uf) => {
-      acc[uf] = licitacoes.filter(l => l.uf === uf).length;
+      acc[uf] = licitacoes.filter(l => l.uf === uf && new Date(l.data_limite) > agora).length;
       return acc;
     }, {} as Record<string, number>);
   }, [licitacoes, ufsPrioritarias]);
 
-  const counts = useMemo(() => ({
-    todas: licitacoesFiltradas?.length || 0,
-    novas: licitacoes?.filter(l => l.status === 'Nova' && ufsPrioritarias.includes(l.uf)).length || 0,
-    analise: licitacoes?.filter(l => l.status === 'Em Análise' && ufsPrioritarias.includes(l.uf)).length || 0,
-    aguardando: licitacoes?.filter(l => l.status === 'Aguardando Autorização' && ufsPrioritarias.includes(l.uf)).length || 0,
-    disputa: licitacoes?.filter(l => (l.status === 'Em Disputa' || l.status === 'Autorizada') && ufsPrioritarias.includes(l.uf)).length || 0,
-  }), [licitacoes, licitacoesFiltradas, ufsPrioritarias]);
+  const counts = useMemo(() => {
+    const agora = new Date();
+    const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora) || [];
+    return {
+      todas: licitacoesFiltradas?.length || 0,
+      novas: noPrazo.filter(l => l.status === 'Nova' && ufsPrioritarias.includes(l.uf)).length,
+      analise: noPrazo.filter(l => l.status === 'Em Análise' && ufsPrioritarias.includes(l.uf)).length,
+      aguardando: noPrazo.filter(l => l.status === 'Aguardando Autorização' && ufsPrioritarias.includes(l.uf)).length,
+      disputa: noPrazo.filter(l => (l.status === 'Em Disputa' || l.status === 'Autorizada') && ufsPrioritarias.includes(l.uf)).length,
+    };
+  }, [licitacoes, licitacoesFiltradas, ufsPrioritarias]);
 
   const mapToLegacyFormat = (l: Licitacao) => ({
     id: l.id,
