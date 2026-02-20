@@ -573,7 +573,7 @@ export function ParticipacoesDashboardTab() {
     refetchInterval: 10000,
   });
 
-  // Simulate robot states
+  // Compute robot states based on real data only (no random/fake values)
   useEffect(() => {
     const states: Record<string, RobotState> = {};
     
@@ -588,13 +588,13 @@ export function ParticipacoesDashboardTab() {
       else if (diffHours <= 24) status = 'monitorando';
 
       states[lic.id] = {
-        posicao: Math.floor(Math.random() * 5) + 1,
-        totalCompetidores: Math.floor(Math.random() * 8) + 3,
-        menorLance: lic.valor * (0.85 + Math.random() * 0.1),
-        meuLance: lic.valor * (0.88 + Math.random() * 0.08),
+        posicao: 0,
+        totalCompetidores: 0,
+        menorLance: 0,
+        meuLance: 0,
         status,
         ultimaAcao: new Date(),
-        lancesEnviados: Math.floor(Math.random() * 10),
+        lancesEnviados: 0,
       };
     });
     
@@ -812,7 +812,7 @@ export function ParticipacoesDashboardTab() {
                               <span className="text-xs text-success animate-pulse">● AO VIVO</span>
                             )}
                           </div>
-                          {robotState && robotState.posicao && (
+                          {robotState && robotState.posicao > 0 && (
                             <PositionBadge position={robotState.posicao} total={robotState.totalCompetidores} />
                           )}
                         </div>
@@ -837,7 +837,7 @@ export function ParticipacoesDashboardTab() {
                             </div>
                           </div>
 
-                          {robotState && robotState.status === 'disputando' && (
+                          {robotState && robotState.status === 'disputando' && robotState.menorLance > 0 && (
                             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
                               <div className="flex items-center justify-between text-xs">
                                 <span className="text-muted-foreground">Menor Lance:</span>
@@ -851,10 +851,12 @@ export function ParticipacoesDashboardTab() {
                                 <span className="text-muted-foreground">Lances Enviados:</span>
                                 <Badge variant="outline">{robotState.lancesEnviados}</Badge>
                               </div>
-                              <Progress 
-                                value={((robotState.totalCompetidores - robotState.posicao + 1) / robotState.totalCompetidores) * 100} 
-                                className="h-2"
-                              />
+                              {robotState.totalCompetidores > 0 && (
+                                <Progress 
+                                  value={((robotState.totalCompetidores - robotState.posicao + 1) / robotState.totalCompetidores) * 100} 
+                                  className="h-2"
+                                />
+                              )}
                             </div>
                           )}
 
