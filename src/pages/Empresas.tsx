@@ -92,6 +92,9 @@ interface EmpresaFormModalProps {
   empresa?: Empresa | null;
 }
 
+// Index signature makes it compatible with Supabase Json type
+type CnaeSecundario = { [key: string]: string; codigo: string; descricao: string };
+
 const EMPTY_FORM = {
   nome: '',
   cnpj: '',
@@ -104,6 +107,7 @@ const EMPTY_FORM = {
   email: '',
   cnae_codigo: '',
   cnae_descricao: '',
+  cnaes_secundarios: [] as CnaeSecundario[],
   sicaf_status: 'Pendente',
   certidoes_validas: false,
   // Certificado Digital
@@ -134,6 +138,7 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
           email: empresa.email ?? '',
           cnae_codigo: empresa.cnae_codigo ?? '',
           cnae_descricao: empresa.cnae_descricao ?? '',
+          cnaes_secundarios: (empresa.cnaes_secundarios as unknown as CnaeSecundario[]) ?? [],
           sicaf_status: empresa.sicaf_status ?? 'Pendente',
           certidoes_validas: empresa.certidoes_validas ?? false,
           certificado_digital_tipo: empresa.certificado_digital_tipo ?? '',
@@ -151,7 +156,7 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
   const set = (field: string, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  // IA preencher via CNPJ público
+  // IA preencher via CNPJ público — busca CNAE primário E secundários
   const handleCnpjLookup = async () => {
     const cnpj = form.cnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) {
@@ -163,6 +168,13 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
       if (!res.ok) throw new Error('CNPJ não encontrado');
       const data = await res.json();
+
+      // Extrair CNAEs secundários da resposta da BrasilAPI
+      const secundarios: CnaeSecundario[] = (data.cnaes_secundarios ?? []).map((c: { codigo: number; descricao: string }) => ({
+        codigo: String(c.codigo),
+        descricao: c.descricao ?? '',
+      }));
+
       setForm(prev => ({
         ...prev,
         razao_social: data.razao_social ?? prev.razao_social,
@@ -174,8 +186,12 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
         telefone: data.ddd_telefone_1 ?? prev.telefone,
         cnae_codigo: data.cnae_fiscal ? String(data.cnae_fiscal) : prev.cnae_codigo,
         cnae_descricao: data.cnae_fiscal_descricao ?? prev.cnae_descricao,
+        cnaes_secundarios: secundarios,
       }));
-      toast({ title: '✅ Dados preenchidos via CNPJ', description: data.razao_social });
+      toast({
+        title: '✅ Dados preenchidos via CNPJ',
+        description: `${data.razao_social} — ${1 + secundarios.length} CNAE(s) encontrado(s)`,
+      });
     } catch {
       toast({ title: 'Erro ao consultar CNPJ', description: 'Verifique o número e tente novamente.', variant: 'destructive' });
     } finally {
@@ -205,15 +221,17 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
 
     const payload = {
       ...form,
+      // Cast cnaes_secundarios to Json-compatible type for Supabase
+      cnaes_secundarios: form.cnaes_secundarios as unknown as import('@/integrations/supabase/types').Json,
       certificado_digital_validade: form.certificado_digital_validade
         ? new Date(form.certificado_digital_validade + 'T12:00:00').toISOString()
         : null,
     };
 
     if (isEditing && empresa) {
-      await updateEmpresa.mutateAsync({ id: empresa.id, ...payload });
+      await updateEmpresa.mutateAsync({ id: empresa.id, ...payload } as any);
     } else {
-      await createEmpresa.mutateAsync(payload as Omit<EmpresaInsert, 'user_id'>);
+      await createEmpresa.mutateAsync(payload as unknown as Omit<EmpresaInsert, 'user_id'>);
     }
     onClose();
   };
@@ -310,16 +328,51 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
 
                 <Separator />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>CNAE (Código)</Label>
-                    <Input value={form.cnae_codigo} onChange={e => set('cnae_codigo', e.target.value)} placeholder="4771-7" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
+                      CNAE Primário *
+                    </Label>
+                    {form.cnaes_secundarios.length > 0 && (
+                      <span className="text-xs text-success flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        +{form.cnaes_secundarios.length} CNAEs secundários importados
+                      </span>
+                    )}
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>CNAE (Descrição)</Label>
-                    <Input value={form.cnae_descricao} onChange={e => set('cnae_descricao', e.target.value)} placeholder="Comércio varejista..." />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input value={form.cnae_codigo} onChange={e => set('cnae_codigo', e.target.value)} placeholder="4771-7 (código)" />
+                    <Input value={form.cnae_descricao} onChange={e => set('cnae_descricao', e.target.value)} placeholder="Descrição do CNAE" />
                   </div>
                 </div>
+
+                {/* CNAEs Secundários — exibição */}
+                {form.cnaes_secundarios.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5" />
+                      CNAEs Secundários ({form.cnaes_secundarios.length})
+                      <span className="ml-1 text-primary">— usados na verificação de habilitação</span>
+                    </Label>
+                    <div className="rounded-lg border border-border/60 overflow-hidden">
+                      {form.cnaes_secundarios.slice(0, 8).map((c, i) => (
+                        <div key={i} className={`flex items-center gap-3 px-3 py-2 text-xs ${i % 2 === 0 ? 'bg-muted/30' : ''}`}>
+                          <span className="font-mono font-semibold text-primary w-16 shrink-0">{c.codigo}</span>
+                          <span className="text-muted-foreground truncate">{c.descricao}</span>
+                        </div>
+                      ))}
+                      {form.cnaes_secundarios.length > 8 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground bg-muted/20">
+                          + {form.cnaes_secundarios.length - 8} outros CNAEs secundários
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      CNAEs secundários são importados automaticamente via "IA Preencher" e usados para validar participação em licitações.
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -602,12 +655,21 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
 const DocumentosModal = ({ empresa, open, onClose }: { empresa: Empresa | null; open: boolean; onClose: () => void }) => {
   if (!empresa) return null;
 
+  const cnaesSecundarios = (empresa.cnaes_secundarios as unknown as CnaeSecundario[]) ?? [];
+  const totalCnaes = (empresa.cnae_codigo ? 1 : 0) + cnaesSecundarios.length;
+
   const docs = [
     { label: 'SICAF', status: empresa.sicaf_status === 'Regular' ? 'ok' : 'pendente', desc: empresa.sicaf_status ?? 'Não verificado' },
     { label: 'Certidões Fiscais', status: empresa.certidoes_validas ? 'ok' : 'vencida', desc: empresa.certidoes_validas ? 'Válidas' : 'Vencidas ou ausentes' },
     { label: 'Certidão FGTS', status: empresa.certidoes_validas ? 'ok' : 'pendente', desc: empresa.certidoes_validas ? 'Regular' : 'Verificar' },
     { label: 'Certidão Trabalhista (TST)', status: empresa.certidoes_validas ? 'ok' : 'pendente', desc: empresa.certidoes_validas ? 'Regular' : 'Verificar' },
-    { label: 'CNAE Cadastrado', status: empresa.cnae_codigo ? 'ok' : 'pendente', desc: empresa.cnae_codigo ? `${empresa.cnae_codigo} — ${empresa.cnae_descricao || ''}` : 'Não cadastrado' },
+    {
+      label: `CNAE Cadastrado (${totalCnaes} total)`,
+      status: empresa.cnae_codigo ? 'ok' : 'pendente',
+      desc: empresa.cnae_codigo
+        ? `Primário: ${empresa.cnae_codigo} — ${empresa.cnae_descricao || ''}${cnaesSecundarios.length > 0 ? ` + ${cnaesSecundarios.length} secundário(s)` : ''}`
+        : 'Não cadastrado',
+    },
     { label: 'Certificado Digital', status: empresa.certificado_digital_tipo ? 'ok' : 'pendente', desc: empresa.certificado_digital_tipo ? `${empresa.certificado_digital_tipo} — válido até ${empresa.certificado_digital_validade ? format(new Date(empresa.certificado_digital_validade), 'dd/MM/yyyy') : '?'}` : 'Não cadastrado' },
     { label: 'Gov.br Vinculado', status: empresa.govbr_vinculado ? 'ok' : 'pendente', desc: empresa.govbr_vinculado ? 'Vinculado' : 'Não vinculado' },
   ];
@@ -616,7 +678,7 @@ const DocumentosModal = ({ empresa, open, onClose }: { empresa: Empresa | null; 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
@@ -639,8 +701,27 @@ const DocumentosModal = ({ empresa, open, onClose }: { empresa: Empresa | null; 
               </Badge>
             </div>
           ))}
+
+          {/* Lista todos os CNAEs secundários */}
+          {cnaesSecundarios.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5" />
+                CNAEs Secundários ({cnaesSecundarios.length}) — todos válidos para habilitação
+              </p>
+              <div className="rounded-lg border border-border/60 overflow-hidden">
+                {cnaesSecundarios.map((c, i) => (
+                  <div key={i} className={`flex items-center gap-3 px-3 py-2 text-xs ${i % 2 === 0 ? 'bg-muted/30' : ''}`}>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                    <span className="font-mono font-semibold text-primary w-16 shrink-0">{c.codigo}</span>
+                    <span className="text-muted-foreground">{c.descricao}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
@@ -834,15 +915,19 @@ const Empresas = () => {
                           </span>
                         )}
 
-                        {empresa.cnae_codigo ? (
-                          <span className="flex items-center gap-1.5 text-success text-xs">
-                            <Award className="w-3.5 h-3.5" /> CNAE Cadastrado
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-warning text-xs">
-                            <AlertTriangle className="w-3.5 h-3.5" /> CNAE Ausente
-                          </span>
-                        )}
+                        {(() => {
+                          const sec = (empresa.cnaes_secundarios as unknown as CnaeSecundario[]) ?? [];
+                          const total = (empresa.cnae_codigo ? 1 : 0) + sec.length;
+                          return empresa.cnae_codigo ? (
+                            <span className="flex items-center gap-1.5 text-success text-xs">
+                              <Award className="w-3.5 h-3.5" /> {total} CNAE{total > 1 ? 's' : ''} cadastrado{total > 1 ? 's' : ''}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-warning text-xs">
+                              <AlertTriangle className="w-3.5 h-3.5" /> CNAE Ausente
+                            </span>
+                          );
+                        })()}
 
                         {empresa.certificado_digital_tipo ? (() => {
                           const expiry = empresa.certificado_digital_validade ? new Date(empresa.certificado_digital_validade) : null;

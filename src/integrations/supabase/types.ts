@@ -288,6 +288,7 @@ export type Database = {
           certificado_digital_validade: string | null
           cnae_codigo: string | null
           cnae_descricao: string | null
+          cnaes_secundarios: Json | null
           cnpj: string
           created_at: string
           email: string | null
@@ -313,6 +314,7 @@ export type Database = {
           certificado_digital_validade?: string | null
           cnae_codigo?: string | null
           cnae_descricao?: string | null
+          cnaes_secundarios?: Json | null
           cnpj: string
           created_at?: string
           email?: string | null
@@ -338,6 +340,7 @@ export type Database = {
           certificado_digital_validade?: string | null
           cnae_codigo?: string | null
           cnae_descricao?: string | null
+          cnaes_secundarios?: Json | null
           cnpj?: string
           created_at?: string
           email?: string | null
