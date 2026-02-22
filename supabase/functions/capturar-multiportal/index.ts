@@ -279,6 +279,32 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
         for (const item of contratacoes.slice(0, 50)) {
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
           if (valor < 500 || valor > 500000) continue;
+
+          // Skip finalized/homologated tenders
+          const situacao = (item.situacaoCompraId || item.situacaoCompraNome || item.situacao || '').toString().toLowerCase();
+          if (situacao.includes('homologad') || situacao.includes('finaliz') || situacao.includes('revogad') || situacao.includes('anulad') || situacao.includes('cancelad') || situacao.includes('encerrad') || situacao === '4' || situacao === '5') {
+            console.log(`[PNCP] Ignorando licitação finalizada: ${item.numeroControlePNCP} (situação: ${situacao})`);
+            continue;
+          }
+
+          // Use real dates from API; skip if no valid deadline date
+          const dataAberturaRaw = item.dataAberturaProposta || item.dataInicioProposta || item.dataPublicacaoPncp || item.dataInicio;
+          const dataLimiteRaw = item.dataEncerramentoProposta || item.dataFimProposta || item.dataFim;
+
+          // If no deadline date from API, skip this tender (don't fabricate dates)
+          if (!dataLimiteRaw) {
+            console.log(`[PNCP] Ignorando licitação sem data limite: ${item.numeroControlePNCP}`);
+            continue;
+          }
+
+          const dataLimite = brtToUtc(dataLimiteRaw, '');
+          const dataAbertura = brtToUtc(dataAberturaRaw, new Date().toISOString());
+
+          // Skip tenders whose deadline has already passed
+          if (new Date(dataLimite) < new Date()) {
+            console.log(`[PNCP] Ignorando licitação expirada: ${item.numeroControlePNCP} (limite: ${dataLimite})`);
+            continue;
+          }
           
           const licitacao = {
             numero: item.numeroControlePNCP || `PNCP-${Date.now()}-${totalCount}`,
@@ -290,8 +316,8 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
             objeto_resumido: (item.objetoCompra || item.descricao || '').substring(0, 80),
             valor: valor,
             modalidade: mapModalidade(item.modalidadeNome || item.modalidade || ''),
-            data_abertura: brtToUtc(item.dataAberturaProposta || item.dataInicio, new Date().toISOString()),
-            data_limite: brtToUtc(item.dataEncerramentoProposta || item.dataFim, new Date(Date.now() + 7 * 86400000).toISOString()),
+            data_abertura: dataAbertura,
+            data_limite: dataLimite,
             status: 'Nova' as const,
             segmento: classifySegmento(item.objetoCompra || item.descricao || ''),
             edital_analisado: false,
