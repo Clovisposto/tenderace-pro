@@ -36,14 +36,38 @@ const Licitacoes = () => {
   // Mutation para capturar de todos os portais
   const capturarMultiportal = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('capturar-multiportal', {
-        body: { ufs: ufsPrioritarias }
-      });
-      if (error) throw error;
-      return data;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2min timeout
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/capturar-multiportal`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({ ufs: ufsPrioritarias }),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
     },
     onSuccess: (data) => {
-      toast.success(`Capturadas ${data?.total || 0} licitações de ${data?.results?.length || 0} portais`, {
+      toast.success(`Capturadas ${data?.total || 0} licitações de ${data?.results?.filter((r: any) => r.success).length || 0} portais`, {
         description: `Estados: ${data?.ufs?.join(', ') || 'Todos'}`,
       });
       queryClient.invalidateQueries({ queryKey: ['licitacoes'] });

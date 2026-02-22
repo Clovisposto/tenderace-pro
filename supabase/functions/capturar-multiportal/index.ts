@@ -228,7 +228,7 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
     
     const hoje = new Date();
     const dataInicio = new Date(hoje);
-    dataInicio.setDate(dataInicio.getDate() - 30);
+    dataInicio.setDate(dataInicio.getDate() - 5);
     
     // PNCP API requires YYYYMMDD format (no hyphens)
     const formatDate = (d: Date) => d.toISOString().split('T')[0].replace(/-/g, '');
@@ -289,26 +289,38 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
         const contratacoes = data.data || data.resultado || data || [];
         console.log(`[PNCP] Recebidas ${contratacoes.length} contratações para ${uf}`);
 
+        let skipStats = { valor: 0, finalizada: 0, semData: 0, expirada: 0, salvas: 0 };
         for (const item of contratacoes) {
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
-          if (valor < 500 || valor > 500000) continue;
+          if (valor < 500 || valor > 500000) { skipStats.valor++; continue; }
 
           // Skip finalized/homologated tenders
           if (isSituacaoFinalizada(item)) {
+            skipStats.finalizada++;
             continue;
           }
 
-          // Use real dates from API; skip if no valid deadline date
+          // Use real dates from API; if no deadline, estimate 15 days from publication
           const dataAberturaRaw = item.dataAberturaProposta || item.dataInicioProposta || item.dataPublicacaoPncp || item.dataInicio;
           const dataLimiteRaw = item.dataEncerramentoProposta || item.dataFimProposta || item.dataFim;
 
-          if (!dataLimiteRaw) continue;
-
-          const dataLimite = brtToUtc(dataLimiteRaw, '');
-          const dataAbertura = brtToUtc(dataAberturaRaw, new Date().toISOString());
+          // If no explicit deadline, estimate from publication date + 15 days
+          let dataLimite: string;
+          let dataAbertura: string;
+          if (dataLimiteRaw) {
+            dataLimite = brtToUtc(dataLimiteRaw, '');
+          } else {
+            // Use publication date + 15 days as estimated deadline
+            const pubDate = dataAberturaRaw || item.dataPublicacaoPncp;
+            if (!pubDate) { skipStats.semData++; continue; }
+            const estimated = new Date(brtToUtc(pubDate, new Date().toISOString()));
+            estimated.setDate(estimated.getDate() + 15);
+            dataLimite = estimated.toISOString();
+          }
+          dataAbertura = brtToUtc(dataAberturaRaw, new Date().toISOString());
 
           // Skip tenders whose deadline has already passed
-          if (new Date(dataLimite) < new Date()) continue;
+          if (new Date(dataLimite) < new Date()) { skipStats.expirada++; continue; }
 
           const numeroPNCP = item.numeroControlePNCP || '';
           
@@ -336,8 +348,9 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
             .from('licitacoes')
             .upsert(licitacao, { onConflict: 'numero' });
 
-          if (!error) totalCount++;
+          if (!error) { totalCount++; skipStats.salvas++; }
         }
+        console.log(`[PNCP] ${uf} stats: ${JSON.stringify(skipStats)}`);
 
       } catch (ufError) {
         console.error(`[PNCP] Erro ao buscar ${uf}:`, ufError);
