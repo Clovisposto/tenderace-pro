@@ -618,6 +618,96 @@ function passaModalidadeFiltro(modalidade: string, modalidadesPermitidas: string
   return modalidadesPermitidas.some(m => modalidade.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(modalidade.toLowerCase()));
 }
 
+// Verify existing PNCP tenders against the API to remove concluded ones
+async function verifyAndCleanPncpTenders(supabase: any, ufsPermitidas: string[]): Promise<number> {
+  try {
+    // Get all existing PNCP tender numbers from DB
+    const { data: existingTenders, error } = await supabase
+      .from('licitacoes')
+      .select('id, numero, uf')
+      .eq('portal', 'PNCP');
+
+    if (error || !existingTenders || existingTenders.length === 0) {
+      console.log('[PNCP-Verify] Nenhuma licitação PNCP para verificar');
+      return 0;
+    }
+
+    // Build a map of existing tender numbers to their DB ids
+    const existingMap = new Map<string, { id: string; uf: string }>();
+    for (const t of existingTenders) {
+      existingMap.set(t.numero, { id: t.id, uf: t.uf });
+    }
+
+    // Get unique UFs from existing tenders
+    const ufsToCheck = [...new Set(existingTenders.map((t: any) => t.uf))];
+    console.log(`[PNCP-Verify] Verificando ${existingTenders.length} licitações nas UFs: ${ufsToCheck.join(', ')}`);
+
+    // Query the listing API with a 30-day window to find finalized tenders
+    const hoje = new Date();
+    const dataInicio = new Date(hoje);
+    dataInicio.setDate(dataInicio.getDate() - 30);
+    const formatDate = (d: Date) => d.toISOString().split('T')[0].replace(/-/g, '');
+
+    let removed = 0;
+    const finalizedNumbers: string[] = [];
+
+    for (const uf of ufsToCheck.slice(0, 5)) {
+      try {
+        // Paginate to find all existing tenders and check their status
+        for (let pagina = 1; pagina <= 3; pagina++) {
+          const params = new URLSearchParams({
+            dataInicial: formatDate(dataInicio),
+            dataFinal: formatDate(hoje),
+            codigoModalidadeContratacao: '8',
+            uf: uf as string,
+            pagina: String(pagina),
+            tamanhoPagina: '500',
+          });
+
+          const response = await fetch(
+            `https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?${params}`,
+            { headers: { 'Accept': 'application/json', 'User-Agent': 'TenderAce-Bot/1.0' } }
+          );
+
+          if (!response.ok || response.status === 204) break;
+          const text = await response.text();
+          if (!text || text.trim() === '') break;
+
+          let data;
+          try { data = JSON.parse(text); } catch { break; }
+          const contratacoes = data.data || data.resultado || data || [];
+          if (contratacoes.length === 0) break;
+
+          for (const item of contratacoes) {
+            const numero = item.numeroControlePNCP || '';
+            if (!numero || !existingMap.has(numero)) continue;
+
+            if (isSituacaoFinalizada(item)) {
+              const dbEntry = existingMap.get(numero)!;
+              console.log(`[PNCP-Verify] Removendo ${numero} (${item.situacaoCompraNome})`);
+              await supabase.from('licitacoes').delete().eq('id', dbEntry.id);
+              removed++;
+              finalizedNumbers.push(numero);
+              existingMap.delete(numero);
+            }
+          }
+
+          // If fewer results than page size, no more pages
+          if (contratacoes.length < 500) break;
+        }
+      } catch (e) {
+        console.warn(`[PNCP-Verify] Erro ao verificar UF ${uf}:`, e);
+      }
+    }
+
+    console.log(`[PNCP-Verify] Concluído: ${removed} concluídas removidas${finalizedNumbers.length > 0 ? ': ' + finalizedNumbers.join(', ') : ''}`);
+    return removed;
+  } catch (error) {
+    console.error('[PNCP-Verify] Erro:', error);
+    return 0;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -704,6 +794,9 @@ serve(async (req) => {
       captureBancoBrasil(supabase, ufsPermitidas),
     ]);
 
+    // Verify existing PNCP tenders - remove those now concluída/homologada
+    const removedByStatus = await verifyAndCleanPncpTenders(supabase, ufsPermitidas);
+
     // Filter recently captured tenders by tipo and modalidade
     console.log('[MultiPortal] Aplicando filtros pós-captura...');
     
@@ -727,7 +820,8 @@ serve(async (req) => {
         }
       }
     }
-    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas`);
+    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade`);
+    console.log(`[MultiPortal] Verificação PNCP: ${removedByStatus} licitações concluídas removidas`);
 
     const totalCount = results.reduce((sum, r) => sum + r.count, 0);
     const successCount = results.filter(r => r.success).length;
@@ -741,6 +835,7 @@ serve(async (req) => {
             results,
             total: totalCount,
             removidas,
+            removedByStatus,
             successfulPortals: successCount,
             ufs: ufsPermitidas,
             tipos_licitacao: tiposPermitidos,
@@ -755,9 +850,10 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Capturadas ${totalCount} licitações reais de ${successCount} portais para ${ufsPermitidas.length} estados`,
+      message: `Capturadas ${totalCount} licitações reais de ${successCount} portais. ${removedByStatus} concluídas removidas.`,
       results,
       total: totalCount,
+      removedByStatus,
       ufs: ufsPermitidas,
       tipos_licitacao: tiposPermitidos,
     }), {
