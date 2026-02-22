@@ -146,51 +146,17 @@ function brtToUtc(dateStr: string | null | undefined, fallback: string): string 
   return d.toISOString();
 }
 
-// Parse PNCP number to extract CNPJ, year, and sequence for detail API lookup
-// Format: "CNPJ-sequencial-numero/ano" e.g. "10735145000194-1-000019/2026"
-function parsePncpNumero(numero: string): { cnpj: string; ano: string; seq: string } | null {
-  if (!numero) return null;
-  const match = numero.match(/^(\d{14})-\d+-(\d+)\/(\d{4})$/);
-  if (!match) return null;
-  return { cnpj: match[1], ano: match[3], seq: String(parseInt(match[2], 10)) };
-}
-
-// Check real status of a tender via PNCP detail API
-// Returns true if the tender is still open/active, false if finalized
-async function isPncpTenderActive(numero: string): Promise<boolean> {
-  const parsed = parsePncpNumero(numero);
-  if (!parsed) return true; // If can't parse, allow it through
-
-  try {
-    const url = `https://pncp.gov.br/api/consulta/v1/contratacoes/${parsed.cnpj}/${parsed.ano}/${parsed.seq}`;
-    const resp = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'TenderAce-Bot/1.0',
-      },
-    });
-
-    if (!resp.ok) {
-      console.log(`[PNCP-Detail] HTTP ${resp.status} para ${numero}`);
-      return true; // If API fails, don't block
-    }
-
-    const detail = await resp.json();
-    const situacaoId = detail.situacaoCompraId;
-    const situacaoNome = (detail.situacaoCompraNome || '').toLowerCase();
-
-    console.log(`[PNCP-Detail] ${numero} → situação: ${situacaoId} (${situacaoNome})`);
-
-    // situacaoCompraId: 1=Divulgada, 2=Aberta, 3=Suspensa, 4=Homologada, 5=Revogada, 6=Anulada, 7=Deserta, 8=Fracassada
-    const statusFinalizados = [4, 5, 6, 7, 8];
-    if (statusFinalizados.includes(situacaoId)) return false;
-    if (situacaoNome.includes('homologad') || situacaoNome.includes('encerrad') || situacaoNome.includes('revogad') || situacaoNome.includes('anulad') || situacaoNome.includes('deserta') || situacaoNome.includes('fracassad')) return false;
-
-    return true;
-  } catch (err) {
-    console.warn(`[PNCP-Detail] Erro ao verificar ${numero}:`, err);
-    return true; // On error, don't block
-  }
+// Check if a tender's situacao from the listing API indicates it's finalized
+function isSituacaoFinalizada(item: any): boolean {
+  const situacaoId = item.situacaoCompraId;
+  const situacaoNome = (item.situacaoCompraNome || '').toLowerCase();
+  
+  // situacaoCompraId: 1=Divulgada, 2=Aberta, 3=Suspensa, 4=Homologada, 5=Revogada, 6=Anulada, 7=Deserta, 8=Fracassada
+  const statusFinalizados = [4, 5, 6, 7, 8];
+  if (situacaoId && statusFinalizados.includes(situacaoId)) return true;
+  if (situacaoNome.includes('homologad') || situacaoNome.includes('encerrad') || situacaoNome.includes('revogad') || situacaoNome.includes('anulad') || situacaoNome.includes('deserta') || situacaoNome.includes('fracassad')) return true;
+  
+  return false;
 }
 
 function mapModalidade(texto: string): string {
@@ -323,14 +289,12 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
         const contratacoes = data.data || data.resultado || data || [];
         console.log(`[PNCP] Recebidas ${contratacoes.length} contratações para ${uf}`);
 
-        for (const item of contratacoes.slice(0, 50)) {
+        for (const item of contratacoes) {
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
           if (valor < 500 || valor > 500000) continue;
 
           // Skip finalized/homologated tenders
-          const situacao = (item.situacaoCompraId || item.situacaoCompraNome || item.situacao || '').toString().toLowerCase();
-          if (situacao.includes('homologad') || situacao.includes('finaliz') || situacao.includes('revogad') || situacao.includes('anulad') || situacao.includes('cancelad') || situacao.includes('encerrad') || situacao === '4' || situacao === '5') {
-            console.log(`[PNCP] Ignorando licitação finalizada: ${item.numeroControlePNCP} (situação: ${situacao})`);
+          if (isSituacaoFinalizada(item)) {
             continue;
           }
 
@@ -338,31 +302,15 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
           const dataAberturaRaw = item.dataAberturaProposta || item.dataInicioProposta || item.dataPublicacaoPncp || item.dataInicio;
           const dataLimiteRaw = item.dataEncerramentoProposta || item.dataFimProposta || item.dataFim;
 
-          // If no deadline date from API, skip this tender (don't fabricate dates)
-          if (!dataLimiteRaw) {
-            console.log(`[PNCP] Ignorando licitação sem data limite: ${item.numeroControlePNCP}`);
-            continue;
-          }
+          if (!dataLimiteRaw) continue;
 
           const dataLimite = brtToUtc(dataLimiteRaw, '');
           const dataAbertura = brtToUtc(dataAberturaRaw, new Date().toISOString());
 
           // Skip tenders whose deadline has already passed
-          if (new Date(dataLimite) < new Date()) {
-            console.log(`[PNCP] Ignorando licitação expirada: ${item.numeroControlePNCP} (limite: ${dataLimite})`);
-            continue;
-          }
+          if (new Date(dataLimite) < new Date()) continue;
 
           const numeroPNCP = item.numeroControlePNCP || '';
-
-          // Double-check: query PNCP detail API to confirm tender is truly active
-          if (numeroPNCP) {
-            const isActive = await isPncpTenderActive(numeroPNCP);
-            if (!isActive) {
-              console.log(`[PNCP] Verificação detalhada: ${numeroPNCP} está finalizada — ignorando`);
-              continue;
-            }
-          }
           
           const licitacao = {
             numero: numeroPNCP || `PNCP-${Date.now()}-${totalCount}`,
@@ -390,6 +338,7 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
 
           if (!error) totalCount++;
         }
+
       } catch (ufError) {
         console.error(`[PNCP] Erro ao buscar ${uf}:`, ufError);
         errors.push(`${uf}: ${ufError instanceof Error ? ufError.message : 'erro'}`);
