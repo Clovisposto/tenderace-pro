@@ -294,8 +294,11 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
           if (valor < 500 || valor > 500000) { skipStats.valor++; continue; }
 
-          // Skip finalized/homologated tenders (by situação OR by valorTotalHomologado)
-          if (isSituacaoFinalizada(item) || (item.valorTotalHomologado != null && item.valorTotalHomologado > 0)) {
+          // Only keep tenders actively receiving proposals (situacaoCompraId: 1=Divulgada, 2=Aberta)
+          // Skip all others: 3=Suspensa, 4=Homologada, 5=Revogada, 6=Anulada, 7=Deserta, 8=Fracassada
+          const situacaoId = item.situacaoCompraId;
+          const isReceivingProposals = !situacaoId || situacaoId === 1 || situacaoId === 2;
+          if (!isReceivingProposals || (item.valorTotalHomologado != null && item.valorTotalHomologado > 0)) {
             skipStats.finalizada++;
             continue;
           }
