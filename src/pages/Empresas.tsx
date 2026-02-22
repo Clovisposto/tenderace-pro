@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { useEmpresas, useCreateEmpresa, useUpdateEmpresa, useDeleteEmpresa } from '@/hooks/useEmpresas';
 import type { Empresa, EmpresaInsert } from '@/hooks/useEmpresas';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,6 +85,205 @@ const EmptyState = ({ onAdd }: { onAdd: () => void }) => (
     </Button>
   </div>
 );
+
+// ─── Papel Timbrado Upload ───────────────────────────────────────────────────
+const PapelTimbradoUpload = ({ empresa }: { empresa: Empresa | null }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const updateEmpresa = useUpdateEmpresa();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const currentUrl = (empresa as any)?.papel_timbrado_url ?? null;
+
+  // Load signed URL for existing letterhead
+  useEffect(() => {
+    if (currentUrl && !previewUrl) {
+      supabase.storage
+        .from('papeis-timbrados')
+        .createSignedUrl(currentUrl, 3600)
+        .then(({ data }) => {
+          if (data?.signedUrl) setPreviewUrl(data.signedUrl);
+        });
+    }
+  }, [currentUrl]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !empresa) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({ title: 'Arquivo muito grande', description: 'O limite é 10MB.', variant: 'destructive' });
+      return;
+    }
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: 'Formato inválido', description: 'Envie PNG, JPG, WEBP ou PDF.', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const filePath = `${user.id}/${empresa.id}/papel-timbrado.${ext}`;
+
+      // Delete old file if exists
+      if (currentUrl) {
+        await supabase.storage.from('papeis-timbrados').remove([currentUrl]);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from('papeis-timbrados')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Store the file path (bucket is private, we'll use signed URLs for preview)
+      await updateEmpresa.mutateAsync({
+        id: empresa.id,
+        papel_timbrado_url: filePath,
+      } as any);
+
+      // Get signed URL for immediate preview
+      const { data: signedData } = await supabase.storage
+        .from('papeis-timbrados')
+        .createSignedUrl(filePath, 3600);
+      setPreviewUrl(signedData?.signedUrl ?? null);
+      toast({ title: 'Papel timbrado enviado', description: 'Arquivo salvo com sucesso.' });
+    } catch (err: any) {
+      toast({ title: 'Erro no upload', description: err?.message || 'Falha ao enviar arquivo.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!empresa || !currentUrl) return;
+    setUploading(true);
+    try {
+      if (currentUrl) {
+        await supabase.storage.from('papeis-timbrados').remove([currentUrl]);
+      }
+      await updateEmpresa.mutateAsync({ id: empresa.id, papel_timbrado_url: null } as any);
+      setPreviewUrl(null);
+      toast({ title: 'Papel timbrado removido' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover', description: err?.message || 'Falha.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const hasLetterhead = !!currentUrl || !!previewUrl;
+  const displayUrl = previewUrl; // Always use signed URL for display
+  const isPdf = currentUrl?.toLowerCase().endsWith('.pdf') || previewUrl?.toLowerCase().endsWith('.pdf');
+
+  return (
+    <div className="space-y-5 py-4 pb-6">
+      {/* Info box */}
+      <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+        <div className="flex items-start gap-3">
+          <FileText className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-sm text-primary mb-1">Papel Timbrado da Empresa</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Envie o modelo de papel timbrado da empresa (PNG, JPG, WEBP ou PDF, até 10MB). 
+              Este arquivo será usado como base para gerar propostas e contratos com a identidade visual da empresa.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload area */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,application/pdf"
+        onChange={handleUpload}
+        className="hidden"
+      />
+
+      {hasLetterhead ? (
+        <div className="space-y-3">
+          <div className="rounded-lg border-2 border-success/30 bg-success/5 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <CheckCircle2 className="w-5 h-5 text-success" />
+              <p className="font-semibold text-sm text-success">Papel timbrado cadastrado</p>
+            </div>
+            {isPdf ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <FileText className="w-8 h-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Arquivo PDF</p>
+                  <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                    Visualizar PDF →
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <img
+                src={displayUrl}
+                alt="Papel timbrado"
+                className="max-h-64 w-full object-contain rounded-lg border border-border bg-background"
+              />
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              Substituir
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={handleRemove}
+              disabled={uploading}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Remover
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !empresa}
+          className="w-full p-8 rounded-lg border-2 border-dashed border-border hover:border-primary/50 bg-muted/30 hover:bg-primary/5 transition-all flex flex-col items-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {uploading ? (
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          ) : (
+            <Upload className="w-10 h-10 text-muted-foreground" />
+          )}
+          <div className="text-center">
+            <p className="font-semibold text-sm">{uploading ? 'Enviando...' : 'Clique para enviar o papel timbrado'}</p>
+            <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP ou PDF — até 10MB</p>
+          </div>
+        </button>
+      )}
+
+      {!empresa && (
+        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-xs text-warning">
+            <strong>⚠️</strong> Salve a empresa primeiro para poder enviar o papel timbrado.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Empresa Form Modal ──────────────────────────────────────────────────────
 interface EmpresaFormModalProps {
@@ -252,14 +452,14 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="mx-6 mt-2 shrink-0 grid grid-cols-3 w-auto">
+           <TabsList className="mx-6 mt-2 shrink-0 grid grid-cols-4 w-auto">
             <TabsTrigger value="dados" className="gap-1.5 text-xs">
               <Building2 className="w-3.5 h-3.5" />
-              Dados da Empresa
+              Dados
             </TabsTrigger>
             <TabsTrigger value="certificado" className="gap-1.5 text-xs">
               <KeyRound className="w-3.5 h-3.5" />
-              Certificado Digital
+              Certificado
               {form.certificado_digital_tipo && certStatus !== 'valid' && (
                 <span className="ml-1 w-1.5 h-1.5 rounded-full bg-warning inline-block" />
               )}
@@ -268,6 +468,13 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
               <Globe className="w-3.5 h-3.5" />
               Gov.br
               {form.govbr_vinculado && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-success inline-block" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="timbrado" className="gap-1.5 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              Timbrado
+              {empresa?.papel_timbrado_url && (
                 <span className="ml-1 w-1.5 h-1.5 rounded-full bg-success inline-block" />
               )}
             </TabsTrigger>
@@ -637,6 +844,13 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
               </div>
             </ScrollArea>
           </TabsContent>
+
+          {/* ── Aba: Papel Timbrado ── */}
+          <TabsContent value="timbrado" className="flex-1 overflow-hidden m-0">
+            <ScrollArea className="h-full px-6">
+              <PapelTimbradoUpload empresa={empresa ?? null} />
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
 
         <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
@@ -954,6 +1168,16 @@ const Empresas = () => {
                         ) : (
                           <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
                             <Globe className="w-3.5 h-3.5" /> Gov.br Pendente
+                          </span>
+                        )}
+
+                        {(empresa as any).papel_timbrado_url ? (
+                          <span className="flex items-center gap-1.5 text-success text-xs">
+                            <FileText className="w-3.5 h-3.5" /> Timbrado ✓
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-warning text-xs">
+                            <FileText className="w-3.5 h-3.5" /> Sem Timbrado
                           </span>
                         )}
                       </div>
