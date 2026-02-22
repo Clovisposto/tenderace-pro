@@ -298,6 +298,7 @@ export type Database = {
           licenca_farmaceutica: boolean | null
           municipio: string
           nome: string
+          papel_timbrado_url: string | null
           politica_participacao: Json | null
           razao_social: string | null
           segmento: Database["public"]["Enums"]["segmento_type"]
@@ -324,6 +325,7 @@ export type Database = {
           licenca_farmaceutica?: boolean | null
           municipio: string
           nome: string
+          papel_timbrado_url?: string | null
           politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
@@ -350,6 +352,7 @@ export type Database = {
           licenca_farmaceutica?: boolean | null
           municipio?: string
           nome?: string
+          papel_timbrado_url?: string | null
           politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
