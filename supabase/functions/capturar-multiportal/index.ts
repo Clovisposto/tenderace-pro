@@ -294,8 +294,8 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
           const valor = item.valorTotalEstimado || item.valorTotalHomologado || 0;
           if (valor < 500 || valor > 500000) { skipStats.valor++; continue; }
 
-          // Skip finalized/homologated tenders
-          if (isSituacaoFinalizada(item)) {
+          // Skip finalized/homologated tenders (by situação OR by valorTotalHomologado)
+          if (isSituacaoFinalizada(item) || (item.valorTotalHomologado != null && item.valorTotalHomologado > 0)) {
             skipStats.finalizada++;
             continue;
           }
@@ -654,14 +654,14 @@ async function verifyAndCleanPncpTenders(supabase: any, ufsPermitidas: string[])
     for (const uf of ufsToCheck.slice(0, 5)) {
       try {
         // Paginate to find all existing tenders and check their status
-        for (let pagina = 1; pagina <= 3; pagina++) {
+        for (let pagina = 1; pagina <= 2; pagina++) {
           const params = new URLSearchParams({
             dataInicial: formatDate(dataInicio),
             dataFinal: formatDate(hoje),
             codigoModalidadeContratacao: '8',
             uf: uf as string,
             pagina: String(pagina),
-            tamanhoPagina: '500',
+            tamanhoPagina: '50',
           });
 
           const response = await fetch(
@@ -669,31 +669,45 @@ async function verifyAndCleanPncpTenders(supabase: any, ufsPermitidas: string[])
             { headers: { 'Accept': 'application/json', 'User-Agent': 'TenderAce-Bot/1.0' } }
           );
 
-          if (!response.ok || response.status === 204) break;
+          if (!response.ok || response.status === 204) {
+            console.log(`[PNCP-Verify] ${uf} pag ${pagina}: HTTP ${response.status}`);
+            break;
+          }
           const text = await response.text();
-          if (!text || text.trim() === '') break;
+          if (!text || text.trim() === '') { console.log(`[PNCP-Verify] ${uf} pag ${pagina}: resposta vazia`); break; }
 
           let data;
-          try { data = JSON.parse(text); } catch { break; }
+          try { data = JSON.parse(text); } catch { console.log(`[PNCP-Verify] ${uf} pag ${pagina}: JSON inválido`); break; }
           const contratacoes = data.data || data.resultado || data || [];
-          if (contratacoes.length === 0) break;
+          if (contratacoes.length === 0) { console.log(`[PNCP-Verify] ${uf} pag ${pagina}: 0 contratações`); break; }
 
+          let foundInBatch = 0;
           for (const item of contratacoes) {
             const numero = item.numeroControlePNCP || '';
             if (!numero || !existingMap.has(numero)) continue;
 
-            if (isSituacaoFinalizada(item)) {
+            foundInBatch++;
+            
+            // Check if finalized by situacaoCompraId OR by valorTotalHomologado being set
+            // The PNCP listing API doesn't update situacaoCompraId, but valorTotalHomologado
+            // gets populated when a tender is concluded/homologated
+            const isFinalized = isSituacaoFinalizada(item) || 
+              (item.valorTotalHomologado != null && item.valorTotalHomologado > 0);
+
+            if (isFinalized) {
+              const reason = item.valorTotalHomologado ? `homologada (R$${item.valorTotalHomologado})` : item.situacaoCompraNome;
               const dbEntry = existingMap.get(numero)!;
-              console.log(`[PNCP-Verify] Removendo ${numero} (${item.situacaoCompraNome})`);
+              console.log(`[PNCP-Verify] Removendo ${numero} (${reason})`);
               await supabase.from('licitacoes').delete().eq('id', dbEntry.id);
               removed++;
               finalizedNumbers.push(numero);
               existingMap.delete(numero);
             }
           }
+          console.log(`[PNCP-Verify] ${uf} pag ${pagina}: ${contratacoes.length} resultados, ${foundInBatch} existentes encontrados`);
 
           // If fewer results than page size, no more pages
-          if (contratacoes.length < 500) break;
+          if (contratacoes.length < 50) break;
         }
       } catch (e) {
         console.warn(`[PNCP-Verify] Erro ao verificar UF ${uf}:`, e);
