@@ -324,32 +324,38 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
   const updateEmpresa = useUpdateEmpresa();
   const isEditing = !!empresa;
 
-  const [form, setForm] = useState(() =>
-    empresa
+  const buildForm = (e: Empresa | null | undefined) =>
+    e
       ? {
-          nome: empresa.nome ?? '',
-          cnpj: empresa.cnpj ?? '',
-          razao_social: empresa.razao_social ?? '',
-          segmento: empresa.segmento as 'Medicamentos' | 'Empreendimentos',
-          uf: empresa.uf ?? '',
-          municipio: empresa.municipio ?? '',
-          endereco: empresa.endereco ?? '',
-          telefone: empresa.telefone ?? '',
-          email: empresa.email ?? '',
-          cnae_codigo: empresa.cnae_codigo ?? '',
-          cnae_descricao: empresa.cnae_descricao ?? '',
-          cnaes_secundarios: (empresa.cnaes_secundarios as unknown as CnaeSecundario[]) ?? [],
-          sicaf_status: empresa.sicaf_status ?? 'Pendente',
-          certidoes_validas: empresa.certidoes_validas ?? false,
-          certificado_digital_tipo: empresa.certificado_digital_tipo ?? '',
-          certificado_digital_validade: empresa.certificado_digital_validade
-            ? empresa.certificado_digital_validade.split('T')[0]
+          nome: e.nome ?? '',
+          cnpj: e.cnpj ?? '',
+          razao_social: e.razao_social ?? '',
+          segmento: e.segmento as 'Medicamentos' | 'Empreendimentos',
+          uf: e.uf ?? '',
+          municipio: e.municipio ?? '',
+          endereco: e.endereco ?? '',
+          telefone: e.telefone ?? '',
+          email: e.email ?? '',
+          cnae_codigo: e.cnae_codigo ?? '',
+          cnae_descricao: e.cnae_descricao ?? '',
+          cnaes_secundarios: (e.cnaes_secundarios as unknown as CnaeSecundario[]) ?? [],
+          sicaf_status: e.sicaf_status ?? 'Pendente',
+          certidoes_validas: e.certidoes_validas ?? false,
+          certificado_digital_tipo: e.certificado_digital_tipo ?? '',
+          certificado_digital_validade: e.certificado_digital_validade
+            ? e.certificado_digital_validade.split('T')[0]
             : '',
-          certificado_digital_emissor: empresa.certificado_digital_emissor ?? '',
-          govbr_vinculado: empresa.govbr_vinculado ?? false,
+          certificado_digital_emissor: e.certificado_digital_emissor ?? '',
+          govbr_vinculado: e.govbr_vinculado ?? false,
         }
-      : { ...EMPTY_FORM }
-  );
+      : { ...EMPTY_FORM };
+
+  const [form, setForm] = useState(() => buildForm(empresa));
+
+  // Sync form when empresa prop changes (e.g. opening edit for a different company)
+  useEffect(() => {
+    setForm(buildForm(empresa));
+  }, [empresa]);
 
   const [loadingCnpj, setLoadingCnpj] = useState(false);
 
