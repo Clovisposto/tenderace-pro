@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,8 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Radio
+  Radio,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +40,8 @@ import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
 const Admin = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
   const [lastCapture, setLastCapture] = useState<Date | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch cron job logs
   const { data: cronLogs, refetch: refetchLogs } = useQuery({
@@ -93,6 +97,31 @@ const Admin = () => {
     } catch (error) {
       toast.error('Erro na captura manual');
       console.error(error);
+    }
+  };
+
+  const handleClearAllLicitacoes = async () => {
+    if (!confirm('⚠️ ATENÇÃO: Isso vai DELETAR TODAS as licitações do banco de dados. Deseja continuar?')) return;
+    if (!confirm('Tem certeza? Esta ação é IRREVERSÍVEL.')) return;
+    
+    setClearing(true);
+    try {
+      const { error } = await supabase
+        .from('licitacoes')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // deletes all rows
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['metricas'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-metricas'] });
+      toast.success('Todas as licitações foram removidas. Execute uma nova captura.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao limpar licitações');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -291,6 +320,22 @@ const Admin = () => {
                     }} className="gap-2">
                       <RotateCcw className="w-4 h-4" />
                       Atualizar
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <div>
+                      <p className="font-medium text-destructive">Limpar Todas as Licitações</p>
+                      <p className="text-xs text-muted-foreground">Remove tudo para capturar do zero</p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleClearAllLicitacoes} 
+                      disabled={clearing}
+                      className="gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {clearing ? 'Limpando...' : 'Limpar Tudo'}
                     </Button>
                   </div>
 
