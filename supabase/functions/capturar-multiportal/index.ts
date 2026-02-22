@@ -146,6 +146,53 @@ function brtToUtc(dateStr: string | null | undefined, fallback: string): string 
   return d.toISOString();
 }
 
+// Parse PNCP number to extract CNPJ, year, and sequence for detail API lookup
+// Format: "CNPJ-sequencial-numero/ano" e.g. "10735145000194-1-000019/2026"
+function parsePncpNumero(numero: string): { cnpj: string; ano: string; seq: string } | null {
+  if (!numero) return null;
+  const match = numero.match(/^(\d{14})-\d+-(\d+)\/(\d{4})$/);
+  if (!match) return null;
+  return { cnpj: match[1], ano: match[3], seq: String(parseInt(match[2], 10)) };
+}
+
+// Check real status of a tender via PNCP detail API
+// Returns true if the tender is still open/active, false if finalized
+async function isPncpTenderActive(numero: string): Promise<boolean> {
+  const parsed = parsePncpNumero(numero);
+  if (!parsed) return true; // If can't parse, allow it through
+
+  try {
+    const url = `https://pncp.gov.br/api/consulta/v1/contratacoes/${parsed.cnpj}/${parsed.ano}/${parsed.seq}`;
+    const resp = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'TenderAce-Bot/1.0',
+      },
+    });
+
+    if (!resp.ok) {
+      console.log(`[PNCP-Detail] HTTP ${resp.status} para ${numero}`);
+      return true; // If API fails, don't block
+    }
+
+    const detail = await resp.json();
+    const situacaoId = detail.situacaoCompraId;
+    const situacaoNome = (detail.situacaoCompraNome || '').toLowerCase();
+
+    console.log(`[PNCP-Detail] ${numero} → situação: ${situacaoId} (${situacaoNome})`);
+
+    // situacaoCompraId: 1=Divulgada, 2=Aberta, 3=Suspensa, 4=Homologada, 5=Revogada, 6=Anulada, 7=Deserta, 8=Fracassada
+    const statusFinalizados = [4, 5, 6, 7, 8];
+    if (statusFinalizados.includes(situacaoId)) return false;
+    if (situacaoNome.includes('homologad') || situacaoNome.includes('encerrad') || situacaoNome.includes('revogad') || situacaoNome.includes('anulad') || situacaoNome.includes('deserta') || situacaoNome.includes('fracassad')) return false;
+
+    return true;
+  } catch (err) {
+    console.warn(`[PNCP-Detail] Erro ao verificar ${numero}:`, err);
+    return true; // On error, don't block
+  }
+}
+
 function mapModalidade(texto: string): string {
   const lower = texto.toLowerCase();
   if (lower.includes('dispensa') && lower.includes('disputa')) {
@@ -305,9 +352,20 @@ async function capturePNCP(supabase: any, ufsPermitidas: string[]): Promise<Capt
             console.log(`[PNCP] Ignorando licitação expirada: ${item.numeroControlePNCP} (limite: ${dataLimite})`);
             continue;
           }
+
+          const numeroPNCP = item.numeroControlePNCP || '';
+
+          // Double-check: query PNCP detail API to confirm tender is truly active
+          if (numeroPNCP) {
+            const isActive = await isPncpTenderActive(numeroPNCP);
+            if (!isActive) {
+              console.log(`[PNCP] Verificação detalhada: ${numeroPNCP} está finalizada — ignorando`);
+              continue;
+            }
+          }
           
           const licitacao = {
-            numero: item.numeroControlePNCP || `PNCP-${Date.now()}-${totalCount}`,
+            numero: numeroPNCP || `PNCP-${Date.now()}-${totalCount}`,
             portal: 'PNCP' as const,
             orgao: item.orgaoEntidade?.razaoSocial || item.nomeOrgao || 'Órgão Público',
             municipio: item.municipioNome || item.municipio || 'Capital',
