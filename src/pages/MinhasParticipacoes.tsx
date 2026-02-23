@@ -50,6 +50,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDetalheModal';
 import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
+import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
 
 interface Participacao {
   id: string;
