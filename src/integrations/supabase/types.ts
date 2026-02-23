@@ -644,6 +644,82 @@ export type Database = {
           },
         ]
       }
+      robo_configuracao: {
+        Row: {
+          ativo: boolean
+          certificado_path: string | null
+          created_at: string
+          empresa_id: string
+          erro_mensagem: string | null
+          id: string
+          lance_agressivo: boolean | null
+          licitacao_id: string
+          margem_minima: number | null
+          proposta_id: string | null
+          status: string | null
+          ultimo_heartbeat: string | null
+          updated_at: string
+          user_id: string
+          valor_minimo: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          certificado_path?: string | null
+          created_at?: string
+          empresa_id: string
+          erro_mensagem?: string | null
+          id?: string
+          lance_agressivo?: boolean | null
+          licitacao_id: string
+          margem_minima?: number | null
+          proposta_id?: string | null
+          status?: string | null
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+          user_id: string
+          valor_minimo?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          certificado_path?: string | null
+          created_at?: string
+          empresa_id?: string
+          erro_mensagem?: string | null
+          id?: string
+          lance_agressivo?: boolean | null
+          licitacao_id?: string
+          margem_minima?: number | null
+          proposta_id?: string | null
+          status?: string | null
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_minimo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "robo_configuracao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "robo_configuracao_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "robo_configuracao_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
