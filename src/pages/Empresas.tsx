@@ -760,6 +760,17 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
                     computador que será usado para enviar propostas.
                   </p>
                 </div>
+
+                <Separator />
+
+                {/* Upload do Certificado A1 para automação */}
+                {empresa && (
+                  <CertificadoA1Upload
+                    empresaId={empresa.id}
+                    empresaNome={empresa.nome}
+                    certificadoTipo={form.certificado_digital_tipo}
+                  />
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
