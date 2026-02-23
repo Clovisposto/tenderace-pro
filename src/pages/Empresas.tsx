@@ -68,6 +68,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { CertificadoA1Upload } from '@/components/certificado/CertificadoA1Upload';
 
 // ─── Empty state ────────────────────────────────────────────────────────────
 const EmptyState = ({ onAdd }: { onAdd: () => void }) => (
