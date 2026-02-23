@@ -1091,6 +1091,7 @@ const MinhasParticipacoes = () => {
                       key={lic.id} 
                       licitacao={lic}
                       isRealtime={false}
+                      empresaId={primeiraEmpresa?.id}
                     />
                   ))
                 )}
