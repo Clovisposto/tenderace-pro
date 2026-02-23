@@ -604,6 +604,22 @@ const MinhasParticipacoes = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [realtimeUpdates, setRealtimeUpdates] = useState<string[]>([]);
+
+  // Fetch user's first empresa for robot activation
+  const { data: primeiraEmpresa } = useQuery({
+    queryKey: ['primeira-empresa', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+  });
   const [creatingTest, setCreatingTest] = useState(false);
   const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
   const [isAiUpdating, setIsAiUpdating] = useState(false);
