@@ -157,7 +157,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 // Card para licitações autorizadas (robô vai participar)
-const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?: boolean }) => {
+const AutorizadaCard = ({ licitacao, isRealtime, empresaId }: { licitacao: any; isRealtime?: boolean; empresaId?: string }) => {
   const [robotStatus, setRobotStatus] = useState<'aguardando' | 'preparando' | 'monitorando' | 'disputando'>('aguardando');
   
   useEffect(() => {
