@@ -50,6 +50,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDetalheModal';
 import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
+import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
 
 interface Participacao {
   id: string;
@@ -156,7 +157,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 // Card para licitações autorizadas (robô vai participar)
-const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?: boolean }) => {
+const AutorizadaCard = ({ licitacao, isRealtime, empresaId }: { licitacao: any; isRealtime?: boolean; empresaId?: string }) => {
   const [robotStatus, setRobotStatus] = useState<'aguardando' | 'preparando' | 'monitorando' | 'disputando'>('aguardando');
   
   useEffect(() => {
@@ -322,6 +323,18 @@ const AutorizadaCard = ({ licitacao, isRealtime }: { licitacao: any; isRealtime?
             Detalhes
           </Button>
         </div>
+
+        {/* Painel de Ativação do Robô */}
+        {empresaId && (
+          <div className="pt-2">
+            <RoboActivationPanel
+              licitacaoId={licitacao.id}
+              empresaId={empresaId}
+              valorProposta={licitacao.valor}
+              licitacaoNumero={licitacao.numero}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -591,6 +604,22 @@ const MinhasParticipacoes = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [realtimeUpdates, setRealtimeUpdates] = useState<string[]>([]);
+
+  // Fetch user's first empresa for robot activation
+  const { data: primeiraEmpresa } = useQuery({
+    queryKey: ['primeira-empresa', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+  });
   const [creatingTest, setCreatingTest] = useState(false);
   const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
   const [isAiUpdating, setIsAiUpdating] = useState(false);
@@ -1062,6 +1091,7 @@ const MinhasParticipacoes = () => {
                       key={lic.id} 
                       licitacao={lic}
                       isRealtime={false}
+                      empresaId={primeiraEmpresa?.id}
                     />
                   ))
                 )}
