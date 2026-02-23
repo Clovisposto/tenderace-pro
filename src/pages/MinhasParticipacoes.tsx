@@ -323,6 +323,18 @@ const AutorizadaCard = ({ licitacao, isRealtime, empresaId }: { licitacao: any; 
             Detalhes
           </Button>
         </div>
+
+        {/* Painel de Ativação do Robô */}
+        {empresaId && (
+          <div className="pt-2">
+            <RoboActivationPanel
+              licitacaoId={licitacao.id}
+              empresaId={empresaId}
+              valorProposta={licitacao.valor}
+              licitacaoNumero={licitacao.numero}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
