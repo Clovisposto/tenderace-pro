@@ -638,59 +638,10 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                 </Card>
 
                 {/* Documentos do Edital para Download */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
-                      Documentos do Edital para Download
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {[
-                        { nome: 'Edital Completo', tipo: 'PDF', tamanho: '2.4 MB' },
-                        { nome: 'Termo de Referência', tipo: 'PDF', tamanho: '1.1 MB' },
-                        { nome: 'Anexo I - Especificações Técnicas', tipo: 'PDF', tamanho: '856 KB' },
-                        { nome: 'Minuta de Contrato', tipo: 'PDF', tamanho: '324 KB' },
-                      ].map((doc, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 border hover:bg-secondary/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <FileCheck className="w-5 h-5 text-primary" />
-                            <div>
-                              <p className="font-medium">{doc.nome}</p>
-                              <p className="text-sm text-muted-foreground">{doc.tipo} • {doc.tamanho}</p>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const portalUrl = licitacao.portal === 'PNCP'
-                                ? `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`
-                                : licitacao.portal === 'ComprasNet'
-                                ? `https://www.gov.br/compras/pt-br`
-                                : licitacao.portal === 'BLL'
-                                ? `https://bll.org.br`
-                                : `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`;
-                              window.open(portalUrl, '_blank', 'noopener,noreferrer');
-                              toast.info(`Redirecionando para o portal ${licitacao.portal}`, {
-                                description: `Busque pelo edital ${licitacao.numero} para baixar "${doc.nome}"`,
-                              });
-                            }}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Baixar
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-4">
-                      * Os documentos serão baixados diretamente do portal {licitacao.portal}
-                    </p>
-                  </CardContent>
-                </Card>
+                <DocumentosEditalCard 
+                  numero={licitacao.numero} 
+                  portal={licitacao.portal as string} 
+                />
               </TabsContent>
 
               {/* Autorização Tab */}
