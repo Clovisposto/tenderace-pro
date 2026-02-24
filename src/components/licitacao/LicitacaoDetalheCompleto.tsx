@@ -661,8 +661,26 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                               <p className="text-sm text-muted-foreground">{doc.tipo} • {doc.tamanho}</p>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" className="gap-2">
-                            <Download className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const portalUrl = licitacao.portal === 'PNCP'
+                                ? `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`
+                                : licitacao.portal === 'ComprasNet'
+                                ? `https://www.gov.br/compras/pt-br`
+                                : licitacao.portal === 'BLL'
+                                ? `https://bll.org.br`
+                                : `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`;
+                              window.open(portalUrl, '_blank', 'noopener,noreferrer');
+                              toast.info(`Redirecionando para o portal ${licitacao.portal}`, {
+                                description: `Busque pelo edital ${licitacao.numero} para baixar "${doc.nome}"`,
+                              });
+                            }}
+                          >
+                            <ExternalLink className="w-4 h-4" />
                             Baixar
                           </Button>
                         </div>
