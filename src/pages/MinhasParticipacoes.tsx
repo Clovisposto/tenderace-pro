@@ -318,7 +318,21 @@ const AutorizadaCard = ({ licitacao, isRealtime, empresaId }: { licitacao: any; 
               <span>Risco: {licitacao.risco_score}%</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1"
+            onClick={() => {
+              const portalUrls: Record<string, string> = {
+                'PNCP': `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`,
+                'BLL': `https://bllcompras.com/DirectBuy/DirectBuySearchPublic?numero=${encodeURIComponent(licitacao.numero)}`,
+                'ComprasNet': `https://www.gov.br/compras/pt-br`,
+                'ComprasPublicas': `https://www.portaldecompraspublicas.com.br/18/Licitacoes/`,
+              };
+              const url = portalUrls[licitacao.portal] || `https://pncp.gov.br/app/editais?q=${encodeURIComponent(licitacao.numero)}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+          >
             <Eye className="w-4 h-4" />
             Detalhes
           </Button>
@@ -1072,18 +1086,26 @@ const MinhasParticipacoes = () => {
 
             <DisputeAlertModeSelector className="mb-4" />
             
-            <ScrollArea className="h-[calc(100vh-540px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {licitacoesAutorizadas.length === 0 ? (
-                  <Card className="col-span-2 p-8 text-center">
-                    <Bot className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-lg font-medium text-muted-foreground">Nenhuma licitação autorizada</p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                  <Card className="col-span-2 p-16 text-center border-2 border-dashed border-primary/30 bg-primary/5">
+                    <Bot className="w-24 h-24 mx-auto text-primary/40 mb-6" />
+                    <p className="text-2xl font-bold text-foreground mb-3">Nenhuma licitação autorizada</p>
+                    <p className="text-base text-muted-foreground mt-2 max-w-md mx-auto">
                       Autorize licitações na página de Licitações para o robô participar automaticamente.
                     </p>
-                    <p className="text-xs text-muted-foreground mt-4">
+                    <p className="text-sm text-muted-foreground mt-4 max-w-md mx-auto">
                       Clique em "Autorizar Participação" em qualquer licitação para ativar o robô.
                     </p>
+                    <Button 
+                      variant="default" 
+                      className="mt-6 gap-2"
+                      onClick={() => window.location.href = '/licitacoes'}
+                    >
+                      <Gavel className="w-4 h-4" />
+                      Ir para Licitações
+                    </Button>
                   </Card>
                 ) : (
                   licitacoesAutorizadas.map(lic => (
@@ -1096,7 +1118,7 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           {/* Aba Medicamentos */}
@@ -1119,7 +1141,7 @@ const MinhasParticipacoes = () => {
               </div>
             </div>
             
-            <ScrollArea className="h-[calc(100vh-480px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {medicamentosParticipacoes.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1140,7 +1162,7 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           {/* Aba Empreendimentos */}
@@ -1163,7 +1185,7 @@ const MinhasParticipacoes = () => {
               </div>
             </div>
             
-            <ScrollArea className="h-[calc(100vh-480px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {empreendimentosParticipacoes.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1184,11 +1206,11 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="todas">
-            <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {participacoes.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1209,11 +1231,11 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="disputa">
-            <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {emDisputa.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1231,11 +1253,11 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="vencidas">
-            <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {vencidas.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1256,11 +1278,11 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="perdidas">
-            <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {perdidas.length === 0 ? (
                   <Card className="col-span-2 p-8 text-center">
@@ -1281,7 +1303,7 @@ const MinhasParticipacoes = () => {
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
 
