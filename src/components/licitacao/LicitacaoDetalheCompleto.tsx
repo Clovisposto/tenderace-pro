@@ -36,7 +36,9 @@ import {
   Timer,
   Info,
   Hash,
-  Bot
+  Bot,
+  Mail,
+  Send
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -278,6 +280,65 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
                         <Copy className="w-3 h-3" />
                       </Button>
+                    </div>
+
+                    {/* Método de Envio */}
+                    <div className="mt-2 p-3 rounded-lg border bg-secondary/30">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Send className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-foreground">Método de envio da proposta:</span>
+                      </div>
+                      {licitacao.metodoEnvio === 'email' ? (
+                        <div className="space-y-2">
+                          <Badge className="bg-orange-100 text-orange-800">
+                            <Mail className="w-3 h-3 mr-1" />
+                            Envio por E-mail
+                          </Badge>
+                          {licitacao.emailDestino ? (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm text-muted-foreground">Enviar para:</span>
+                              <code className="text-primary bg-primary/10 px-2 py-1 rounded text-sm font-mono">
+                                {licitacao.emailDestino}
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(licitacao.emailDestino || '');
+                                  toast.success('E-mail copiado');
+                                }}
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs"
+                                onClick={() => {
+                                  const subject = encodeURIComponent(`Proposta - ${licitacao.numero} - ${licitacao.objeto.substring(0, 60)}`);
+                                  const body = encodeURIComponent(
+                                    `Prezados,\n\nSegue em anexo a proposta de preços referente à licitação ${licitacao.numero}.\n\nObjeto: ${licitacao.objeto.substring(0, 120)}\n\nAtenciosamente.`
+                                  );
+                                  window.open(`mailto:${licitacao.emailDestino}?subject=${subject}&body=${body}`, '_blank');
+                                }}
+                              >
+                                <Mail className="w-3 h-3" />
+                                Enviar E-mail
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-warning">E-mail de destino não informado no edital</p>
+                          )}
+                        </div>
+                      ) : licitacao.metodoEnvio === 'presencial' ? (
+                        <Badge className="bg-purple-100 text-purple-800">Envio Presencial</Badge>
+                      ) : (
+                        <Badge className="bg-blue-100 text-blue-800">
+                          <Globe className="w-3 h-3 mr-1" />
+                          Via Portal Eletrônico
+                        </Badge>
+                      )}
                     </div>
                   </div>
 

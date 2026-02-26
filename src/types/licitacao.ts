@@ -48,6 +48,8 @@ export interface Licitacao {
   compliance: ComplianceStatus;
   roiScore: number;
   riscoScore: number;
+  metodoEnvio?: 'portal' | 'email' | 'presencial';
+  emailDestino?: string;
   createdAt: Date;
   updatedAt: Date;
 }
