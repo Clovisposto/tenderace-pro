@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.extrair-metodo-envio]
 verify_jwt = false
+
+[functions.capturar-banpara]
+verify_jwt = false
