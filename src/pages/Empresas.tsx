@@ -824,6 +824,67 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
                   </div>
                 </div>
 
+                {/* Quick presets */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Preencher automaticamente:</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={() => setForm(prev => ({
+                        ...prev,
+                        email_smtp_host: 'smtp.gmail.com',
+                        email_smtp_port: '587',
+                        email_smtp_ssl: true,
+                        email_pop_host: 'pop.gmail.com',
+                        email_pop_port: '995',
+                        email_pop_ssl: true,
+                      }))}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-red-500" />
+                      Gmail
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={() => setForm(prev => ({
+                        ...prev,
+                        email_smtp_host: 'smtp.office365.com',
+                        email_smtp_port: '587',
+                        email_smtp_ssl: true,
+                        email_pop_host: 'outlook.office365.com',
+                        email_pop_port: '995',
+                        email_pop_ssl: true,
+                      }))}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-blue-500" />
+                      Outlook / Microsoft 365
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={() => setForm(prev => ({
+                        ...prev,
+                        email_smtp_host: 'smtp.yahoo.com',
+                        email_smtp_port: '587',
+                        email_smtp_ssl: true,
+                        email_pop_host: 'pop.mail.yahoo.com',
+                        email_pop_port: '995',
+                        email_pop_ssl: true,
+                      }))}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-purple-500" />
+                      Yahoo
+                    </Button>
+                  </div>
+                </div>
+
                 <Separator />
 
                 {/* SMTP Section */}
