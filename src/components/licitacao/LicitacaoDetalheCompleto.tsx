@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Licitacao } from '@/types/licitacao';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import {
   Mail,
   Send
 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -72,6 +73,8 @@ const statusConfig: Record<string, { bg: string; text: string }> = {
 
 export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: LicitacaoDetalheCompletoProps) {
   const [precoFinal, setPrecoFinal] = useState(licitacao.valor * 0.92);
+  const [detectingMethod, setDetectingMethod] = useState(false);
+  const [detectedResult, setDetectedResult] = useState<{ metodo_envio?: string; email_destino?: string; confianca?: string; justificativa?: string } | null>(null);
   const queryClient = useQueryClient();
 
   const formatCurrency = (value: number) => {
@@ -141,6 +144,40 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
   const handleCopyId = () => {
     navigator.clipboard.writeText(licitacao.numero);
     toast.success('ID copiado para a área de transferência');
+  };
+
+  const handleDetectMethod = async () => {
+    setDetectingMethod(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-metodo-envio`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ licitacao_id: licitacao.id }),
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        setDetectedResult(result);
+        queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+        toast.success(`Método detectado: ${result.metodo_envio === 'email' ? 'Envio por E-mail' : result.metodo_envio === 'presencial' ? 'Presencial' : 'Portal Eletrônico'}`, {
+          description: result.justificativa,
+        });
+      } else {
+        toast.error(result.error || 'Erro ao detectar método');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao detectar método de envio');
+    } finally {
+      setDetectingMethod(false);
+    }
   };
 
   // Simulated edital analysis data
@@ -284,28 +321,50 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
 
                     {/* Método de Envio */}
                     <div className="mt-2 p-3 rounded-lg border bg-secondary/30">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Send className="w-4 h-4 text-primary" />
-                        <span className="font-semibold text-foreground">Método de envio da proposta:</span>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Send className="w-4 h-4 text-primary" />
+                          <span className="font-semibold text-foreground">Método de envio da proposta:</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={handleDetectMethod}
+                          disabled={detectingMethod}
+                        >
+                          {detectingMethod ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Lendo edital...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-3 h-3" />
+                              Detectar via IA
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      {licitacao.metodoEnvio === 'email' ? (
+
+                      {(detectedResult?.metodo_envio || licitacao.metodoEnvio) === 'email' ? (
                         <div className="space-y-2">
                           <Badge className="bg-orange-100 text-orange-800">
                             <Mail className="w-3 h-3 mr-1" />
                             Envio por E-mail
                           </Badge>
-                          {licitacao.emailDestino ? (
+                          {(detectedResult?.email_destino || licitacao.emailDestino) ? (
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm text-muted-foreground">Enviar para:</span>
                               <code className="text-primary bg-primary/10 px-2 py-1 rounded text-sm font-mono">
-                                {licitacao.emailDestino}
+                                {detectedResult?.email_destino || licitacao.emailDestino}
                               </code>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(licitacao.emailDestino || '');
+                                  navigator.clipboard.writeText(detectedResult?.email_destino || licitacao.emailDestino || '');
                                   toast.success('E-mail copiado');
                                 }}
                               >
@@ -316,11 +375,12 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                                 size="sm"
                                 className="gap-1 text-xs"
                                 onClick={() => {
+                                  const email = detectedResult?.email_destino || licitacao.emailDestino;
                                   const subject = encodeURIComponent(`Proposta - ${licitacao.numero} - ${licitacao.objeto.substring(0, 60)}`);
                                   const body = encodeURIComponent(
                                     `Prezados,\n\nSegue em anexo a proposta de preços referente à licitação ${licitacao.numero}.\n\nObjeto: ${licitacao.objeto.substring(0, 120)}\n\nAtenciosamente.`
                                   );
-                                  window.open(`mailto:${licitacao.emailDestino}?subject=${subject}&body=${body}`, '_blank');
+                                  window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
                                 }}
                               >
                                 <Mail className="w-3 h-3" />
@@ -328,16 +388,24 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                               </Button>
                             </div>
                           ) : (
-                            <p className="text-sm text-warning">E-mail de destino não informado no edital</p>
+                            <p className="text-sm text-warning">E-mail de destino não encontrado no edital</p>
                           )}
                         </div>
-                      ) : licitacao.metodoEnvio === 'presencial' ? (
+                      ) : (detectedResult?.metodo_envio || licitacao.metodoEnvio) === 'presencial' ? (
                         <Badge className="bg-purple-100 text-purple-800">Envio Presencial</Badge>
                       ) : (
                         <Badge className="bg-blue-100 text-blue-800">
                           <Globe className="w-3 h-3 mr-1" />
                           Via Portal Eletrônico
                         </Badge>
+                      )}
+
+                      {detectedResult?.justificativa && (
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          <Info className="w-3 h-3 inline mr-1" />
+                          {detectedResult.justificativa}
+                          {detectedResult.confianca && ` (Confiança: ${detectedResult.confianca})`}
+                        </p>
                       )}
                     </div>
                   </div>
