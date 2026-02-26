@@ -107,15 +107,29 @@ async function loginBanpara(username: string, password: string): Promise<{
     // Step 2: POST login credentials
     const formData = new URLSearchParams();
     
-    // Add all hidden fields (ViewState, EventValidation, etc.)
+    // Add hidden fields, overriding __EVENTTARGET for button click simulation
     for (const [key, value] of Object.entries(hiddenFields)) {
-      formData.append(key, value);
+      if (key === '__EVENTTARGET') {
+        formData.append(key, 'ctl00$ctl13$btnAcessar');
+      } else {
+        formData.append(key, value);
+      }
     }
     
-    // Add login credentials - use the field names from the form
+    // Extract the actual button value from the page (language-dependent)
+    const btnValueMatch = loginPageHtml.match(/id="ctl00_ctl13_btnAcessar"[^>]*value="([^"]*)"/);
+    const btnValue = btnValueMatch?.[1] || 'Acessar';
+    console.log('[Banpará] Button value:', btnValue);
+    
+    // Add login credentials
     formData.append('ctl00$ctl13$tbxLogin', username);
     formData.append('ctl00$ctl13$tbxSenha', password);
-    formData.append('ctl00$ctl13$btnAcessar', 'Acessar');
+    formData.append('ctl00$ctl13$btnAcessar', btnValue);
+    
+    // Log form data keys for debugging
+    const formKeys = Array.from(formData.keys());
+    console.log('[Banpará] Form data keys:', formKeys.join(', '));
+    console.log('[Banpará] Form body length:', formData.toString().length);
     
     console.log('[Banpará] Submitting login...');
     const loginRes = await fetch(BANPARA_LOGIN_URL, {
@@ -170,13 +184,27 @@ async function loginBanpara(username: string, password: string): Promise<{
       console.log('[Banpará] Contains Logout:', postLoginHtml.includes('Logout'));
       console.log('[Banpará] Contains Log out:', postLoginHtml.includes('Log out'));
       console.log('[Banpará] Contains painelMenu:', postLoginHtml.includes('painelMenu'));
-      console.log('[Banpará] Contains erro:', postLoginHtml.includes('vsuGeral'));
+      console.log('[Banpará] Contains vsuGeral:', postLoginHtml.includes('vsuGeral'));
+      console.log('[Banpará] Contains imgCaptcha (img tag):', postLoginHtml.includes('imgCaptcha'));
+      console.log('[Banpará] Contains tbxCaptchaText:', postLoginHtml.includes('tbxCaptchaText'));
+      console.log('[Banpará] Contains plhCaptcha visible:', postLoginHtml.includes('plhCaptcha'));
       
-      // Extract a snippet around the login area for debugging
-      const loginAreaMatch = postLoginHtml.match(/class="usuario"([\s\S]{0,1500})/);
-      if (loginAreaMatch) {
-        console.log('[Banpará] Login area snippet:', loginAreaMatch[1].substring(0, 500));
-      }
+      // Check if there's a visible CAPTCHA
+      const captchaMatch = postLoginHtml.match(/imgCaptcha[^>]*src="([^"]*)"/);
+      console.log('[Banpará] CAPTCHA image src:', captchaMatch?.[1] || 'not found');
+      
+      // Check vsuGeral error div content
+      const errorDivMatch = postLoginHtml.match(/id="vsuGeral"[^>]*>([\s\S]*?)<\/div>/);
+      const errorContent = errorDivMatch?.[1]?.replace(/<[^>]*>/g, '').trim();
+      console.log('[Banpará] vsuGeral content:', errorContent || 'empty');
+      
+      // Extract actual login section HTML
+      const divLoginMatch = postLoginHtml.match(/id="divLogin">([\s\S]*?)<\/div>/);
+      console.log('[Banpará] divLogin content:', divLoginMatch?.[1]?.substring(0, 300) || 'not found');
+      
+      // Check for captcha section
+      const captchaSection = postLoginHtml.match(/Captcha([\s\S]{0,500})/);
+      console.log('[Banpará] Captcha section:', captchaSection?.[1]?.substring(0, 300) || 'none');
       
       // Check for successful login indicators
       const loggedIn = postLoginHtml.includes('btnSair') || 
