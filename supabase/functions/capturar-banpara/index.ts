@@ -99,8 +99,10 @@ async function loginBanpara(username: string, password: string): Promise<{
     const initialCookies = extractCookies(loginPageRes);
     const hiddenFields = extractHiddenFields(loginPageHtml);
     
-    console.log('[Banpará] Hidden fields found:', Object.keys(hiddenFields).length);
-    console.log('[Banpará] Cookies:', initialCookies ? 'obtained' : 'none');
+    console.log('[Banpará] Hidden fields:', Object.keys(hiddenFields).join(', '));
+    console.log('[Banpará] ViewState length:', (hiddenFields['__VIEWSTATE'] || '').length);
+    console.log('[Banpará] EventValidation length:', (hiddenFields['__EVENTVALIDATION'] || '').length);
+    console.log('[Banpará] Cookies:', initialCookies);
     
     // Step 2: POST login credentials
     const formData = new URLSearchParams();
@@ -110,10 +112,10 @@ async function loginBanpara(username: string, password: string): Promise<{
       formData.append(key, value);
     }
     
-    // Add login credentials
+    // Add login credentials - use the field names from the form
     formData.append('ctl00$ctl13$tbxLogin', username);
     formData.append('ctl00$ctl13$tbxSenha', password);
-    formData.append('ctl00$ctl13$btnAcessar', 'Access');
+    formData.append('ctl00$ctl13$btnAcessar', 'Acessar');
     
     console.log('[Banpará] Submitting login...');
     const loginRes = await fetch(BANPARA_LOGIN_URL, {
