@@ -175,13 +175,27 @@ async function loginBanpara(username: string, password: string): Promise<{
       console.log('[Banpará] Contains Logout:', postLoginHtml.includes('Logout'));
       console.log('[Banpará] Contains Log out:', postLoginHtml.includes('Log out'));
       console.log('[Banpará] Contains painelMenu:', postLoginHtml.includes('painelMenu'));
-      console.log('[Banpará] Contains erro:', postLoginHtml.includes('vsuGeral'));
+      console.log('[Banpará] Contains vsuGeral:', postLoginHtml.includes('vsuGeral'));
+      console.log('[Banpará] Contains imgCaptcha (img tag):', postLoginHtml.includes('imgCaptcha'));
+      console.log('[Banpará] Contains tbxCaptchaText:', postLoginHtml.includes('tbxCaptchaText'));
+      console.log('[Banpará] Contains plhCaptcha visible:', postLoginHtml.includes('plhCaptcha'));
       
-      // Extract a snippet around the login area for debugging
-      const loginAreaMatch = postLoginHtml.match(/class="usuario"([\s\S]{0,1500})/);
-      if (loginAreaMatch) {
-        console.log('[Banpará] Login area snippet:', loginAreaMatch[1].substring(0, 500));
-      }
+      // Check if there's a visible CAPTCHA
+      const captchaMatch = postLoginHtml.match(/imgCaptcha[^>]*src="([^"]*)"/);
+      console.log('[Banpará] CAPTCHA image src:', captchaMatch?.[1] || 'not found');
+      
+      // Check vsuGeral error div content
+      const errorDivMatch = postLoginHtml.match(/id="vsuGeral"[^>]*>([\s\S]*?)<\/div>/);
+      const errorContent = errorDivMatch?.[1]?.replace(/<[^>]*>/g, '').trim();
+      console.log('[Banpará] vsuGeral content:', errorContent || 'empty');
+      
+      // Extract actual login section HTML
+      const divLoginMatch = postLoginHtml.match(/id="divLogin">([\s\S]*?)<\/div>/);
+      console.log('[Banpará] divLogin content:', divLoginMatch?.[1]?.substring(0, 300) || 'not found');
+      
+      // Check for captcha section
+      const captchaSection = postLoginHtml.match(/Captcha([\s\S]{0,500})/);
+      console.log('[Banpará] Captcha section:', captchaSection?.[1]?.substring(0, 300) || 'none');
       
       // Check for successful login indicators
       const loggedIn = postLoginHtml.includes('btnSair') || 
