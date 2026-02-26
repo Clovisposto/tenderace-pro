@@ -107,9 +107,13 @@ async function loginBanpara(username: string, password: string): Promise<{
     // Step 2: POST login credentials
     const formData = new URLSearchParams();
     
-    // Add all hidden fields (ViewState, EventValidation, etc.)
+    // Add hidden fields, overriding __EVENTTARGET for button click simulation
     for (const [key, value] of Object.entries(hiddenFields)) {
-      formData.append(key, value);
+      if (key === '__EVENTTARGET') {
+        formData.append(key, 'ctl00$ctl13$btnAcessar');
+      } else {
+        formData.append(key, value);
+      }
     }
     
     // Extract the actual button value from the page (language-dependent)
@@ -117,10 +121,15 @@ async function loginBanpara(username: string, password: string): Promise<{
     const btnValue = btnValueMatch?.[1] || 'Acessar';
     console.log('[Banpará] Button value:', btnValue);
     
-    // Add login credentials - use the field names from the form
+    // Add login credentials
     formData.append('ctl00$ctl13$tbxLogin', username);
     formData.append('ctl00$ctl13$tbxSenha', password);
     formData.append('ctl00$ctl13$btnAcessar', btnValue);
+    
+    // Log form data keys for debugging
+    const formKeys = Array.from(formData.keys());
+    console.log('[Banpará] Form data keys:', formKeys.join(', '));
+    console.log('[Banpará] Form body length:', formData.toString().length);
     
     console.log('[Banpará] Submitting login...');
     const loginRes = await fetch(BANPARA_LOGIN_URL, {
