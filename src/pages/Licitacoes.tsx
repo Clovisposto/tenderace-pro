@@ -8,7 +8,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, MapPin, Zap, Globe, Settings } from 'lucide-react';
+import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -76,6 +76,84 @@ const Licitacoes = () => {
       toast.error('Erro ao capturar licitações');
       console.error(error);
     }
+  });
+
+  // Mutation para detectar método de envio em lote via IA
+  const detectarMetodosLote = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sessão expirada.');
+
+      // Buscar licitações que ainda não foram analisadas (metodo_envio = 'portal' padrão e sem email_destino)
+      const { data: pendentes, error } = await supabase
+        .from('licitacoes')
+        .select('id, numero, metodo_envio, email_destino')
+        .eq('metodo_envio', 'portal')
+        .is('email_destino', null)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      if (!pendentes || pendentes.length === 0) {
+        return { total: 0, analisadas: 0, emails: 0, resultados: [] };
+      }
+
+      const resultados: { numero: string; metodo: string; email?: string; erro?: string }[] = [];
+      let emailsEncontrados = 0;
+
+      for (const lic of pendentes) {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-metodo-envio`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({ licitacao_id: lic.id }),
+            }
+          );
+
+          if (response.status === 429) {
+            resultados.push({ numero: lic.numero, metodo: 'portal', erro: 'Rate limit - tentará novamente depois' });
+            break; // Stop on rate limit
+          }
+
+          const result = await response.json();
+          if (result.success) {
+            resultados.push({ numero: lic.numero, metodo: result.metodo_envio, email: result.email_destino });
+            if (result.metodo_envio === 'email') emailsEncontrados++;
+          } else {
+            resultados.push({ numero: lic.numero, metodo: 'portal', erro: result.error });
+          }
+
+          // Small delay to avoid rate limiting
+          await new Promise(r => setTimeout(r, 1500));
+        } catch (err) {
+          resultados.push({ numero: lic.numero, metodo: 'portal', erro: 'Erro na requisição' });
+        }
+      }
+
+      return { total: pendentes.length, analisadas: resultados.length, emails: emailsEncontrados, resultados };
+    },
+    onSuccess: (data) => {
+      if (data.total === 0) {
+        toast.info('Todas as licitações já foram analisadas');
+      } else {
+        toast.success(`${data.analisadas} licitações analisadas`, {
+          description: data.emails > 0
+            ? `${data.emails} envio(s) por e-mail detectado(s)!`
+            : 'Nenhum envio por e-mail detectado',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao detectar métodos de envio');
+      console.error(error);
+    },
   });
 
   useEffect(() => {
@@ -234,6 +312,15 @@ const Licitacoes = () => {
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${capturarMultiportal.isPending ? 'animate-spin' : ''}`} />
               Capturar Portais ({ufsPrioritarias.length} UFs)
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => detectarMetodosLote.mutate()}
+              disabled={detectarMetodosLote.isPending}
+            >
+              <Brain className={`w-4 h-4 mr-2 ${detectarMetodosLote.isPending ? 'animate-pulse' : ''}`} />
+              {detectarMetodosLote.isPending ? 'Analisando...' : 'Detectar Métodos (IA)'}
             </Button>
           </div>
         </div>
