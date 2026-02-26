@@ -292,6 +292,16 @@ export type Database = {
           cnpj: string
           created_at: string
           email: string | null
+          email_pop_host: string | null
+          email_pop_password: string | null
+          email_pop_port: number | null
+          email_pop_ssl: boolean | null
+          email_pop_user: string | null
+          email_smtp_host: string | null
+          email_smtp_password: string | null
+          email_smtp_port: number | null
+          email_smtp_ssl: boolean | null
+          email_smtp_user: string | null
           endereco: string | null
           govbr_vinculado: boolean | null
           id: string
@@ -319,6 +329,16 @@ export type Database = {
           cnpj: string
           created_at?: string
           email?: string | null
+          email_pop_host?: string | null
+          email_pop_password?: string | null
+          email_pop_port?: number | null
+          email_pop_ssl?: boolean | null
+          email_pop_user?: string | null
+          email_smtp_host?: string | null
+          email_smtp_password?: string | null
+          email_smtp_port?: number | null
+          email_smtp_ssl?: boolean | null
+          email_smtp_user?: string | null
           endereco?: string | null
           govbr_vinculado?: boolean | null
           id?: string
@@ -346,6 +366,16 @@ export type Database = {
           cnpj?: string
           created_at?: string
           email?: string | null
+          email_pop_host?: string | null
+          email_pop_password?: string | null
+          email_pop_port?: number | null
+          email_pop_ssl?: boolean | null
+          email_pop_user?: string | null
+          email_smtp_host?: string | null
+          email_smtp_password?: string | null
+          email_smtp_port?: number | null
+          email_smtp_ssl?: boolean | null
+          email_smtp_user?: string | null
           endereco?: string | null
           govbr_vinculado?: boolean | null
           id?: string

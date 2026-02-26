@@ -317,6 +317,17 @@ const EMPTY_FORM = {
   certificado_digital_emissor: '',
   // Gov.br
   govbr_vinculado: false,
+  // E-mail SMTP/POP
+  email_smtp_host: '',
+  email_smtp_port: '587',
+  email_smtp_user: '',
+  email_smtp_password: '',
+  email_smtp_ssl: true,
+  email_pop_host: '',
+  email_pop_port: '995',
+  email_pop_user: '',
+  email_pop_password: '',
+  email_pop_ssl: true,
 };
 
 const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => {
@@ -348,6 +359,16 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
             : '',
           certificado_digital_emissor: e.certificado_digital_emissor ?? '',
           govbr_vinculado: e.govbr_vinculado ?? false,
+          email_smtp_host: (e as any).email_smtp_host ?? '',
+          email_smtp_port: String((e as any).email_smtp_port ?? 587),
+          email_smtp_user: (e as any).email_smtp_user ?? '',
+          email_smtp_password: (e as any).email_smtp_password ?? '',
+          email_smtp_ssl: (e as any).email_smtp_ssl ?? true,
+          email_pop_host: (e as any).email_pop_host ?? '',
+          email_pop_port: String((e as any).email_pop_port ?? 995),
+          email_pop_user: (e as any).email_pop_user ?? '',
+          email_pop_password: (e as any).email_pop_password ?? '',
+          email_pop_ssl: (e as any).email_pop_ssl ?? true,
         }
       : { ...EMPTY_FORM };
 
@@ -433,6 +454,8 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
       certificado_digital_validade: form.certificado_digital_validade
         ? new Date(form.certificado_digital_validade + 'T12:00:00').toISOString()
         : null,
+      email_smtp_port: form.email_smtp_port ? parseInt(form.email_smtp_port, 10) : 587,
+      email_pop_port: form.email_pop_port ? parseInt(form.email_pop_port, 10) : 995,
     };
 
     if (isEditing && empresa) {
@@ -459,26 +482,33 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
-           <TabsList className="mx-6 mt-2 shrink-0 grid grid-cols-4 w-auto">
-            <TabsTrigger value="dados" className="gap-1.5 text-xs">
+           <TabsList className="mx-6 mt-2 shrink-0 grid grid-cols-5 w-auto">
+            <TabsTrigger value="dados" className="gap-1 text-xs">
               <Building2 className="w-3.5 h-3.5" />
               Dados
             </TabsTrigger>
-            <TabsTrigger value="certificado" className="gap-1.5 text-xs">
+            <TabsTrigger value="certificado" className="gap-1 text-xs">
               <KeyRound className="w-3.5 h-3.5" />
               Certificado
               {form.certificado_digital_tipo && certStatus !== 'valid' && (
                 <span className="ml-1 w-1.5 h-1.5 rounded-full bg-warning inline-block" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="govbr" className="gap-1.5 text-xs">
+            <TabsTrigger value="email_config" className="gap-1 text-xs">
+              <Mail className="w-3.5 h-3.5" />
+              E-mail
+              {form.email_smtp_host && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-success inline-block" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="govbr" className="gap-1 text-xs">
               <Globe className="w-3.5 h-3.5" />
               Gov.br
               {form.govbr_vinculado && (
                 <span className="ml-1 w-1.5 h-1.5 rounded-full bg-success inline-block" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="timbrado" className="gap-1.5 text-xs">
+            <TabsTrigger value="timbrado" className="gap-1 text-xs">
               <FileText className="w-3.5 h-3.5" />
               Timbrado
               {empresa?.papel_timbrado_url && (
@@ -772,6 +802,103 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
                     certificadoTipo={form.certificado_digital_tipo}
                   />
                 )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* ── Aba: E-mail (SMTP/POP) ── */}
+          <TabsContent value="email_config" className="flex-1 overflow-hidden m-0">
+            <ScrollArea className="h-full px-6">
+              <div className="space-y-5 py-4 pb-6">
+                {/* Info box */}
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-sm text-primary mb-1">Configuração de E-mail para Propostas</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Configure o servidor SMTP para <strong>envio</strong> de propostas por e-mail e o POP3 para 
+                        <strong> recebimento</strong> de confirmações e respostas dos órgãos licitantes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* SMTP Section */}
+                <div className="space-y-4">
+                  <p className="text-sm font-bold flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-primary" />
+                    SMTP — Envio de E-mails
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>Servidor SMTP</Label>
+                      <Input value={form.email_smtp_host} onChange={e => set('email_smtp_host', e.target.value)} placeholder="smtp.gmail.com" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Porta</Label>
+                      <Input value={form.email_smtp_port} onChange={e => set('email_smtp_port', e.target.value)} placeholder="587" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Usuário / Login</Label>
+                      <Input value={form.email_smtp_user} onChange={e => set('email_smtp_user', e.target.value)} placeholder="empresa@dominio.com.br" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Senha</Label>
+                      <Input type="password" value={form.email_smtp_password} onChange={e => set('email_smtp_password', e.target.value)} placeholder="••••••••" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <Switch checked={form.email_smtp_ssl} onCheckedChange={v => set('email_smtp_ssl', v)} />
+                    <Label className="cursor-pointer">Usar SSL/TLS</Label>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* POP Section */}
+                <div className="space-y-4">
+                  <p className="text-sm font-bold flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    POP3 — Recebimento de E-mails
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>Servidor POP3</Label>
+                      <Input value={form.email_pop_host} onChange={e => set('email_pop_host', e.target.value)} placeholder="pop.gmail.com" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Porta</Label>
+                      <Input value={form.email_pop_port} onChange={e => set('email_pop_port', e.target.value)} placeholder="995" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Usuário / Login</Label>
+                      <Input value={form.email_pop_user} onChange={e => set('email_pop_user', e.target.value)} placeholder="empresa@dominio.com.br" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Senha</Label>
+                      <Input type="password" value={form.email_pop_password} onChange={e => set('email_pop_password', e.target.value)} placeholder="••••••••" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <Switch checked={form.email_pop_ssl} onCheckedChange={v => set('email_pop_ssl', v)} />
+                    <Label className="cursor-pointer">Usar SSL/TLS</Label>
+                  </div>
+                </div>
+
+                {/* Tips */}
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <strong>💡 Dica:</strong> Para Gmail, use <strong>smtp.gmail.com:587</strong> (SMTP) e <strong>pop.gmail.com:995</strong> (POP3). 
+                    Ative o acesso de "apps menos seguros" ou crie uma <strong>senha de app</strong> nas configurações de segurança do Google.
+                  </p>
+                </div>
               </div>
             </ScrollArea>
           </TabsContent>
