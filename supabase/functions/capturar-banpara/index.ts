@@ -112,10 +112,15 @@ async function loginBanpara(username: string, password: string): Promise<{
       formData.append(key, value);
     }
     
+    // Extract the actual button value from the page (language-dependent)
+    const btnValueMatch = loginPageHtml.match(/id="ctl00_ctl13_btnAcessar"[^>]*value="([^"]*)"/);
+    const btnValue = btnValueMatch?.[1] || 'Acessar';
+    console.log('[Banpará] Button value:', btnValue);
+    
     // Add login credentials - use the field names from the form
     formData.append('ctl00$ctl13$tbxLogin', username);
     formData.append('ctl00$ctl13$tbxSenha', password);
-    formData.append('ctl00$ctl13$btnAcessar', 'Acessar');
+    formData.append('ctl00$ctl13$btnAcessar', btnValue);
     
     console.log('[Banpará] Submitting login...');
     const loginRes = await fetch(BANPARA_LOGIN_URL, {
