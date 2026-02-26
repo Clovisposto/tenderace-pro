@@ -171,6 +171,8 @@ const Licitacoes = () => {
     compliance: 'Apta' as const,
     roiScore: l.roi_score || 70,
     riscoScore: l.risco_score || 20,
+    metodoEnvio: (l as any).metodo_envio || 'portal',
+    emailDestino: (l as any).email_destino || undefined,
     createdAt: new Date(l.created_at),
     updatedAt: new Date(l.updated_at),
   });

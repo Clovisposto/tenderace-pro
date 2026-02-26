@@ -465,7 +465,9 @@ export type Database = {
           data_limite: string
           edital_analisado: boolean | null
           edital_url: string | null
+          email_destino: string | null
           id: string
+          metodo_envio: string | null
           modalidade: Database["public"]["Enums"]["modalidade_type"]
           municipio: string
           numero: string
@@ -488,7 +490,9 @@ export type Database = {
           data_limite: string
           edital_analisado?: boolean | null
           edital_url?: string | null
+          email_destino?: string | null
           id?: string
+          metodo_envio?: string | null
           modalidade: Database["public"]["Enums"]["modalidade_type"]
           municipio: string
           numero: string
@@ -511,7 +515,9 @@ export type Database = {
           data_limite?: string
           edital_analisado?: boolean | null
           edital_url?: string | null
+          email_destino?: string | null
           id?: string
+          metodo_envio?: string | null
           modalidade?: Database["public"]["Enums"]["modalidade_type"]
           municipio?: string
           numero?: string
