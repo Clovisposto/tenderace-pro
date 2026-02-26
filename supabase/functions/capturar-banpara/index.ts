@@ -160,17 +160,45 @@ async function loginBanpara(username: string, password: string): Promise<{
     } else {
       postLoginHtml = await loginRes.text();
       
-      // Check for login error messages
-      if (postLoginHtml.includes('Usuário ou senha inválido') || 
-          postLoginHtml.includes('Invalid') ||
-          postLoginHtml.includes('tbxLogin')) {
-        // If we still see the login form, check if there's actually a logged-in state
-        if (postLoginHtml.includes('btnSair') || postLoginHtml.includes('Sair')) {
-          return { success: true, cookies: allCookies, html: postLoginHtml };
-        }
-        return { success: false, cookies: '', html: '', error: 'Credenciais inválidas ou login bloqueado' };
+      // Log the response to understand what we got
+      console.log('[Banpará] Post-login HTML length:', postLoginHtml.length);
+      console.log('[Banpará] Contains tbxLogin:', postLoginHtml.includes('tbxLogin'));
+      console.log('[Banpará] Contains btnSair:', postLoginHtml.includes('btnSair'));
+      console.log('[Banpará] Contains Sair:', postLoginHtml.includes('Sair'));
+      console.log('[Banpará] Contains Logout:', postLoginHtml.includes('Logout'));
+      console.log('[Banpará] Contains Log out:', postLoginHtml.includes('Log out'));
+      console.log('[Banpará] Contains painelMenu:', postLoginHtml.includes('painelMenu'));
+      console.log('[Banpará] Contains erro:', postLoginHtml.includes('vsuGeral'));
+      
+      // Extract a snippet around the login area for debugging
+      const loginAreaMatch = postLoginHtml.match(/class="usuario"([\s\S]{0,1500})/);
+      if (loginAreaMatch) {
+        console.log('[Banpará] Login area snippet:', loginAreaMatch[1].substring(0, 500));
       }
       
+      // Check for successful login indicators
+      const loggedIn = postLoginHtml.includes('btnSair') || 
+                       postLoginHtml.includes('Sair') || 
+                       postLoginHtml.includes('Logout') ||
+                       postLoginHtml.includes('Log out') ||
+                       postLoginHtml.includes('Bem-vindo') ||
+                       postLoginHtml.includes('Welcome');
+      
+      if (loggedIn) {
+        return { success: true, cookies: allCookies, html: postLoginHtml };
+      }
+      
+      // Check if login form is still visible (login failed)
+      if (postLoginHtml.includes('tbxLogin') && postLoginHtml.includes('tbxSenha')) {
+        // Check for specific error messages
+        const errorMatch = postLoginHtml.match(/vsuGeral[^>]*style="[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+        const errorText = errorMatch?.[1]?.replace(/<[^>]*>/g, '').trim();
+        console.log('[Banpará] Error message:', errorText || 'none visible');
+        
+        return { success: false, cookies: '', html: postLoginHtml, error: errorText || 'Login form still present - authentication may have failed' };
+      }
+      
+      // If we got here, assume success (page changed)
       return { success: true, cookies: allCookies, html: postLoginHtml };
     }
   } catch (error) {
