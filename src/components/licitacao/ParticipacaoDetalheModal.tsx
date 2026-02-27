@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,8 @@ import {
   Sparkles,
   Loader2,
   Gavel,
+  Eye,
+  Mail,
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -93,6 +95,8 @@ export function ParticipacaoDetalheModal({
   const [isUpdating, setIsUpdating] = useState(false);
   const [aiUpdateLog, setAiUpdateLog] = useState<string[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const contractRef = useRef<HTMLDivElement>(null);
 
@@ -190,6 +194,61 @@ export function ParticipacaoDetalheModal({
     });
   };
 
+  const handleGeneratePdf = useCallback(async () => {
+    setPdfLoading(true);
+    setPdfBlobUrl(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('gerar-proposta-pdf', {
+        body: {
+          proposta_id: participacao.id,
+          licitacao_id: licitacao.id,
+          empresa_id: participacao.empresa_id,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.pdf_base64) throw new Error('PDF não retornado');
+
+      const binary = atob(data.pdf_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+
+      toast({
+        title: '✅ PDF Gerado',
+        description: data.com_papel_timbrado
+          ? 'Proposta com papel timbrado pronta para visualização.'
+          : 'Proposta gerada (sem papel timbrado cadastrado).',
+      });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: 'Não foi possível gerar o PDF da proposta.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [participacao, licitacao]);
+
+  const handleDownloadPdf = () => {
+    if (!pdfBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = pdfBlobUrl;
+    a.download = `Proposta_${licitacao.numero.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`;
+    a.click();
+  };
+
+  // Cleanup blob URL
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
@@ -210,10 +269,14 @@ export function ParticipacaoDetalheModal({
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-5 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
+          <TabsList className="grid w-full grid-cols-6 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
             <TabsTrigger value="resumo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Resumo</span>
+            </TabsTrigger>
+            <TabsTrigger value="proposta-pdf" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              <Eye className="w-4 h-4" />
+              <span className="hidden sm:inline">Proposta</span>
             </TabsTrigger>
             <TabsTrigger value="robo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Gavel className="w-4 h-4" />
@@ -371,6 +434,71 @@ export function ParticipacaoDetalheModal({
                   </Badge>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Proposta PDF Tab */}
+            <TabsContent value="proposta-pdf" className="m-0 space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button onClick={handleGeneratePdf} disabled={pdfLoading} className="gap-2">
+                  {pdfLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                  {pdfLoading ? 'Gerando...' : pdfBlobUrl ? 'Regenerar PDF' : 'Gerar PDF da Proposta'}
+                </Button>
+                {pdfBlobUrl && (
+                  <>
+                    <Button variant="outline" onClick={handleDownloadPdf} className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => { if (pdfBlobUrl) window.open(pdfBlobUrl, '_blank'); }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Abrir em Nova Aba
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {!pdfBlobUrl && !pdfLoading && (
+                <Card className="border-dashed">
+                  <CardContent className="py-16 text-center">
+                    <FileText className="w-16 h-16 mx-auto text-muted-foreground/40 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Visualizar Proposta em PDF</h3>
+                    <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                      Gere um PDF profissional da proposta comercial com o papel timbrado da empresa
+                      (se cadastrado) para revisão antes do envio.
+                    </p>
+                    <Button onClick={handleGeneratePdf} className="gap-2">
+                      <Eye className="w-4 h-4" />
+                      Gerar PDF
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfLoading && (
+                <Card>
+                  <CardContent className="py-16 text-center">
+                    <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+                    <p className="text-muted-foreground">Gerando PDF com papel timbrado...</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfBlobUrl && (
+                <Card className="border-2">
+                  <CardContent className="p-0">
+                    <iframe
+                      src={pdfBlobUrl}
+                      className="w-full rounded-lg"
+                      style={{ height: '600px' }}
+                      title="Preview da Proposta PDF"
+                    />
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Robô Tab - Log de Ações em Tempo Real */}
