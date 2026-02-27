@@ -75,10 +75,26 @@ Deno.serve(async (req: Request) => {
     }
 
     // Find the certificate file in storage
-    // Convention: certificados-digitais/{empresa_id}/*.pfx or *.p12
+    // Upload path is: {user_id}/{empresa_id}/*.pfx or *.p12
+    // We need the user_id (owner) from the empresas table
+    const { data: empOwner, error: ownerErr } = await supabase
+      .from('empresas')
+      .select('user_id')
+      .eq('id', empresa_id)
+      .single();
+
+    if (ownerErr || !empOwner) {
+      return new Response(JSON.stringify({ error: 'Não foi possível determinar o dono da empresa' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const storagePath = `${empOwner.user_id}/${empresa_id}`;
+    console.log(`[Cert] Buscando certificado em: ${storagePath}`);
+
     const { data: files, error: listErr } = await supabase.storage
       .from('certificados-digitais')
-      .list(empresa_id, { limit: 10 });
+      .list(storagePath, { limit: 10 });
 
     if (listErr || !files || files.length === 0) {
       return new Response(JSON.stringify({ 
