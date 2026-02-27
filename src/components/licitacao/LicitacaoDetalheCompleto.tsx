@@ -75,6 +75,9 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
   const [precoFinal, setPrecoFinal] = useState(licitacao.valor * 0.92);
   const [detectingMethod, setDetectingMethod] = useState(false);
   const [detectedResult, setDetectedResult] = useState<{ metodo_envio?: string; email_destino?: string; confianca?: string; justificativa?: string } | null>(null);
+  const [emailDestino, setEmailDestino] = useState(licitacao.emailDestino || '');
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const queryClient = useQueryClient();
 
   const formatCurrency = (value: number) => {
