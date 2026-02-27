@@ -168,6 +168,9 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
       const result = await response.json();
       if (result.success) {
         setDetectedResult(result);
+        if (result.email_destino) {
+          setEmailDestino(result.email_destino);
+        }
         queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
         toast.success(`Método detectado: ${result.metodo_envio === 'email' ? 'Envio por E-mail' : result.metodo_envio === 'presencial' ? 'Presencial' : 'Portal Eletrônico'}`, {
           description: result.justificativa,
@@ -180,6 +183,30 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
       toast.error('Erro ao detectar método de envio');
     } finally {
       setDetectingMethod(false);
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    const trimmed = emailDestino.trim();
+    if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error('E-mail inválido');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const { error } = await supabase
+        .from('licitacoes')
+        .update({ email_destino: trimmed || null })
+        .eq('id', licitacao.id);
+      if (error) throw error;
+      toast.success(trimmed ? 'E-mail de destino salvo' : 'E-mail de destino removido');
+      setEditingEmail(false);
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao salvar e-mail');
+    } finally {
+      setSavingEmail(false);
     }
   };
 
