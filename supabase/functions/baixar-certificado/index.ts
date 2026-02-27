@@ -118,7 +118,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const certPath = `${empresa_id}/${certFile.name}`;
+    const certPath = `${storagePath}/${certFile.name}`;
     console.log(`[Cert] Baixando certificado: ${certPath}`);
 
     const { data: fileData, error: downloadErr } = await supabase.storage
