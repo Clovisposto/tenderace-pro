@@ -436,6 +436,71 @@ export function ParticipacaoDetalheModal({
               </Card>
             </TabsContent>
 
+            {/* Proposta PDF Tab */}
+            <TabsContent value="proposta-pdf" className="m-0 space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button onClick={handleGeneratePdf} disabled={pdfLoading} className="gap-2">
+                  {pdfLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                  {pdfLoading ? 'Gerando...' : pdfBlobUrl ? 'Regenerar PDF' : 'Gerar PDF da Proposta'}
+                </Button>
+                {pdfBlobUrl && (
+                  <>
+                    <Button variant="outline" onClick={handleDownloadPdf} className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => { if (pdfBlobUrl) window.open(pdfBlobUrl, '_blank'); }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Abrir em Nova Aba
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {!pdfBlobUrl && !pdfLoading && (
+                <Card className="border-dashed">
+                  <CardContent className="py-16 text-center">
+                    <FileText className="w-16 h-16 mx-auto text-muted-foreground/40 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Visualizar Proposta em PDF</h3>
+                    <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                      Gere um PDF profissional da proposta comercial com o papel timbrado da empresa
+                      (se cadastrado) para revisão antes do envio.
+                    </p>
+                    <Button onClick={handleGeneratePdf} className="gap-2">
+                      <Eye className="w-4 h-4" />
+                      Gerar PDF
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfLoading && (
+                <Card>
+                  <CardContent className="py-16 text-center">
+                    <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+                    <p className="text-muted-foreground">Gerando PDF com papel timbrado...</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfBlobUrl && (
+                <Card className="border-2">
+                  <CardContent className="p-0">
+                    <iframe
+                      src={pdfBlobUrl}
+                      className="w-full rounded-lg"
+                      style={{ height: '600px' }}
+                      title="Preview da Proposta PDF"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
             {/* Robô Tab - Log de Ações em Tempo Real */}
             <TabsContent value="robo" className="m-0">
               <RobotActionLog
