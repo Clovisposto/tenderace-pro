@@ -753,12 +753,12 @@ const ProposalModal = ({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Enviando...
+                    Registrando...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Enviar Proposta ao Portal
+                    Registrar Proposta (Robô Envia)
                   </>
                 )}
               </Button>
