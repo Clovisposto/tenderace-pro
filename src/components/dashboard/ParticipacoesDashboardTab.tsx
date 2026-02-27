@@ -1017,8 +1017,8 @@ export function ParticipacoesDashboardTab() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-participacoes'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-autorizadas'] });
       toast({
-        title: '✅ Proposta Enviada!',
-        description: 'Sua proposta foi enviada profissionalmente ao portal.',
+        title: '📋 Proposta Registrada!',
+        description: 'Aguardando confirmação de envio pelo robô. O status será atualizado automaticamente.',
       });
     },
     onError: (error: Error) => {
