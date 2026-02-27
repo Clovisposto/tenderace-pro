@@ -359,6 +359,7 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
             ? e.certificado_digital_validade.split('T')[0]
             : '',
           certificado_digital_emissor: e.certificado_digital_emissor ?? '',
+          certificado_digital_senha: (e as any).certificado_digital_senha ?? '',
           govbr_vinculado: e.govbr_vinculado ?? false,
           email_smtp_host: (e as any).email_smtp_host ?? '',
           email_smtp_port: String((e as any).email_smtp_port ?? 587),
