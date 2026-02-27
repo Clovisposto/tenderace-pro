@@ -158,7 +158,157 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado" }), {
+    // ─── POST: Agent sends proposal via email (for dispensas without portal submission) ───
+    if (req.method === "POST" && action === "enviar-email") {
+      const body = await req.json();
+      const { config_id, licitacao_id, empresa_id, proposta_id } = body;
+
+      if (!config_id || !licitacao_id || !empresa_id) {
+        return new Response(JSON.stringify({ error: "config_id, licitacao_id e empresa_id obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch licitacao with email_destino
+      const { data: lic, error: licErr } = await supabase
+        .from("licitacoes")
+        .select("numero, orgao, objeto, valor, modalidade, email_destino, metodo_envio")
+        .eq("id", licitacao_id)
+        .single();
+
+      if (licErr || !lic) {
+        return new Response(JSON.stringify({ error: "Licitação não encontrada" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch empresa
+      const { data: emp, error: empErr } = await supabase
+        .from("empresas")
+        .select("nome, cnpj, razao_social, email, telefone, endereco, papel_timbrado_url")
+        .eq("id", empresa_id)
+        .single();
+
+      if (empErr || !emp) {
+        return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch proposta value
+      let valorProposta = lic.valor;
+      if (proposta_id) {
+        const { data: prop } = await supabase
+          .from("propostas")
+          .select("valor_proposta")
+          .eq("id", proposta_id)
+          .single();
+        if (prop) valorProposta = prop.valor_proposta;
+      }
+
+      // Determine email destination
+      const emailDestino = lic.email_destino || body.email_destino;
+      if (!emailDestino) {
+        return new Response(JSON.stringify({
+          error: "Nenhum email de destino configurado para esta licitação. Atualize o campo email_destino na licitação.",
+          licitacao_numero: lic.numero,
+        }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Call notificar function to send proposal email with PDF
+      const notificarUrl = `${supabaseUrl}/functions/v1/notificar`;
+      const notificarPayload = {
+        tipo: "proposta_email",
+        destinatario_email: emailDestino,
+        licitacao_id,
+        dados: {
+          empresa_nome: emp.nome,
+          empresa_cnpj: emp.cnpj,
+          licitacao_numero: lic.numero,
+          licitacao_orgao: lic.orgao,
+          licitacao_objeto: lic.objeto,
+          valor_proposta: valorProposta,
+        },
+      };
+
+      console.log(`[enviar-email] Enviando proposta por email para ${emailDestino}...`);
+      console.log(`[enviar-email] Licitação: ${lic.numero} | Empresa: ${emp.nome} | Valor: R$ ${valorProposta}`);
+
+      const notificarRes = await fetch(notificarUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+          "apikey": serviceKey,
+        },
+        body: JSON.stringify(notificarPayload),
+      });
+
+      const notificarResult = await notificarRes.json();
+
+      if (!notificarRes.ok || !notificarResult.success) {
+        console.error(`[enviar-email] Falha ao enviar: ${JSON.stringify(notificarResult)}`);
+
+        // Register error event
+        await supabase.from("historico_disputas").insert({
+          licitacao_id, empresa_id, proposta_id: proposta_id || licitacao_id,
+          evento: "email_envio_falha",
+          detalhes: { erro: notificarResult.error || "Falha ao enviar email", email_destino: emailDestino },
+        });
+
+        return new Response(JSON.stringify({
+          error: "Falha ao enviar proposta por email",
+          details: notificarResult,
+        }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`[enviar-email] ✅ Proposta enviada com sucesso via ${notificarResult.method}`);
+
+      // Register success event
+      await supabase.from("historico_disputas").insert({
+        licitacao_id, empresa_id, proposta_id: proposta_id || licitacao_id,
+        evento: "proposta_enviada_email",
+        valor_lance: valorProposta,
+        detalhes: {
+          email_destino: emailDestino,
+          metodo: notificarResult.method,
+          pdf_gerado: true,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Update proposta status
+      if (proposta_id) {
+        await supabase
+          .from("propostas")
+          .update({ status: "Enviada", enviado_em: new Date().toISOString() })
+          .eq("id", proposta_id);
+      }
+
+      // Finalize config
+      await supabase
+        .from("robo_configuracao")
+        .update({ status: "finalizado", ativo: false, ultimo_heartbeat: new Date().toISOString() })
+        .eq("id", config_id);
+
+      return new Response(JSON.stringify({
+        ok: true,
+        email_enviado: true,
+        email_destino: emailDestino,
+        metodo: notificarResult.method,
+        licitacao: lic.numero,
+        empresa: emp.nome,
+        valor: valorProposta,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
