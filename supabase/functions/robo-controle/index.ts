@@ -24,8 +24,8 @@ Deno.serve(async (req: Request) => {
         .from("robo_configuracao")
         .select(`
           *,
-          empresas:empresa_id (nome, cnpj, certificado_digital_tipo),
-          licitacoes:licitacao_id (numero, orgao, portal, data_abertura, data_limite, valor, modalidade, uf, municipio),
+          empresas:empresa_id (nome, cnpj, certificado_digital_tipo, email, telefone, endereco, razao_social, papel_timbrado_url, email_smtp_host, email_smtp_port, email_smtp_user, email_smtp_password, email_smtp_ssl),
+          licitacoes:licitacao_id (numero, orgao, portal, data_abertura, data_limite, valor, modalidade, uf, municipio, metodo_envio, email_destino, objeto),
           propostas:proposta_id (valor_proposta, status)
         `)
         .eq("ativo", true)
