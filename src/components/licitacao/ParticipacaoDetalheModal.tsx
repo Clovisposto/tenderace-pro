@@ -194,6 +194,61 @@ export function ParticipacaoDetalheModal({
     });
   };
 
+  const handleGeneratePdf = useCallback(async () => {
+    setPdfLoading(true);
+    setPdfBlobUrl(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('gerar-proposta-pdf', {
+        body: {
+          proposta_id: participacao.id,
+          licitacao_id: licitacao.id,
+          empresa_id: participacao.empresa_id,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.pdf_base64) throw new Error('PDF não retornado');
+
+      const binary = atob(data.pdf_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+
+      toast({
+        title: '✅ PDF Gerado',
+        description: data.com_papel_timbrado
+          ? 'Proposta com papel timbrado pronta para visualização.'
+          : 'Proposta gerada (sem papel timbrado cadastrado).',
+      });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: 'Não foi possível gerar o PDF da proposta.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [participacao, licitacao]);
+
+  const handleDownloadPdf = () => {
+    if (!pdfBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = pdfBlobUrl;
+    a.download = `Proposta_${licitacao.numero.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`;
+    a.click();
+  };
+
+  // Cleanup blob URL
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
