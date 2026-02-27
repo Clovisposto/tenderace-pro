@@ -490,12 +490,21 @@ export function ParticipacaoDetalheModal({
               {pdfBlobUrl && (
                 <Card className="border-2">
                   <CardContent className="p-0">
-                    <iframe
-                      src={pdfBlobUrl}
+                    <object
+                      data={pdfBlobUrl}
+                      type="application/pdf"
                       className="w-full rounded-lg"
                       style={{ height: '600px' }}
-                      title="Preview da Proposta PDF"
-                    />
+                    >
+                      <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                        <FileText className="w-12 h-12 text-muted-foreground" />
+                        <p className="text-muted-foreground text-sm">Seu navegador não suporta visualização inline de PDF.</p>
+                        <Button variant="outline" onClick={() => window.open(pdfBlobUrl!, '_blank')} className="gap-2">
+                          <ExternalLink className="w-4 h-4" />
+                          Abrir PDF em nova aba
+                        </Button>
+                      </div>
+                    </object>
                   </CardContent>
                 </Card>
               )}
