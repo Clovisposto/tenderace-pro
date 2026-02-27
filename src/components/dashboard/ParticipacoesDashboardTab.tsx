@@ -753,12 +753,12 @@ const ProposalModal = ({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Enviando...
+                    Registrando...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Enviar Proposta ao Portal
+                    Registrar Proposta (Robô Envia)
                   </>
                 )}
               </Button>
@@ -972,33 +972,53 @@ export function ParticipacoesDashboardTab() {
         empresaId = empresas[0].id;
       }
 
-      // Create proposal
-      const { error } = await supabase
+      // Create proposal as Rascunho — only marked Enviada after robot confirms
+      const { data: novaProposta, error } = await supabase
         .from('propostas')
         .insert({
           empresa_id: empresaId,
           licitacao_id: data.licitacaoId,
           valor_proposta: data.valorProposta,
-          status: 'Enviada',
+          status: 'Rascunho',
           observacoes: data.justificativa,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
-      // Update licitacao status
+      // Create robo_configuracao to trigger VPS agent submission
+      const { error: roboError } = await supabase
+        .from('robo_configuracao')
+        .insert({
+          user_id: user.id,
+          empresa_id: empresaId,
+          licitacao_id: data.licitacaoId,
+          proposta_id: novaProposta.id,
+          ativo: true,
+          valor_minimo: data.valorProposta,
+          margem_minima: 8,
+          status: 'aguardando',
+        });
+
+      if (roboError) {
+        console.error('Erro ao criar config do robô:', roboError);
+      }
+
+      // Update licitacao status to Aguardando (not Em Disputa yet)
       await supabase
         .from('licitacoes')
-        .update({ status: 'Em Disputa' })
+        .update({ status: 'Aguardando Autorização' })
         .eq('id', data.licitacaoId);
 
-      return data;
+      return { ...data, propostaId: novaProposta.id };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-participacoes'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-autorizadas'] });
       toast({
-        title: '✅ Proposta Enviada!',
-        description: 'Sua proposta foi enviada profissionalmente ao portal.',
+        title: '📋 Proposta Registrada!',
+        description: 'Aguardando confirmação de envio pelo robô. O status será atualizado automaticamente.',
       });
     },
     onError: (error: Error) => {

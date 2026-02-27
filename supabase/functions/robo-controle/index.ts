@@ -102,6 +102,22 @@ Deno.serve(async (req: Request) => {
           .eq("id", config_id);
       }
 
+      // If robot confirms submission (proposta_enviada event), update proposal status + timestamp
+      if (evento === "proposta_enviada" && proposta_id) {
+        await supabase
+          .from("propostas")
+          .update({ status: "Enviada", enviado_em: new Date().toISOString() })
+          .eq("id", proposta_id);
+
+        // Also update licitacao to Em Disputa
+        if (licitacao_id) {
+          await supabase
+            .from("licitacoes")
+            .update({ status: "Em Disputa" })
+            .eq("id", licitacao_id);
+        }
+      }
+
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
