@@ -269,10 +269,14 @@ export function ParticipacaoDetalheModal({
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-5 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
+          <TabsList className="grid w-full grid-cols-6 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
             <TabsTrigger value="resumo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Resumo</span>
+            </TabsTrigger>
+            <TabsTrigger value="proposta-pdf" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              <Eye className="w-4 h-4" />
+              <span className="hidden sm:inline">Proposta</span>
             </TabsTrigger>
             <TabsTrigger value="robo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Gavel className="w-4 h-4" />
