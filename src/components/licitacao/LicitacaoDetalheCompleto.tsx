@@ -377,50 +377,12 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                         </Button>
                       </div>
 
+                      {/* Método de envio badge */}
                       {(detectedResult?.metodo_envio || licitacao.metodoEnvio) === 'email' ? (
-                        <div className="space-y-2">
-                          <Badge className="bg-orange-100 text-orange-800">
-                            <Mail className="w-3 h-3 mr-1" />
-                            Envio por E-mail
-                          </Badge>
-                          {(detectedResult?.email_destino || licitacao.emailDestino) ? (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm text-muted-foreground">Enviar para:</span>
-                              <code className="text-primary bg-primary/10 px-2 py-1 rounded text-sm font-mono">
-                                {detectedResult?.email_destino || licitacao.emailDestino}
-                              </code>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(detectedResult?.email_destino || licitacao.emailDestino || '');
-                                  toast.success('E-mail copiado');
-                                }}
-                              >
-                                <Copy className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1 text-xs"
-                                onClick={() => {
-                                  const email = detectedResult?.email_destino || licitacao.emailDestino;
-                                  const subject = encodeURIComponent(`Proposta - ${licitacao.numero} - ${licitacao.objeto.substring(0, 60)}`);
-                                  const body = encodeURIComponent(
-                                    `Prezados,\n\nSegue em anexo a proposta de preços referente à licitação ${licitacao.numero}.\n\nObjeto: ${licitacao.objeto.substring(0, 120)}\n\nAtenciosamente.`
-                                  );
-                                  window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
-                                }}
-                              >
-                                <Mail className="w-3 h-3" />
-                                Enviar E-mail
-                              </Button>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-warning">E-mail de destino não encontrado no edital</p>
-                          )}
-                        </div>
+                        <Badge className="bg-orange-100 text-orange-800">
+                          <Mail className="w-3 h-3 mr-1" />
+                          Envio por E-mail
+                        </Badge>
                       ) : (detectedResult?.metodo_envio || licitacao.metodoEnvio) === 'presencial' ? (
                         <Badge className="bg-purple-100 text-purple-800">Envio Presencial</Badge>
                       ) : (
@@ -429,6 +391,101 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                           Via Portal Eletrônico
                         </Badge>
                       )}
+
+                      {/* Email destino - editável */}
+                      <div className="mt-3 p-3 rounded-md border bg-background">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                            E-mail de destino da proposta
+                          </span>
+                          {!editingEmail && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs gap-1"
+                              onClick={() => setEditingEmail(true)}
+                            >
+                              <FileText className="w-3 h-3" />
+                              {emailDestino ? 'Editar' : 'Adicionar'}
+                            </Button>
+                          )}
+                        </div>
+
+                        {editingEmail ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              type="email"
+                              placeholder="email@orgao.gov.br"
+                              value={emailDestino}
+                              onChange={(e) => setEmailDestino(e.target.value)}
+                              className="h-8 text-sm flex-1"
+                              autoFocus
+                              maxLength={255}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1"
+                              onClick={handleSaveEmail}
+                              disabled={savingEmail}
+                            >
+                              {savingEmail ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3 h-3" />
+                              )}
+                              Salvar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => {
+                                setEditingEmail(false);
+                                setEmailDestino(licitacao.emailDestino || '');
+                              }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : emailDestino ? (
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            <code className="text-primary bg-primary/10 px-2 py-1 rounded text-sm font-mono">
+                              {emailDestino}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                navigator.clipboard.writeText(emailDestino);
+                                toast.success('E-mail copiado');
+                              }}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={() => {
+                                const subject = encodeURIComponent(`Proposta - ${licitacao.numero} - ${licitacao.objeto.substring(0, 60)}`);
+                                const body = encodeURIComponent(
+                                  `Prezados,\n\nSegue em anexo a proposta de preços referente à licitação ${licitacao.numero}.\n\nObjeto: ${licitacao.objeto.substring(0, 120)}\n\nAtenciosamente.`
+                                );
+                                window.open(`mailto:${emailDestino}?subject=${subject}&body=${body}`, '_blank');
+                              }}
+                            >
+                              <Mail className="w-3 h-3" />
+                              Enviar E-mail
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Nenhum e-mail configurado. O robô usará envio via portal. Adicione um e-mail para habilitar envio automático por email.
+                          </p>
+                        )}
+                      </div>
 
                       {detectedResult?.justificativa && (
                         <p className="text-xs text-muted-foreground mt-2 italic">
