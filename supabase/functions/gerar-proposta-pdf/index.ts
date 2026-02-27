@@ -302,8 +302,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Default: return base64
-    const base64 = btoa(String.fromCharCode(...pdfBytes));
+    // Default: return base64 (chunk to avoid stack overflow)
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < pdfBytes.length; i += chunkSize) {
+      const chunk = pdfBytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    const base64 = btoa(binary);
     return new Response(JSON.stringify({
       success: true,
       pdf_base64: base64,
