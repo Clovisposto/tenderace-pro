@@ -315,6 +315,7 @@ const EMPTY_FORM = {
   certificado_digital_tipo: '',
   certificado_digital_validade: '',
   certificado_digital_emissor: '',
+  certificado_digital_senha: '',
   // Gov.br
   govbr_vinculado: false,
   // E-mail SMTP/POP
