@@ -39,6 +39,8 @@ import {
   Sparkles,
   Loader2,
   Gavel,
+  Eye,
+  Mail,
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
