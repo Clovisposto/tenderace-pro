@@ -284,6 +284,7 @@ export type Database = {
         Row: {
           certidoes_validas: boolean | null
           certificado_digital_emissor: string | null
+          certificado_digital_senha: string | null
           certificado_digital_tipo: string | null
           certificado_digital_validade: string | null
           cnae_codigo: string | null
@@ -321,6 +322,7 @@ export type Database = {
         Insert: {
           certidoes_validas?: boolean | null
           certificado_digital_emissor?: string | null
+          certificado_digital_senha?: string | null
           certificado_digital_tipo?: string | null
           certificado_digital_validade?: string | null
           cnae_codigo?: string | null
@@ -358,6 +360,7 @@ export type Database = {
         Update: {
           certidoes_validas?: boolean | null
           certificado_digital_emissor?: string | null
+          certificado_digital_senha?: string | null
           certificado_digital_tipo?: string | null
           certificado_digital_validade?: string | null
           cnae_codigo?: string | null

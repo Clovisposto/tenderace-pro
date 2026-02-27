@@ -315,6 +315,7 @@ const EMPTY_FORM = {
   certificado_digital_tipo: '',
   certificado_digital_validade: '',
   certificado_digital_emissor: '',
+  certificado_digital_senha: '',
   // Gov.br
   govbr_vinculado: false,
   // E-mail SMTP/POP
@@ -358,6 +359,7 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
             ? e.certificado_digital_validade.split('T')[0]
             : '',
           certificado_digital_emissor: e.certificado_digital_emissor ?? '',
+          certificado_digital_senha: (e as any).certificado_digital_senha ?? '',
           govbr_vinculado: e.govbr_vinculado ?? false,
           email_smtp_host: (e as any).email_smtp_host ?? '',
           email_smtp_port: String((e as any).email_smtp_port ?? 587),
@@ -784,11 +786,30 @@ const EmpresaFormModal = ({ open, onClose, empresa }: EmpresaFormModalProps) => 
                   </div>
                 )}
 
+                {/* Senha do certificado para automação */}
+                {form.certificado_digital_tipo === 'A1' && (
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
+                      Senha do Certificado A1
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder="Senha do arquivo .pfx/.p12"
+                      value={form.certificado_digital_senha}
+                      onChange={e => set('certificado_digital_senha', e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Necessária para o robô autenticar automaticamente no Gov.br via certificado digital.
+                    </p>
+                  </div>
+                )}
+
                 <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     <strong>💡 Dica:</strong> Para participar de licitações no ComprasNet (PNCP) e outros portais federais, 
-                    é obrigatório o certificado e-CNPJ. Certifique-se que o certificado está instalado e válido no 
-                    computador que será usado para enviar propostas.
+                    é obrigatório o certificado e-CNPJ. Com o certificado A1 e a senha cadastrados, o robô pode
+                    autenticar automaticamente no Gov.br e submeter propostas em seu nome.
                   </p>
                 </div>
 
