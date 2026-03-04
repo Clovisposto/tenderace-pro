@@ -361,17 +361,17 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Create temporary test config
+      // Create or reuse temporary test config (upsert to avoid unique constraint)
       const { data: config, error: insertErr } = await supabase
         .from("robo_configuracao")
-        .insert({
+        .upsert({
           user_id,
           empresa_id,
           licitacao_id: anyLic.id,
           ativo: true,
           status: "testando_login",
           erro_mensagem: null,
-        })
+        }, { onConflict: "empresa_id,licitacao_id" })
         .select("id")
         .single();
 
