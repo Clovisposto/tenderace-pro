@@ -148,12 +148,6 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
 
   const pollTestStatus = useCallback(async (configId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('robo-controle', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        body: undefined,
-      });
-      
       // Use fetch directly since invoke doesn't support GET params well
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const url = `https://${projectId}.supabase.co/functions/v1/robo-controle?action=testar-login-status&config_id=${configId}`;
