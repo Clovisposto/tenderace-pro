@@ -1,0 +1,2 @@
+ALTER TABLE public.robo_configuracao DROP CONSTRAINT IF EXISTS robo_configuracao_status_check;
+ALTER TABLE public.robo_configuracao ADD CONSTRAINT robo_configuracao_status_check CHECK (status IN ('aguardando', 'conectando', 'na_sala', 'disputando', 'finalizado', 'erro', 'testando_login', 'login_ok'));
