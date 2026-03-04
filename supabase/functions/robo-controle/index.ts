@@ -319,18 +319,33 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Check if there's already an active test
+      // Clean up any stale test configs (older than 3 minutes)
       const { data: existing } = await supabase
         .from("robo_configuracao")
-        .select("id, status")
+        .select("id, status, created_at")
         .eq("empresa_id", empresa_id)
         .eq("status", "testando_login")
         .eq("ativo", true);
 
       if (existing && existing.length > 0) {
-        return new Response(JSON.stringify({ error: "Já existe um teste em andamento", config_id: existing[0].id }), {
-          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        const stale = existing.filter((e: any) => e.created_at < threeMinAgo);
+        const active = existing.filter((e: any) => e.created_at >= threeMinAgo);
+
+        // Clean up stale tests
+        if (stale.length > 0) {
+          await supabase
+            .from("robo_configuracao")
+            .update({ ativo: false, status: "finalizado", erro_mensagem: "Timeout - teste expirado" })
+            .in("id", stale.map((e: any) => e.id));
+        }
+
+        // If there's still an active recent test, block
+        if (active.length > 0) {
+          return new Response(JSON.stringify({ error: "Já existe um teste em andamento", config_id: active[0].id }), {
+            status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       // Find any licitacao to use as reference (required by FK)
