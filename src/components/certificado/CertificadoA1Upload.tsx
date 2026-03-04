@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,10 @@ import {
   AlertTriangle,
   Lock,
   FileKey,
+  Globe,
+  PlayCircle,
+  XCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +29,8 @@ interface CertificadoA1UploadProps {
   certificadoTipo?: string;
 }
 
+type TestStatus = 'idle' | 'starting' | 'polling' | 'success' | 'error';
+
 export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }: CertificadoA1UploadProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -33,6 +39,14 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
   const [hasFile, setHasFile] = useState(false);
   const [fileName, setFileName] = useState('');
   const [senha, setSenha] = useState('');
+
+  // Test login state
+  const [testStatus, setTestStatus] = useState<TestStatus>('idle');
+  const [testConfigId, setTestConfigId] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [testElapsed, setTestElapsed] = useState(0);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const elapsedIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isA1 = certificadoTipo?.includes('A1');
 
@@ -53,6 +67,14 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
     checkFile();
   }, [user, empresaId]);
 
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
+    };
+  }, []);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -72,7 +94,6 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
     try {
       const filePath = `${user.id}/${empresaId}/certificado.${ext}`;
 
-      // Remove old file
       if (hasFile) {
         const oldPath = `${user.id}/${empresaId}/${fileName}`;
         await supabase.storage.from('certificados-digitais').remove([oldPath]);
@@ -110,6 +131,127 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
       toast({ title: 'Erro', description: err?.message, variant: 'destructive' });
     } finally {
       setUploading(false);
+    }
+  };
+
+  // ─── Test Login Gov.br ───
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (elapsedIntervalRef.current) {
+      clearInterval(elapsedIntervalRef.current);
+      elapsedIntervalRef.current = null;
+    }
+  }, []);
+
+  const pollTestStatus = useCallback(async (configId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('robo-controle', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: undefined,
+      });
+      
+      // Use fetch directly since invoke doesn't support GET params well
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/robo-controle?action=testar-login-status&config_id=${configId}`;
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      
+      if (!res.ok) return;
+      const result = await res.json();
+      const config = result.config;
+      
+      if (!config) return;
+      
+      // Check terminal states
+      if (config.status === 'finalizado' || config.status === 'login_ok') {
+        setTestStatus('success');
+        setTestError(null);
+        stopPolling();
+        toast({ title: '✅ Login Gov.br bem-sucedido!', description: 'O certificado digital está funcionando corretamente.' });
+      } else if (config.status === 'erro' || !config.ativo) {
+        setTestStatus('error');
+        setTestError(config.erro_mensagem || 'Falha no teste de login');
+        stopPolling();
+        toast({ title: '❌ Falha no login Gov.br', description: config.erro_mensagem || 'Verifique o certificado e a senha.', variant: 'destructive' });
+      }
+      // Otherwise keep polling (testando_login, conectando, etc.)
+    } catch (err) {
+      console.error('Erro ao verificar status do teste:', err);
+    }
+  }, [stopPolling, toast]);
+
+  const handleTestLogin = async () => {
+    if (!user || !hasFile) {
+      toast({ title: 'Certificado necessário', description: 'Envie o certificado A1 primeiro.', variant: 'destructive' });
+      return;
+    }
+
+    setTestStatus('starting');
+    setTestError(null);
+    setTestElapsed(0);
+
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/robo-controle?action=testar-login`;
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ empresa_id: empresaId, user_id: user.id }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Falha ao iniciar teste');
+      }
+
+      const configId = result.config_id;
+      setTestConfigId(configId);
+      setTestStatus('polling');
+
+      toast({ title: '🔄 Teste iniciado', description: 'O robô tentará fazer login no Gov.br. Aguarde...' });
+
+      // Start elapsed timer
+      elapsedIntervalRef.current = setInterval(() => {
+        setTestElapsed(prev => prev + 1);
+      }, 1000);
+
+      // Poll every 5s for up to 3 minutes
+      let pollCount = 0;
+      const maxPolls = 36; // 3 minutes
+      pollIntervalRef.current = setInterval(() => {
+        pollCount++;
+        if (pollCount >= maxPolls) {
+          setTestStatus('error');
+          setTestError('Timeout: O teste excedeu 3 minutos sem resposta.');
+          stopPolling();
+          return;
+        }
+        pollTestStatus(configId);
+      }, 5000);
+
+    } catch (err: any) {
+      setTestStatus('error');
+      setTestError(err?.message || 'Erro desconhecido');
+      toast({ title: 'Erro', description: err?.message, variant: 'destructive' });
     }
   };
 
@@ -225,6 +367,78 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
           A senha é armazenada de forma segura e usada apenas para desbloquear o certificado durante a autenticação automática.
         </p>
       </div>
+
+      {/* ─── Teste de Login Gov.br ─── */}
+      {hasFile && (
+        <Card className="border-primary/20">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-primary" />
+                <p className="font-semibold text-sm">Testar Login Gov.br</p>
+              </div>
+              {testStatus === 'polling' && (
+                <Badge variant="outline" className="gap-1 animate-pulse">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  {testElapsed}s
+                </Badge>
+              )}
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              Verifica se o certificado A1 e a senha estão corretos, testando o login real no Gov.br via robô.
+            </p>
+
+            {/* Test result feedback */}
+            {testStatus === 'success' && (
+              <div className="p-3 rounded-lg bg-success/10 border border-success/30 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                <p className="text-sm text-success font-medium">Login realizado com sucesso! Certificado funcionando.</p>
+              </div>
+            )}
+
+            {testStatus === 'error' && testError && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 space-y-1">
+                <div className="flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                  <p className="text-sm text-destructive font-medium">Falha no login</p>
+                </div>
+                <p className="text-xs text-destructive/80 pl-6">{testError}</p>
+              </div>
+            )}
+
+            {testStatus === 'polling' && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                <div>
+                  <p className="text-sm text-primary font-medium">Testando login...</p>
+                  <p className="text-xs text-muted-foreground">O robô está tentando autenticar no Gov.br. Isso pode levar até 2 minutos.</p>
+                </div>
+              </div>
+            )}
+
+            <Button
+              onClick={handleTestLogin}
+              disabled={testStatus === 'starting' || testStatus === 'polling' || !hasFile}
+              className="w-full gap-2"
+              variant={testStatus === 'success' ? 'outline' : 'default'}
+            >
+              {testStatus === 'starting' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : testStatus === 'polling' ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <PlayCircle className="w-4 h-4" />
+              )}
+              {testStatus === 'starting' ? 'Iniciando...' : 
+               testStatus === 'polling' ? 'Aguardando resultado...' :
+               testStatus === 'success' ? 'Testar Novamente' :
+               testStatus === 'error' ? 'Tentar Novamente' :
+               'Testar Login Gov.br'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground flex items-start gap-2">
         <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />

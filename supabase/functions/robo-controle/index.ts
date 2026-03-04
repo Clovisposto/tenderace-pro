@@ -24,12 +24,12 @@ Deno.serve(async (req: Request) => {
         .from("robo_configuracao")
         .select(`
           *,
-          empresas:empresa_id (nome, cnpj, certificado_digital_tipo, email, telefone, endereco, razao_social, papel_timbrado_url, email_smtp_host, email_smtp_port, email_smtp_user, email_smtp_password, email_smtp_ssl),
+          empresas:empresa_id (nome, cnpj, certificado_digital_tipo, certificado_digital_senha, email, telefone, endereco, razao_social, papel_timbrado_url, email_smtp_host, email_smtp_port, email_smtp_user, email_smtp_password, email_smtp_ssl),
           licitacoes:licitacao_id (numero, orgao, portal, data_abertura, data_limite, valor, modalidade, uf, municipio, metodo_envio, email_destino, objeto),
           propostas:proposta_id (valor_proposta, status)
         `)
         .eq("ativo", true)
-        .in("status", ["aguardando", "conectando", "na_sala", "disputando"]);
+        .in("status", ["aguardando", "conectando", "na_sala", "disputando", "testando_login"]);
 
       if (error) throw error;
 
@@ -308,7 +308,88 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email" }), {
+    // ─── POST: Test certificate login on Gov.br ───
+    if (req.method === "POST" && action === "testar-login") {
+      const body = await req.json();
+      const { empresa_id, user_id } = body;
+
+      if (!empresa_id || !user_id) {
+        return new Response(JSON.stringify({ error: "empresa_id e user_id obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if there's already an active test
+      const { data: existing } = await supabase
+        .from("robo_configuracao")
+        .select("id, status")
+        .eq("empresa_id", empresa_id)
+        .eq("status", "testando_login")
+        .eq("ativo", true);
+
+      if (existing && existing.length > 0) {
+        return new Response(JSON.stringify({ error: "Já existe um teste em andamento", config_id: existing[0].id }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Find any licitacao to use as reference (required by FK)
+      const { data: anyLic } = await supabase
+        .from("licitacoes")
+        .select("id")
+        .limit(1)
+        .single();
+
+      if (!anyLic) {
+        return new Response(JSON.stringify({ error: "Nenhuma licitação encontrada para referência" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create temporary test config
+      const { data: config, error: insertErr } = await supabase
+        .from("robo_configuracao")
+        .insert({
+          user_id,
+          empresa_id,
+          licitacao_id: anyLic.id,
+          ativo: true,
+          status: "testando_login",
+          erro_mensagem: null,
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      return new Response(JSON.stringify({ ok: true, config_id: config.id, message: "Teste de login iniciado. O robô tentará autenticar no Gov.br." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── GET: Check test login status ───
+    if (req.method === "GET" && action === "testar-login-status") {
+      const configId = url.searchParams.get("config_id");
+      if (!configId) {
+        return new Response(JSON.stringify({ error: "config_id obrigatório" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("robo_configuracao")
+        .select("id, status, erro_mensagem, ultimo_heartbeat, ativo")
+        .eq("id", configId)
+        .single();
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ config: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email|testar-login|testar-login-status" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
