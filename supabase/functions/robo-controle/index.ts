@@ -18,6 +18,8 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
+    console.log(`[robo-controle] ▶ ${req.method} action=${action} ts=${new Date().toISOString()}`);
+
     // ─── GET: Agent polls for active robot configs ───
     if (req.method === "GET" && action === "poll") {
       const { data, error } = await supabase
@@ -33,6 +35,11 @@ Deno.serve(async (req: Request) => {
 
       if (error) throw error;
 
+      console.log(`[robo-controle] poll → ${data?.length || 0} configs ativas encontradas`);
+      if (data?.length) {
+        data.forEach((c: any) => console.log(`  📋 config=${c.id} empresa=${c.empresas?.nome} status=${c.status}`));
+      }
+
       return new Response(JSON.stringify({ configs: data }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -42,6 +49,7 @@ Deno.serve(async (req: Request) => {
     if (req.method === "POST" && action === "heartbeat") {
       const body = await req.json();
       const { config_id, status, erro_mensagem } = body;
+      console.log(`[robo-controle] heartbeat → config=${config_id} status=${status} erro=${erro_mensagem || 'nenhum'}`);
 
       if (!config_id) {
         return new Response(JSON.stringify({ error: "config_id obrigatório" }), {
@@ -313,7 +321,10 @@ Deno.serve(async (req: Request) => {
       const body = await req.json();
       const { empresa_id, user_id } = body;
 
+      console.log(`[robo-controle] testar-login → empresa=${empresa_id} user=${user_id}`);
+
       if (!empresa_id || !user_id) {
+        console.log(`[robo-controle] ❌ testar-login: campos faltando`);
         return new Response(JSON.stringify({ error: "empresa_id e user_id obrigatórios" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -328,12 +339,14 @@ Deno.serve(async (req: Request) => {
         .eq("ativo", true);
 
       if (existing && existing.length > 0) {
+        console.log(`[robo-controle] testar-login: ${existing.length} configs existentes encontradas`);
         const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
         const stale = existing.filter((e: any) => e.created_at < threeMinAgo);
         const active = existing.filter((e: any) => e.created_at >= threeMinAgo);
 
         // Clean up stale tests
         if (stale.length > 0) {
+          console.log(`[robo-controle] testar-login: limpando ${stale.length} testes expirados`);
           await supabase
             .from("robo_configuracao")
             .update({ ativo: false, status: "finalizado", erro_mensagem: "Timeout - teste expirado" })
@@ -342,6 +355,7 @@ Deno.serve(async (req: Request) => {
 
         // If there's still an active recent test, block
         if (active.length > 0) {
+          console.log(`[robo-controle] ⚠️ testar-login: teste ativo já existe config=${active[0].id}`);
           return new Response(JSON.stringify({ error: "Já existe um teste em andamento", config_id: active[0].id }), {
             status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -377,6 +391,8 @@ Deno.serve(async (req: Request) => {
 
       if (insertErr) throw insertErr;
 
+      console.log(`[robo-controle] ✅ testar-login: config criada/atualizada id=${config.id}`);
+
       return new Response(JSON.stringify({ ok: true, config_id: config.id, message: "Teste de login iniciado. O robô tentará autenticar no Gov.br." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -385,6 +401,7 @@ Deno.serve(async (req: Request) => {
     // ─── GET: Check test login status ───
     if (req.method === "GET" && action === "testar-login-status") {
       const configId = url.searchParams.get("config_id");
+      console.log(`[robo-controle] testar-login-status → config=${configId}`);
       if (!configId) {
         return new Response(JSON.stringify({ error: "config_id obrigatório" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -399,17 +416,20 @@ Deno.serve(async (req: Request) => {
 
       if (error) throw error;
 
+      console.log(`[robo-controle] testar-login-status → status=${data?.status} ativo=${data?.ativo} erro=${data?.erro_mensagem || 'nenhum'}`);
+
       return new Response(JSON.stringify({ config: data }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    console.log(`[robo-controle] ❌ Ação não reconhecida: action=${action} method=${req.method}`);
     return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email|testar-login|testar-login-status" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("Erro robo-controle:", err);
+    console.error("❌ Erro robo-controle:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
