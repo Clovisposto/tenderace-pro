@@ -1024,6 +1024,15 @@ const MinhasParticipacoes = () => {
               <p className="text-xs text-muted-foreground">Robô Ativo</p>
             </CardContent>
           </Card>
+          <Card className={`bg-gradient-to-br ${stats.aguardandoEnvio > 0 ? 'from-amber-500/15 to-amber-500/5 border-amber-300' : 'from-muted to-muted/50'}`}>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Send className="w-5 h-5 text-amber-600" />
+              </div>
+              <p className={`text-2xl font-bold ${stats.aguardandoEnvio > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>{stats.aguardandoEnvio}</p>
+              <p className="text-xs text-muted-foreground">Ag. Envio</p>
+            </CardContent>
+          </Card>
           <Card className="bg-gradient-to-br from-muted to-muted/50">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold">{stats.total}</p>
