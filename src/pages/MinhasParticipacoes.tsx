@@ -38,7 +38,9 @@ import {
   CreditCard,
   Phone,
   Mail,
-  CalendarClock
+  CalendarClock,
+  Send,
+  RotateCcw
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
