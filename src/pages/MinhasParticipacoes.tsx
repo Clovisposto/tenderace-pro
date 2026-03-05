@@ -139,6 +139,8 @@ const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
 const StatusBadge = ({ status }: { status: string }) => {
   const configs: Record<string, { color: string; icon: React.ReactNode }> = {
     'Rascunho': { color: 'bg-muted text-muted-foreground', icon: <FileText className="w-3 h-3" /> },
+    'Aguardando Envio': { color: 'bg-amber-500/10 text-amber-600', icon: <Clock className="w-3 h-3" /> },
+    'Erro no Envio': { color: 'bg-destructive/10 text-destructive', icon: <AlertCircle className="w-3 h-3" /> },
     'Enviada': { color: 'bg-blue-500/10 text-blue-600', icon: <CheckCircle2 className="w-3 h-3" /> },
     'Em Disputa': { color: 'bg-amber-500/10 text-amber-600', icon: <Gavel className="w-3 h-3" /> },
     'Vencedora': { color: 'bg-green-500/10 text-green-600', icon: <Trophy className="w-3 h-3" /> },
