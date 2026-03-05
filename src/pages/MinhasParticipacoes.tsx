@@ -661,6 +661,34 @@ const MinhasParticipacoes = () => {
     });
   };
 
+  // Mutation para reenviar proposta
+  const resendProposalMutation = useMutation({
+    mutationFn: async (propostaId: string) => {
+      const { data, error } = await supabase
+        .from('propostas')
+        .update({ status: 'Aguardando Envio' as any, updated_at: new Date().toISOString() })
+        .eq('id', propostaId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
+      toast({
+        title: '📤 Proposta reenfileirada',
+        description: 'A proposta será reenviada automaticamente.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao reenviar',
+        description: getSafeErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Mutation para criar propostas de teste
   const createTestProposalMutation = useMutation({
     mutationFn: async () => {
