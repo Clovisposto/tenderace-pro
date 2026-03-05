@@ -1060,11 +1060,16 @@ const MinhasParticipacoes = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="autorizadas" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="autorizadas" className="gap-1 text-xs md:text-sm">
               <Bot className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Robô</span>
               <Badge variant="secondary" className="ml-0.5 bg-primary/20 text-primary text-xs px-1.5">{stats.autorizadas}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="aguardando-envio" className="gap-1 text-xs md:text-sm">
+              <Send className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Envio</span>
+              <Badge variant="secondary" className={`ml-0.5 text-xs px-1.5 ${stats.aguardandoEnvio > 0 ? 'bg-amber-100 text-amber-700' : ''}`}>{stats.aguardandoEnvio}</Badge>
             </TabsTrigger>
             <TabsTrigger value="medicamentos" className="gap-1 text-xs md:text-sm">
               <Pill className="w-3 h-3 md:w-4 md:h-4" />
