@@ -1160,7 +1160,112 @@ const MinhasParticipacoes = () => {
             </div>
           </TabsContent>
 
-          {/* Aba Medicamentos */}
+          {/* Aba Aguardando Envio */}
+          <TabsContent value="aguardando-envio">
+            <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-amber-50 to-amber-50/50 border border-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-amber-100">
+                  <Send className="w-6 h-6 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-700">Propostas Aguardando Envio</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.aguardandoEnvio} proposta(s) aguardando envio ou com erro. Use o botão de reenvio para tentar novamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pb-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {aguardandoEnvio.length === 0 ? (
+                  <Card className="col-span-2 p-8 text-center">
+                    <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Nenhuma proposta pendente de envio</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Todas as propostas foram enviadas com sucesso!
+                    </p>
+                  </Card>
+                ) : (
+                  aguardandoEnvio.map(p => (
+                    <Card key={p.id} className={`relative overflow-hidden transition-all hover:shadow-lg ${
+                      p.status === 'Erro no Envio' ? 'border-destructive/50 bg-destructive/5' : 'border-amber-300 bg-amber-50/30'
+                    }`}>
+                      {p.status === 'Erro no Envio' && (
+                        <div className="absolute top-0 left-0 right-0 bg-destructive/10 px-4 py-1.5 flex items-center gap-2 text-destructive text-xs font-medium">
+                          <AlertCircle className="w-3 h-3" />
+                          Erro no envio — clique em Reenviar para tentar novamente
+                        </div>
+                      )}
+                      <CardHeader className={`pb-3 ${p.status === 'Erro no Envio' ? 'pt-10' : ''}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">{p.licitacao.portal}</Badge>
+                              <Badge variant="secondary" className="text-xs">{p.licitacao.modalidade}</Badge>
+                              <StatusBadge status={p.status} />
+                            </div>
+                            <CardTitle className="text-base line-clamp-2">
+                              {p.licitacao.objeto_resumido || p.licitacao.objeto}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">{p.licitacao.numero}</p>
+                          </div>
+                          <CountdownTimer targetDate={p.licitacao.data_limite} />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            <span className="truncate">{p.licitacao.orgao}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <span>{p.licitacao.municipio}, {p.licitacao.uf}</span>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-3 rounded-lg bg-background border">
+                            <p className="text-xs text-muted-foreground mb-1">Valor da Proposta</p>
+                            <p className="font-bold text-primary">
+                              R$ {p.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-background border">
+                            <p className="text-xs text-muted-foreground mb-1">Valor Estimado</p>
+                            <p className="font-bold text-muted-foreground">
+                              R$ {p.licitacao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="text-xs text-muted-foreground">
+                            Empresa: {p.empresa.nome}
+                          </div>
+                          <Button
+                            variant={p.status === 'Erro no Envio' ? 'destructive' : 'default'}
+                            size="sm"
+                            className="gap-2"
+                            disabled={resendProposalMutation.isPending}
+                            onClick={() => resendProposalMutation.mutate(p.id)}
+                          >
+                            {resendProposalMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-4 h-4" />
+                            )}
+                            Reenviar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="medicamentos">
             <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-50/50 border border-blue-200">
               <div className="flex items-center gap-3">
