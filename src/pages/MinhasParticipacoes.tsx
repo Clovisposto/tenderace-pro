@@ -913,6 +913,7 @@ const MinhasParticipacoes = () => {
 
   const stats = {
     total: participacoes.length,
+    aguardandoEnvio: aguardandoEnvio.length,
     emDisputa: emDisputa.length,
     vencidas: vencidas.length,
     perdidas: perdidas.length,
