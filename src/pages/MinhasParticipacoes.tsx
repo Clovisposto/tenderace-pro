@@ -38,7 +38,9 @@ import {
   CreditCard,
   Phone,
   Mail,
-  CalendarClock
+  CalendarClock,
+  Send,
+  RotateCcw
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,6 +141,8 @@ const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
 const StatusBadge = ({ status }: { status: string }) => {
   const configs: Record<string, { color: string; icon: React.ReactNode }> = {
     'Rascunho': { color: 'bg-muted text-muted-foreground', icon: <FileText className="w-3 h-3" /> },
+    'Aguardando Envio': { color: 'bg-amber-500/10 text-amber-600', icon: <Clock className="w-3 h-3" /> },
+    'Erro no Envio': { color: 'bg-destructive/10 text-destructive', icon: <AlertCircle className="w-3 h-3" /> },
     'Enviada': { color: 'bg-blue-500/10 text-blue-600', icon: <CheckCircle2 className="w-3 h-3" /> },
     'Em Disputa': { color: 'bg-amber-500/10 text-amber-600', icon: <Gavel className="w-3 h-3" /> },
     'Vencedora': { color: 'bg-green-500/10 text-green-600', icon: <Trophy className="w-3 h-3" /> },
@@ -657,6 +661,34 @@ const MinhasParticipacoes = () => {
     });
   };
 
+  // Mutation para reenviar proposta
+  const resendProposalMutation = useMutation({
+    mutationFn: async (propostaId: string) => {
+      const { data, error } = await supabase
+        .from('propostas')
+        .update({ status: 'Aguardando Envio' as any, updated_at: new Date().toISOString() })
+        .eq('id', propostaId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
+      toast({
+        title: '📤 Proposta reenfileirada',
+        description: 'A proposta será reenviada automaticamente.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao reenviar',
+        description: getSafeErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Mutation para criar propostas de teste
   const createTestProposalMutation = useMutation({
     mutationFn: async () => {
@@ -879,6 +911,7 @@ const MinhasParticipacoes = () => {
   const filterBySegmento = (segmento: string) =>
     participacoes.filter(p => p.licitacao.segmento === segmento);
 
+  const aguardandoEnvio = filterByStatus(['Aguardando Envio', 'Erro no Envio']);
   const emDisputa = filterByStatus(['Enviada', 'Em Disputa']);
   const vencidas = filterByStatus(['Vencedora']);
   const perdidas = filterByStatus(['Perdedora', 'Cancelada']);
@@ -912,6 +945,7 @@ const MinhasParticipacoes = () => {
 
   const stats = {
     total: participacoes.length,
+    aguardandoEnvio: aguardandoEnvio.length,
     emDisputa: emDisputa.length,
     vencidas: vencidas.length,
     perdidas: perdidas.length,
@@ -980,7 +1014,7 @@ const MinhasParticipacoes = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
@@ -988,6 +1022,15 @@ const MinhasParticipacoes = () => {
               </div>
               <p className="text-2xl font-bold text-primary">{stats.autorizadas}</p>
               <p className="text-xs text-muted-foreground">Robô Ativo</p>
+            </CardContent>
+          </Card>
+          <Card className={`bg-gradient-to-br ${stats.aguardandoEnvio > 0 ? 'from-amber-500/15 to-amber-500/5 border-amber-300' : 'from-muted to-muted/50'}`}>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Send className="w-5 h-5 text-amber-600" />
+              </div>
+              <p className={`text-2xl font-bold ${stats.aguardandoEnvio > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>{stats.aguardandoEnvio}</p>
+              <p className="text-xs text-muted-foreground">Ag. Envio</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-muted to-muted/50">
@@ -1026,11 +1069,16 @@ const MinhasParticipacoes = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="autorizadas" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="autorizadas" className="gap-1 text-xs md:text-sm">
               <Bot className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Robô</span>
               <Badge variant="secondary" className="ml-0.5 bg-primary/20 text-primary text-xs px-1.5">{stats.autorizadas}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="aguardando-envio" className="gap-1 text-xs md:text-sm">
+              <Send className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Envio</span>
+              <Badge variant="secondary" className={`ml-0.5 text-xs px-1.5 ${stats.aguardandoEnvio > 0 ? 'bg-amber-100 text-amber-700' : ''}`}>{stats.aguardandoEnvio}</Badge>
             </TabsTrigger>
             <TabsTrigger value="medicamentos" className="gap-1 text-xs md:text-sm">
               <Pill className="w-3 h-3 md:w-4 md:h-4" />
@@ -1121,7 +1169,112 @@ const MinhasParticipacoes = () => {
             </div>
           </TabsContent>
 
-          {/* Aba Medicamentos */}
+          {/* Aba Aguardando Envio */}
+          <TabsContent value="aguardando-envio">
+            <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-amber-50 to-amber-50/50 border border-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-amber-100">
+                  <Send className="w-6 h-6 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-700">Propostas Aguardando Envio</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.aguardandoEnvio} proposta(s) aguardando envio ou com erro. Use o botão de reenvio para tentar novamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pb-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {aguardandoEnvio.length === 0 ? (
+                  <Card className="col-span-2 p-8 text-center">
+                    <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Nenhuma proposta pendente de envio</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Todas as propostas foram enviadas com sucesso!
+                    </p>
+                  </Card>
+                ) : (
+                  aguardandoEnvio.map(p => (
+                    <Card key={p.id} className={`relative overflow-hidden transition-all hover:shadow-lg ${
+                      p.status === 'Erro no Envio' ? 'border-destructive/50 bg-destructive/5' : 'border-amber-300 bg-amber-50/30'
+                    }`}>
+                      {p.status === 'Erro no Envio' && (
+                        <div className="absolute top-0 left-0 right-0 bg-destructive/10 px-4 py-1.5 flex items-center gap-2 text-destructive text-xs font-medium">
+                          <AlertCircle className="w-3 h-3" />
+                          Erro no envio — clique em Reenviar para tentar novamente
+                        </div>
+                      )}
+                      <CardHeader className={`pb-3 ${p.status === 'Erro no Envio' ? 'pt-10' : ''}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">{p.licitacao.portal}</Badge>
+                              <Badge variant="secondary" className="text-xs">{p.licitacao.modalidade}</Badge>
+                              <StatusBadge status={p.status} />
+                            </div>
+                            <CardTitle className="text-base line-clamp-2">
+                              {p.licitacao.objeto_resumido || p.licitacao.objeto}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">{p.licitacao.numero}</p>
+                          </div>
+                          <CountdownTimer targetDate={p.licitacao.data_limite} />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            <span className="truncate">{p.licitacao.orgao}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <span>{p.licitacao.municipio}, {p.licitacao.uf}</span>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-3 rounded-lg bg-background border">
+                            <p className="text-xs text-muted-foreground mb-1">Valor da Proposta</p>
+                            <p className="font-bold text-primary">
+                              R$ {p.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-background border">
+                            <p className="text-xs text-muted-foreground mb-1">Valor Estimado</p>
+                            <p className="font-bold text-muted-foreground">
+                              R$ {p.licitacao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="text-xs text-muted-foreground">
+                            Empresa: {p.empresa.nome}
+                          </div>
+                          <Button
+                            variant={p.status === 'Erro no Envio' ? 'destructive' : 'default'}
+                            size="sm"
+                            className="gap-2"
+                            disabled={resendProposalMutation.isPending}
+                            onClick={() => resendProposalMutation.mutate(p.id)}
+                          >
+                            {resendProposalMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-4 h-4" />
+                            )}
+                            Reenviar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="medicamentos">
             <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-50/50 border border-blue-200">
               <div className="flex items-center gap-3">
