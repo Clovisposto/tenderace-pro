@@ -879,6 +879,7 @@ const MinhasParticipacoes = () => {
   const filterBySegmento = (segmento: string) =>
     participacoes.filter(p => p.licitacao.segmento === segmento);
 
+  const aguardandoEnvio = filterByStatus(['Aguardando Envio', 'Erro no Envio']);
   const emDisputa = filterByStatus(['Enviada', 'Em Disputa']);
   const vencidas = filterByStatus(['Vencedora']);
   const perdidas = filterByStatus(['Perdedora', 'Cancelada']);
