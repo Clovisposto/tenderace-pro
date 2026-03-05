@@ -826,6 +826,8 @@ export type Database = {
         | "Vencedora"
         | "Perdedora"
         | "Cancelada"
+        | "Aguardando Envio"
+        | "Erro no Envio"
       segmento_type: "Medicamentos" | "Empreendimentos"
     }
     CompositeTypes: {
@@ -988,6 +990,8 @@ export const Constants = {
         "Vencedora",
         "Perdedora",
         "Cancelada",
+        "Aguardando Envio",
+        "Erro no Envio",
       ],
       segmento_type: ["Medicamentos", "Empreendimentos"],
     },
