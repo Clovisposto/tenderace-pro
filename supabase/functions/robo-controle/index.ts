@@ -432,8 +432,84 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ─── POST: Frontend triggers immediate proposal submission ───
+    if (req.method === "POST" && action === "enviar-proposta") {
+      const body = parsedBody || await req.json();
+      const { proposta_id, licitacao_id, empresa_id } = body as Record<string, string>;
+
+      console.log(`[robo-controle] enviar-proposta → proposta=${proposta_id} licitacao=${licitacao_id} empresa=${empresa_id}`);
+
+      if (!proposta_id || !licitacao_id || !empresa_id) {
+        return new Response(JSON.stringify({ error: "proposta_id, licitacao_id e empresa_id obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if there's already an active config for this licitacao+empresa
+      const { data: existing } = await supabase
+        .from("robo_configuracao")
+        .select("id, status, ativo")
+        .eq("licitacao_id", licitacao_id)
+        .eq("empresa_id", empresa_id)
+        .eq("ativo", true)
+        .maybeSingle();
+
+      if (existing) {
+        // Reactivate existing config
+        await supabase
+          .from("robo_configuracao")
+          .update({
+            proposta_id,
+            status: "aguardando",
+            erro_mensagem: null,
+            ultimo_heartbeat: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+
+        console.log(`[robo-controle] enviar-proposta: config existente reativada id=${existing.id}`);
+        return new Response(JSON.stringify({ ok: true, config_id: existing.id, reused: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get user_id from proposta's empresa
+      const { data: emp } = await supabase
+        .from("empresas")
+        .select("user_id")
+        .eq("id", empresa_id)
+        .single();
+
+      if (!emp) {
+        return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create new config for the VPS agent to pick up
+      const { data: config, error: insertErr } = await supabase
+        .from("robo_configuracao")
+        .insert({
+          user_id: emp.user_id,
+          empresa_id,
+          licitacao_id,
+          proposta_id,
+          ativo: true,
+          status: "aguardando",
+          erro_mensagem: null,
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      console.log(`[robo-controle] ✅ enviar-proposta: nova config criada id=${config.id}`);
+      return new Response(JSON.stringify({ ok: true, config_id: config.id, reused: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log(`[robo-controle] ❌ Ação não reconhecida: action=${action} method=${req.method}`);
-    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email|testar-login|testar-login-status" }), {
+    return new Response(JSON.stringify({ error: "Ação não reconhecida. Use ?action=poll|heartbeat|lance|certificado|enviar-email|enviar-proposta|testar-login|testar-login-status" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
