@@ -661,23 +661,42 @@ const MinhasParticipacoes = () => {
     });
   };
 
-  // Mutation para reenviar proposta
+  // Mutation para reenviar proposta — atualiza status E notifica a VPS via Edge Function
   const resendProposalMutation = useMutation({
     mutationFn: async (propostaId: string) => {
+      // 1. Atualizar status no banco
       const { data, error } = await supabase
         .from('propostas')
-        .update({ status: 'Aguardando Envio' as any, updated_at: new Date().toISOString() })
+        .update({ status: 'Aguardando Envio' as any, enviado_em: null, updated_at: new Date().toISOString() })
         .eq('id', propostaId)
-        .select()
+        .select('*, licitacoes:licitacao_id(numero, orgao, portal, metodo_envio, email_destino), empresas:empresa_id(id, nome, cnpj)')
         .single();
       if (error) throw error;
+
+      // 2. Disparar envio imediato via Edge Function robo-controle
+      try {
+        const { error: fnError } = await supabase.functions.invoke('robo-controle', {
+          body: {
+            action: 'enviar-proposta',
+            proposta_id: propostaId,
+            licitacao_id: data.licitacao_id,
+            empresa_id: data.empresa_id,
+          },
+        });
+        if (fnError) {
+          console.warn('[REENVIO] Edge Function retornou erro, VPS tentará via polling:', fnError);
+        }
+      } catch (e) {
+        console.warn('[REENVIO] Falha ao chamar Edge Function, VPS detectará via polling:', e);
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['minhas-participacoes'] });
       toast({
         title: '📤 Proposta reenfileirada',
-        description: 'A proposta será reenviada automaticamente.',
+        description: 'O robô na VPS foi notificado para reenviar a proposta.',
       });
     },
     onError: (error: Error) => {
