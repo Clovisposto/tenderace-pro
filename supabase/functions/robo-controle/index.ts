@@ -445,33 +445,6 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Check if there's already an active config for this licitacao+empresa
-      const { data: existing } = await supabase
-        .from("robo_configuracao")
-        .select("id, status, ativo")
-        .eq("licitacao_id", licitacao_id)
-        .eq("empresa_id", empresa_id)
-        .eq("ativo", true)
-        .maybeSingle();
-
-      if (existing) {
-        // Reactivate existing config
-        await supabase
-          .from("robo_configuracao")
-          .update({
-            proposta_id,
-            status: "aguardando",
-            erro_mensagem: null,
-            ultimo_heartbeat: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-
-        console.log(`[robo-controle] enviar-proposta: config existente reativada id=${existing.id}`);
-        return new Response(JSON.stringify({ ok: true, config_id: existing.id, reused: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       // Get user_id from proposta's empresa
       const { data: emp } = await supabase
         .from("empresas")
@@ -485,10 +458,10 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Create new config for the VPS agent to pick up
-      const { data: config, error: insertErr } = await supabase
+      // Upsert config to avoid duplicate key violation
+      const { data: config, error: upsertErr } = await supabase
         .from("robo_configuracao")
-        .insert({
+        .upsert({
           user_id: emp.user_id,
           empresa_id,
           licitacao_id,
@@ -496,14 +469,15 @@ Deno.serve(async (req: Request) => {
           ativo: true,
           status: "aguardando",
           erro_mensagem: null,
-        })
+          ultimo_heartbeat: new Date().toISOString(),
+        }, { onConflict: "empresa_id,licitacao_id" })
         .select("id")
         .single();
 
-      if (insertErr) throw insertErr;
+      if (upsertErr) throw upsertErr;
 
-      console.log(`[robo-controle] ✅ enviar-proposta: nova config criada id=${config.id}`);
-      return new Response(JSON.stringify({ ok: true, config_id: config.id, reused: false }), {
+      console.log(`[robo-controle] ✅ enviar-proposta: config upserted id=${config.id}`);
+      return new Response(JSON.stringify({ ok: true, config_id: config.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
