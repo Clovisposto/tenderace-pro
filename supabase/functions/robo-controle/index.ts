@@ -16,7 +16,16 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    let action = url.searchParams.get("action");
+
+    // Support action from POST body as well (frontend sends via invoke body)
+    let parsedBody: Record<string, unknown> | null = null;
+    if (req.method === "POST" && !action) {
+      try {
+        parsedBody = await req.json();
+        if (parsedBody?.action) action = parsedBody.action as string;
+      } catch { /* not JSON */ }
+    }
 
     console.log(`[robo-controle] ▶ ${req.method} action=${action} ts=${new Date().toISOString()}`);
 
