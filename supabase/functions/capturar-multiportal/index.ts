@@ -584,6 +584,25 @@ async function getUserUFs(supabase: any, userId?: string): Promise<string[]> {
   return ['PA', 'TO', 'GO', 'MA'];
 }
 
+// Get user's value limits from configuracoes
+async function getUserValorLimits(supabase: any, userId?: string): Promise<{ valorMinimo: number; valorMaximo: number }> {
+  if (userId) {
+    const { data } = await supabase
+      .from('configuracoes')
+      .select('valor_minimo, valor_maximo')
+      .eq('user_id', userId)
+      .single();
+    
+    if (data) {
+      return {
+        valorMinimo: data.valor_minimo ?? 500,
+        valorMaximo: data.valor_maximo ?? 500000,
+      };
+    }
+  }
+  return { valorMinimo: 500, valorMaximo: 500000 };
+}
+
 async function getUserTiposLicitacao(supabase: any, userId?: string): Promise<string[]> {
   if (userId) {
     const { data } = await supabase
