@@ -878,7 +878,24 @@ serve(async (req) => {
         }
       }
     }
-    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade`);
+    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade/valor`);
+
+    // Also clean existing tenders outside value range
+    const { data: foraDoRange } = await supabase
+      .from('licitacoes')
+      .select('id, valor')
+      .or(`valor.lt.${valorLimits.valorMinimo},valor.gt.${valorLimits.valorMaximo}`);
+    
+    let removidasPorValor = 0;
+    if (foraDoRange) {
+      for (const lic of foraDoRange) {
+        await supabase.from('licitacoes').delete().eq('id', lic.id);
+        removidasPorValor++;
+      }
+      if (removidasPorValor > 0) {
+        console.log(`[MultiPortal] ${removidasPorValor} licitações existentes removidas por estar fora do range de valor`);
+      }
+    }
     console.log(`[MultiPortal] Verificação PNCP: ${removedByStatus} licitações concluídas removidas`);
 
     const totalCount = results.reduce((sum, r) => sum + r.count, 0);
