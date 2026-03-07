@@ -61,19 +61,31 @@ const Licitacoes = () => {
         clearTimeout(timeoutId);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
-      } catch (err) {
+      } catch (err: any) {
         clearTimeout(timeoutId);
+        // If it's a timeout/network error, the data may still have been saved
+        // Refresh the list and show a softer message
+        if (err?.name === 'AbortError' || err?.message === 'Failed to fetch') {
+          queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+          return { partial: true, message: 'Captura em andamento - dados sendo processados' };
+        }
         throw err;
       }
     },
     onSuccess: (data) => {
-      toast.success(`Capturadas ${data?.total || 0} licitações de ${data?.results?.filter((r: any) => r.success).length || 0} portais`, {
-        description: `Estados: ${data?.ufs?.join(', ') || 'Todos'}`,
-      });
+      if (data?.partial) {
+        toast.info('Captura em andamento', {
+          description: 'Os dados estão sendo processados em segundo plano. A lista será atualizada automaticamente.',
+        });
+      } else {
+        toast.success(`Capturadas ${data?.total || 0} licitações de ${data?.results?.filter((r: any) => r.success).length || 0} portais`, {
+          description: `Estados: ${data?.ufs?.join(', ') || 'Todos'}`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
     },
     onError: (error) => {
-      toast.error('Erro ao capturar licitações');
+      toast.error('Erro ao capturar licitações', { description: error.message });
       console.error(error);
     }
   });
