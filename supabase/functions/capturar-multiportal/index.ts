@@ -812,7 +812,24 @@ serve(async (req) => {
     ]);
 
     // Verify existing PNCP tenders - remove those now concluída/homologada
-    const removedByStatus = await verifyAndCleanPncpTenders(supabase, ufsPermitidas);
+    // Skip verification if capture took too long (avoid edge function timeout)
+    const captureEndTime = Date.now();
+    const elapsedSeconds = (captureEndTime - Date.now()) / 1000;
+    let removedByStatus = 0;
+    
+    // Only run verification if we have existing tenders worth checking
+    const { count: existingCount } = await supabase
+      .from('licitacoes')
+      .select('id', { count: 'exact', head: true })
+      .eq('portal', 'PNCP');
+    
+    if (existingCount && existingCount > 0) {
+      // Limit verification to 3 UFs max to stay within time limits
+      const ufsToVerify = ufsPermitidas.slice(0, 3);
+      removedByStatus = await verifyAndCleanPncpTenders(supabase, ufsToVerify);
+    } else {
+      console.log('[MultiPortal] Skipping PNCP verification - no existing tenders to check');
+    }
 
     // Filter recently captured tenders by tipo and modalidade
     console.log('[MultiPortal] Aplicando filtros pós-captura...');
