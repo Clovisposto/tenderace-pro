@@ -853,12 +853,12 @@ serve(async (req) => {
       console.log('[MultiPortal] Skipping PNCP verification - no existing tenders to check');
     }
 
-    // Filter recently captured tenders by tipo and modalidade
-    console.log('[MultiPortal] Aplicando filtros pós-captura...');
+    // Filter recently captured tenders by tipo, modalidade, and valor limits
+    console.log('[MultiPortal] Aplicando filtros pós-captura (incluindo valor)...');
     
     const { data: licitacoesRecentes } = await supabase
       .from('licitacoes')
-      .select('id, objeto, modalidade')
+      .select('id, objeto, modalidade, valor')
       .gte('created_at', new Date(Date.now() - 120000).toISOString());
     
     let removidas = 0;
@@ -866,13 +866,15 @@ serve(async (req) => {
       for (const lic of licitacoesRecentes) {
         const passaTipo = passaTipoFiltro(lic.objeto, tiposPermitidos);
         const passaModalidade = passaModalidadeFiltro(lic.modalidade, modalidadesPermitidas);
+        const passaValor = lic.valor >= valorLimits.valorMinimo && lic.valor <= valorLimits.valorMaximo;
         
-        if (!passaTipo || !passaModalidade) {
+        if (!passaTipo || !passaModalidade || !passaValor) {
           await supabase
             .from('licitacoes')
             .delete()
             .eq('id', lic.id);
           removidas++;
+          if (!passaValor) console.log(`[MultiPortal] Removida ${lic.id}: valor R$${lic.valor} fora do range R$${valorLimits.valorMinimo}-R$${valorLimits.valorMaximo}`);
         }
       }
     }
