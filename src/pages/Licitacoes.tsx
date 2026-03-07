@@ -42,7 +42,7 @@ const Licitacoes = () => {
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2min timeout
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5min timeout
 
       try {
         const response = await fetch(
