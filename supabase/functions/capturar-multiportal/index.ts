@@ -584,6 +584,25 @@ async function getUserUFs(supabase: any, userId?: string): Promise<string[]> {
   return ['PA', 'TO', 'GO', 'MA'];
 }
 
+// Get user's value limits from configuracoes
+async function getUserValorLimits(supabase: any, userId?: string): Promise<{ valorMinimo: number; valorMaximo: number }> {
+  if (userId) {
+    const { data } = await supabase
+      .from('configuracoes')
+      .select('valor_minimo, valor_maximo')
+      .eq('user_id', userId)
+      .single();
+    
+    if (data) {
+      return {
+        valorMinimo: data.valor_minimo ?? 500,
+        valorMaximo: data.valor_maximo ?? 500000,
+      };
+    }
+  }
+  return { valorMinimo: 500, valorMaximo: 500000 };
+}
+
 async function getUserTiposLicitacao(supabase: any, userId?: string): Promise<string[]> {
   if (userId) {
     const { data } = await supabase
@@ -779,9 +798,12 @@ serve(async (req) => {
       ? modalidadesReq
       : await getUserModalidades(supabase, authenticatedUserId);
 
+    const valorLimits = await getUserValorLimits(supabase, authenticatedUserId);
+
     console.log('[MultiPortal] Starting capture for UFs:', ufsPermitidas.join(', '));
     console.log('[MultiPortal] Tipos de licitação:', tiposPermitidos.join(', '));
     console.log('[MultiPortal] Modalidades:', modalidadesPermitidas.join(', '));
+    console.log('[MultiPortal] Valor range:', `R$${valorLimits.valorMinimo} - R$${valorLimits.valorMaximo}`);
     if (segmento) console.log('[MultiPortal] Filtering by segment:', segmento);
 
     const { data: jobLog } = await supabase
@@ -831,12 +853,12 @@ serve(async (req) => {
       console.log('[MultiPortal] Skipping PNCP verification - no existing tenders to check');
     }
 
-    // Filter recently captured tenders by tipo and modalidade
-    console.log('[MultiPortal] Aplicando filtros pós-captura...');
+    // Filter recently captured tenders by tipo, modalidade, and valor limits
+    console.log('[MultiPortal] Aplicando filtros pós-captura (incluindo valor)...');
     
     const { data: licitacoesRecentes } = await supabase
       .from('licitacoes')
-      .select('id, objeto, modalidade')
+      .select('id, objeto, modalidade, valor')
       .gte('created_at', new Date(Date.now() - 120000).toISOString());
     
     let removidas = 0;
@@ -844,17 +866,36 @@ serve(async (req) => {
       for (const lic of licitacoesRecentes) {
         const passaTipo = passaTipoFiltro(lic.objeto, tiposPermitidos);
         const passaModalidade = passaModalidadeFiltro(lic.modalidade, modalidadesPermitidas);
+        const passaValor = lic.valor >= valorLimits.valorMinimo && lic.valor <= valorLimits.valorMaximo;
         
-        if (!passaTipo || !passaModalidade) {
+        if (!passaTipo || !passaModalidade || !passaValor) {
           await supabase
             .from('licitacoes')
             .delete()
             .eq('id', lic.id);
           removidas++;
+          if (!passaValor) console.log(`[MultiPortal] Removida ${lic.id}: valor R$${lic.valor} fora do range R$${valorLimits.valorMinimo}-R$${valorLimits.valorMaximo}`);
         }
       }
     }
-    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade`);
+    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade/valor`);
+
+    // Also clean existing tenders outside value range
+    const { data: foraDoRange } = await supabase
+      .from('licitacoes')
+      .select('id, valor')
+      .or(`valor.lt.${valorLimits.valorMinimo},valor.gt.${valorLimits.valorMaximo}`);
+    
+    let removidasPorValor = 0;
+    if (foraDoRange) {
+      for (const lic of foraDoRange) {
+        await supabase.from('licitacoes').delete().eq('id', lic.id);
+        removidasPorValor++;
+      }
+      if (removidasPorValor > 0) {
+        console.log(`[MultiPortal] ${removidasPorValor} licitações existentes removidas por estar fora do range de valor`);
+      }
+    }
     console.log(`[MultiPortal] Verificação PNCP: ${removedByStatus} licitações concluídas removidas`);
 
     const totalCount = results.reduce((sum, r) => sum + r.count, 0);
