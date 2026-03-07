@@ -798,9 +798,12 @@ serve(async (req) => {
       ? modalidadesReq
       : await getUserModalidades(supabase, authenticatedUserId);
 
+    const valorLimits = await getUserValorLimits(supabase, authenticatedUserId);
+
     console.log('[MultiPortal] Starting capture for UFs:', ufsPermitidas.join(', '));
     console.log('[MultiPortal] Tipos de licitação:', tiposPermitidos.join(', '));
     console.log('[MultiPortal] Modalidades:', modalidadesPermitidas.join(', '));
+    console.log('[MultiPortal] Valor range:', `R$${valorLimits.valorMinimo} - R$${valorLimits.valorMaximo}`);
     if (segmento) console.log('[MultiPortal] Filtering by segment:', segmento);
 
     const { data: jobLog } = await supabase
