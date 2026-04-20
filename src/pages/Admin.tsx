@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
+import { SicafRefreshHistory } from '@/components/admin/SicafRefreshHistory';
 
 const Admin = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
@@ -234,6 +235,10 @@ const Admin = () => {
               <Clock className="w-4 h-4" />
               Cron Jobs
             </TabsTrigger>
+            <TabsTrigger value="sicaf" className="gap-2">
+              <Shield className="w-4 h-4" />
+              SICAF
+            </TabsTrigger>
             <TabsTrigger value="logs" className="gap-2">
               <Activity className="w-4 h-4" />
               Logs
@@ -243,6 +248,11 @@ const Admin = () => {
               Segurança
             </TabsTrigger>
           </TabsList>
+
+          {/* SICAF Tab */}
+          <TabsContent value="sicaf">
+            <SicafRefreshHistory />
+          </TabsContent>
 
           {/* Realtime Tab */}
           <TabsContent value="realtime">

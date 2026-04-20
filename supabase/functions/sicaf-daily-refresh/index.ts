@@ -52,11 +52,27 @@ serve(async (req) => {
     }
   }
 
-  console.log(`[SICAF Daily] Concluído. ${results.length} empresas processadas.`);
+  const sucesso = results.filter(r => r.status !== 'Erro' && !r.error).length;
+  const erros = results.length - sucesso;
+
+  console.log(`[SICAF Daily] Concluído. ${results.length} empresas processadas (${sucesso} ok, ${erros} erros).`);
+
+  // Persiste o histórico da execução
+  const { error: logError } = await supabase.from('sicaf_refresh_log').insert({
+    processadas: results.length,
+    sucesso,
+    erros,
+    resultados: results,
+    status: erros === 0 ? 'concluido' : (sucesso === 0 ? 'erro' : 'parcial'),
+  });
+
+  if (logError) console.error('[SICAF Daily] Erro ao gravar log:', logError);
 
   return new Response(JSON.stringify({
     success: true,
     processadas: results.length,
+    sucesso,
+    erros,
     resultados: results,
     executadoEm: new Date().toISOString(),
   }), {

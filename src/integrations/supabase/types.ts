@@ -759,6 +759,36 @@ export type Database = {
           },
         ]
       }
+      sicaf_refresh_log: {
+        Row: {
+          erros: number
+          id: number
+          processadas: number
+          ran_at: string
+          resultados: Json | null
+          status: string
+          sucesso: number
+        }
+        Insert: {
+          erros?: number
+          id?: number
+          processadas?: number
+          ran_at?: string
+          resultados?: Json | null
+          status?: string
+          sucesso?: number
+        }
+        Update: {
+          erros?: number
+          id?: number
+          processadas?: number
+          ran_at?: string
+          resultados?: Json | null
+          status?: string
+          sucesso?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
