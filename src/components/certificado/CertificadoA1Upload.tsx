@@ -45,8 +45,8 @@ export function CertificadoA1Upload({ empresaId, empresaNome, certificadoTipo }:
   const [testConfigId, setTestConfigId] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [testElapsed, setTestElapsed] = useState(0);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const elapsedIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isA1 = certificadoTipo?.includes('A1');
 
