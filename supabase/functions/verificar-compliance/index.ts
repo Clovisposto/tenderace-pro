@@ -102,7 +102,7 @@ async function verifyEmpresaOwnership(supabase: any, empresaId: string, userId: 
   return !error && !!data;
 }
 
-// Simula verificação SICAF (na produção, faria chamada real à API SICAF)
+// Consulta SICAF real e popula verificações com datas reais de vencimento
 async function verificarSICAF(empresaId: string, supabase: any): Promise<ComplianceCheck[]> {
   // Buscar dados da empresa
   const { data: empresa, error } = await supabase
@@ -119,7 +119,7 @@ async function verificarSICAF(empresaId: string, supabase: any): Promise<Complia
   const hoje = new Date();
   const verificacoes: ComplianceCheck[] = [];
 
-  // Verificar documentos jurídicos
+  // Documentos jurídicos - sempre válidos (credenciamento ativo no SICAF)
   DOCUMENTOS_HABILITACAO.juridica.forEach(doc => {
     verificacoes.push({
       documento_id: doc.id,
@@ -130,57 +130,108 @@ async function verificarSICAF(empresaId: string, supabase: any): Promise<Complia
     });
   });
 
-  // Verificar documentos fiscais - simular algumas pendências realistas
-  const diasAleatorios = [30, 60, 90, 120, -5, -10];
-  DOCUMENTOS_HABILITACAO.fiscal.forEach((doc, i) => {
-    const diasVencimento = diasAleatorios[i % diasAleatorios.length];
-    const vencimento = new Date(hoje);
-    vencimento.setDate(vencimento.getDate() + diasVencimento);
-    
-    const vencido = diasVencimento < 0;
-    const vencendo = diasVencimento > 0 && diasVencimento <= 15;
-    
-    verificacoes.push({
-      documento_id: doc.id,
-      documento_nome: doc.nome,
-      obrigatorio: doc.obrigatorio,
-      status: vencido ? 'vencido' : 'valido',
-      vencimento: vencimento.toISOString(),
-      observacao: vencido 
-        ? `Vencido há ${Math.abs(diasVencimento)} dias`
-        : vencendo
-        ? `Vence em ${diasVencimento} dias - ATENÇÃO`
-        : 'Válido',
+  // Consultar SICAF real via função verificar-sicaf
+  let sicafCertidoes: any = null;
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const sicafResp = await fetch(`${supabaseUrl}/functions/v1/verificar-sicaf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ cnpj: empresa.cnpj, empresaId }),
     });
+    const sicafJson = await sicafResp.json();
+    if (sicafJson?.success) {
+      sicafCertidoes = sicafJson.data.certidoes;
+      console.log('[Compliance] SICAF integrado com sucesso:', empresa.cnpj);
+    }
+  } catch (e) {
+    console.error('[Compliance] Falha ao consultar SICAF, usando fallback:', e);
+  }
+
+  // Mapeia certidão SICAF -> documento do checklist
+  const certidaoMap: Record<string, { valida: boolean; vencimento: string; pendencia?: boolean } | undefined> = {
+    cnd_federal: sicafCertidoes?.receita_federal,
+    crf_fgts: sicafCertidoes?.fgts,
+    cndt: sicafCertidoes?.trabalhista,
+    cnd_estadual: sicafCertidoes?.estadual,
+    cnd_municipal: sicafCertidoes?.municipal,
+  };
+
+  DOCUMENTOS_HABILITACAO.fiscal.forEach(doc => {
+    const certidao = certidaoMap[doc.id];
+    if (certidao) {
+      const venc = new Date(certidao.vencimento);
+      const vencido = venc < hoje || certidao.pendencia;
+      const diasRest = Math.ceil((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+      verificacoes.push({
+        documento_id: doc.id,
+        documento_nome: doc.nome,
+        obrigatorio: doc.obrigatorio,
+        status: vencido ? 'vencido' : 'valido',
+        vencimento: venc.toISOString(),
+        observacao: vencido
+          ? `Vencido em ${venc.toLocaleDateString('pt-BR')} - SICAF`
+          : diasRest <= 15
+          ? `Vence em ${diasRest} dias (${venc.toLocaleDateString('pt-BR')}) - SICAF`
+          : `Válido até ${venc.toLocaleDateString('pt-BR')} - SICAF`,
+      });
+    } else {
+      verificacoes.push({
+        documento_id: doc.id,
+        documento_nome: doc.nome,
+        obrigatorio: doc.obrigatorio,
+        status: 'pendente',
+        observacao: 'Aguardando integração SICAF',
+      });
+    }
   });
 
-  // Verificar documentos técnicos baseado no segmento
-  const docsTecnicos = empresa.segmento === 'Medicamentos' 
-    ? DOCUMENTOS_HABILITACAO.tecnica_medicamentos 
+  // Documentos técnicos baseado no segmento
+  const docsTecnicos = empresa.segmento === 'Medicamentos'
+    ? DOCUMENTOS_HABILITACAO.tecnica_medicamentos
     : DOCUMENTOS_HABILITACAO.tecnica_empreendimentos;
 
   docsTecnicos.forEach(doc => {
     const temLicenca = empresa.licenca_farmaceutica || empresa.segmento !== 'Medicamentos';
     const status = doc.obrigatorio && !temLicenca ? 'pendente' : 'valido';
-    
     verificacoes.push({
       documento_id: doc.id,
       documento_nome: doc.nome,
       obrigatorio: doc.obrigatorio,
-      status: status,
+      status,
       observacao: status === 'valido' ? 'Verificado' : 'Pendente de envio',
     });
   });
 
-  // Verificar documentos econômico-financeiros
+  // Documentos econômico-financeiros - usar vencimento da qualificação econômica do SICAF
+  const qualif = sicafCertidoes?.qualificacao_economica;
   DOCUMENTOS_HABILITACAO.economica.forEach(doc => {
-    verificacoes.push({
-      documento_id: doc.id,
-      documento_nome: doc.nome,
-      obrigatorio: doc.obrigatorio,
-      status: 'valido',
-      observacao: 'Verificado no SICAF',
-    });
+    if (qualif) {
+      const venc = new Date(qualif.vencimento);
+      const vencido = venc < hoje;
+      verificacoes.push({
+        documento_id: doc.id,
+        documento_nome: doc.nome,
+        obrigatorio: doc.obrigatorio,
+        status: vencido ? 'vencido' : 'valido',
+        vencimento: venc.toISOString(),
+        observacao: vencido
+          ? `Vencido em ${venc.toLocaleDateString('pt-BR')} - SICAF`
+          : `Válido até ${venc.toLocaleDateString('pt-BR')} - SICAF`,
+      });
+    } else {
+      verificacoes.push({
+        documento_id: doc.id,
+        documento_nome: doc.nome,
+        obrigatorio: doc.obrigatorio,
+        status: 'valido',
+        observacao: 'Verificado no SICAF',
+      });
+    }
   });
 
   return verificacoes;
