@@ -94,63 +94,24 @@ export const useVoiceAlerts = (): UseVoiceAlertsReturn => {
 
     setIsSpeaking(true);
 
+    // Use browser-native speechSynthesis (ElevenLabs disabled)
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ 
-            text, 
-            alertType,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`TTS request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.audioContent) {
-        // Use data URI for base64 audio
-        const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-        
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        
-        audioRef.current = new Audio(audioUrl);
-        audioRef.current.volume = volume;
-        
-        audioRef.current.onended = () => {
-          setIsSpeaking(false);
-        };
-        
-        audioRef.current.onerror = (e) => {
-          console.error('Audio playback error:', e);
-          setIsSpeaking(false);
-        };
-        
-        await audioRef.current.play();
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'pt-BR';
+        utterance.volume = volume;
+        utterance.rate = alertType === 'urgent' ? 1.2 : 1.0;
+        utterance.pitch = alertType === 'victory' ? 1.15 : 1.0;
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setIsSpeaking(false);
       }
     } catch (error) {
       console.error('Voice alert error:', error);
       setIsSpeaking(false);
-      
-      // Fallback to browser TTS if ElevenLabs fails
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'pt-BR';
-        utterance.rate = alertType === 'urgent' ? 1.2 : 1.0;
-        utterance.onend = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-      }
     }
   }, [isEnabled]);
 
