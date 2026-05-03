@@ -37,6 +37,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
 import { SicafRefreshHistory } from '@/components/admin/SicafRefreshHistory';
+import { PNCPConsultaPanel } from '@/components/admin/PNCPConsultaPanel';
 
 const Admin = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
