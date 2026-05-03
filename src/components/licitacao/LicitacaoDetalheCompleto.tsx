@@ -625,8 +625,6 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                           return { label: d.label, ok: status === 'valido', detail, vencimento: venc, statusRaw: status };
                         });
                       })().map((item, i) => {
-                        { label: 'Qualificação Econômico-Financeira', ok: true, detail: 'Válida até 30/06/2026', vencimento: new Date('2026-06-30') },
-                      ].map((item, i) => {
                         const hoje = new Date();
                         const diasParaVencer = item.vencimento ? Math.ceil((item.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 999;
                         const vencendo = diasParaVencer > 0 && diasParaVencer <= 15;
