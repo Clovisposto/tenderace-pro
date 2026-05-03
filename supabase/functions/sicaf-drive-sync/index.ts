@@ -52,13 +52,24 @@ async function downloadPdfBase64(fileId: string): Promise<string> {
 }
 
 async function extractWithAI(pdfBase64: string, fileName: string) {
-  const prompt = `Você é um extrator de dados SICAF. Analise este PDF e retorne JSON com:
-- cnpj (apenas dígitos, 14 chars)
-- razao_social
-- sicaf_status ("regular" | "irregular" | "vencido")
-- validade (ISO date YYYY-MM-DD ou null)
-- observacoes (string curta)
-Arquivo: ${fileName}. Responda APENAS o JSON.`;
+  const prompt = `Você é um extrator de dados SICAF. Analise este PDF e retorne um JSON com TODAS as certidões e validades:
+{
+  "cnpj": "apenas dígitos (14)",
+  "razao_social": "string",
+  "sicaf_status": "regular" | "irregular" | "vencido",
+  "sicaf_validade": "YYYY-MM-DD ou null (validade do credenciamento SICAF)",
+  "certidoes": {
+    "credenciamento_sicaf": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "habilitacao_juridica": { "validade": null, "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "receita_federal_pgfn": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "fgts_crf": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "trabalhista_tst": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "receita_estadual": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "receita_municipal": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" },
+    "qualificacao_economico_financeira": { "validade": "YYYY-MM-DD", "status": "valido"|"vencido"|"ausente", "detalhe": "string" }
+  }
+}
+Use null em campos não encontrados. Arquivo: ${fileName}. Responda APENAS o JSON.`;
 
   const res = await fetch(LOVABLE_AI, {
     method: 'POST',
