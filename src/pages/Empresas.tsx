@@ -1170,8 +1170,8 @@ const DocumentosModal = ({ empresa, open, onClose }: { empresa: Empresa | null; 
   );
 };
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
-const Empresas = () => {
+// ─── Conteúdo reutilizável (sem MainLayout) ──────────────────────────────────
+export const EmpresasContent = () => {
   const { data: empresas = [], isLoading, refetch } = useEmpresas();
   const deleteEmpresa = useDeleteEmpresa();
 
