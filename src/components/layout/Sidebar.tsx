@@ -19,7 +19,6 @@ const navigation = [
   { name: 'Portal BLL', href: '/portal', icon: Globe },
   { name: 'Licitações', href: '/licitacoes', icon: FileSearch },
   { name: 'Participações', href: '/participacoes', icon: Trophy },
-  { name: 'Empresas', href: '/empresas', icon: Building2 },
   { name: 'Conectores', href: '/conectores', icon: Plug },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
   { name: 'Manual', href: '/manual', icon: BookOpen },
