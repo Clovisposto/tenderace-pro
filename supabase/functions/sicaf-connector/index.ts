@@ -135,109 +135,89 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verificar CNPJ no SICAF
+    // Verificar CNPJ no SICAF (REAL via BrasilAPI)
     if (action === 'verificar_cnpj') {
       if (!cnpj) {
-        return new Response(JSON.stringify({
-          success: false,
-          message: 'CNPJ não informado',
-          error: 'O campo cnpj é obrigatório',
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
+        return new Response(JSON.stringify({ success: false, message: 'CNPJ não informado', error: 'O campo cnpj é obrigatório' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
         });
       }
 
-      // This would be the actual SICAF API call
-      // For now, we simulate a response structure
-      const mockResponse: SicafResponse = {
+      const cnpjLimpo = cnpj.replace(/\D/g, '');
+      const brasilApi = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!brasilApi.ok) {
+        const txt = await brasilApi.text();
+        return new Response(JSON.stringify({ success: false, message: 'Falha ao consultar CNPJ', error: txt }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: brasilApi.status,
+        });
+      }
+      const dados = await brasilApi.json();
+
+      if (empresa_id) {
+        await supabase.from('empresas').update({
+          razao_social: dados.razao_social,
+          sicaf_status: dados.descricao_situacao_cadastral === 'ATIVA' ? 'Regular' : 'Pendente',
+          sicaf_atualizado_em: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', empresa_id);
+      }
+
+      return new Response(JSON.stringify({
         success: true,
         message: 'Consulta realizada com sucesso',
         data: {
-          cnpj: cnpj.replace(/\D/g, ''),
-          razao_social: 'Empresa Exemplo LTDA',
-          situacao_cadastro: 'Regular',
+          cnpj: cnpjLimpo,
+          razao_social: dados.razao_social,
+          situacao_cadastro: dados.descricao_situacao_cadastral,
+          data_situacao: dados.data_situacao_cadastral,
+          natureza_juridica: dados.natureza_juridica,
+          cnae_principal: `${dados.cnae_fiscal} - ${dados.cnae_fiscal_descricao}`,
+          municipio: dados.municipio,
+          uf: dados.uf,
           ultima_consulta: new Date().toISOString(),
-        }
-      };
-
-      return new Response(JSON.stringify(mockResponse), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+        },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Consultar certidões
+    // Consultar certidões REAIS (a partir do banco + URLs oficiais)
     if (action === 'consultar_certidoes') {
-      if (!cnpj) {
-        return new Response(JSON.stringify({
-          success: false,
-          message: 'CNPJ não informado',
-          error: 'O campo cnpj é obrigatório',
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
+      if (!cnpj || !empresa_id) {
+        return new Response(JSON.stringify({ success: false, message: 'CNPJ e empresa_id são obrigatórios' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
         });
       }
+      const cnpjLimpo = cnpj.replace(/\D/g, '');
+      const { data: empresa } = await supabase.from('empresas').select('certidoes, sicaf_validade').eq('id', empresa_id).maybeSingle();
+      const cert = (empresa?.certidoes ?? {}) as Record<string, { validade?: string; situacao?: string }>;
 
-      // In a real implementation, this would query SICAF for certidões
-      // The expected certidões in SICAF are:
-      const certidoes: CertidaoResult[] = [
-        {
-          tipo: 'Certidão de Débitos Relativos a Créditos Tributários Federais',
-          situacao: 'Regular',
-          validade: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          tipo: 'Certificado de Regularidade do FGTS',
-          situacao: 'Regular',
-          validade: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          tipo: 'Certidão Negativa de Débitos Trabalhistas',
-          situacao: 'Regular',
-          validade: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          tipo: 'Certidão de Falência e Recuperação Judicial',
-          situacao: 'Regular',
-          validade: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          tipo: 'Cadastro Nacional de Empresas Inidôneas e Suspensas (CEIS)',
-          situacao: 'Regular',
-          observacao: 'Nenhum registro encontrado',
-        },
-      ];
-
-      // Update empresa compliance status if empresa_id provided
-      if (empresa_id) {
-        const todasRegulares = certidoes.every(c => c.situacao === 'Regular');
-        
-        await supabase
-          .from('empresas')
-          .update({
-            certidoes_validas: todasRegulares,
-            sicaf_status: todasRegulares ? 'Regular' : 'Pendente',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', empresa_id);
-
-        console.log(`[SICAF] Updated empresa ${empresa_id} compliance status`);
-      }
-
-      const response: SicafResponse = {
-        success: true,
-        message: 'Certidões consultadas com sucesso',
-        data: {
-          cnpj: cnpj.replace(/\D/g, ''),
-          certidoes,
-          ultima_consulta: new Date().toISOString(),
-        }
+      const hoje = Date.now();
+      const avaliar = (validade?: string): 'Regular' | 'Vencida' | 'Pendente' => {
+        if (!validade) return 'Pendente';
+        return new Date(validade).getTime() > hoje ? 'Regular' : 'Vencida';
       };
 
-      return new Response(JSON.stringify(response), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      const certidoes: CertidaoResult[] = [
+        { tipo: 'Receita Federal (CND Conjunta)', situacao: avaliar(cert.federal?.validade), validade: cert.federal?.validade,
+          observacao: 'https://solucoes.receita.fazenda.gov.br/Servicos/certidaointernet/PJ/Emitir' },
+        { tipo: 'FGTS - CRF', situacao: avaliar(cert.fgts?.validade), validade: cert.fgts?.validade,
+          observacao: 'https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf' },
+        { tipo: 'CNDT - Trabalhista', situacao: avaliar(cert.trabalhista?.validade), validade: cert.trabalhista?.validade,
+          observacao: 'https://cndt-certidao.tst.jus.br/' },
+        { tipo: 'Receita Estadual', situacao: avaliar(cert.estadual?.validade), validade: cert.estadual?.validade },
+        { tipo: 'Receita Municipal', situacao: avaliar(cert.municipal?.validade), validade: cert.municipal?.validade },
+      ];
+
+      const todasRegulares = certidoes.every(c => c.situacao === 'Regular');
+      await supabase.from('empresas').update({
+        certidoes_validas: todasRegulares,
+        sicaf_status: todasRegulares ? 'Regular' : 'Pendente',
+        updated_at: new Date().toISOString(),
+      }).eq('id', empresa_id);
+
+      return new Response(JSON.stringify({
+        success: true, message: 'Certidões consultadas',
+        data: { cnpj: cnpjLimpo, certidoes, ultima_consulta: new Date().toISOString() },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Unknown action
