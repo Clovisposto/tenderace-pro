@@ -211,7 +211,8 @@ const Conectores = () => {
           </TabsContent>
 
           {/* SICAF Tab */}
-          <TabsContent value="sicaf">
+          <TabsContent value="sicaf" className="space-y-4">
+            <SicafDriveConfig />
             <SicafConnector />
           </TabsContent>
 
