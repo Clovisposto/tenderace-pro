@@ -97,6 +97,7 @@ export const VoiceCopilot = () => {
       );
       if (!response.ok) { useBrowserTTS(text); return; }
       const data = await response.json();
+      if (data.fallback || data.error) { useBrowserTTS(text); return; }
       if (data.audioContent) {
         if (audioRef.current) audioRef.current.pause();
         audioRef.current = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
