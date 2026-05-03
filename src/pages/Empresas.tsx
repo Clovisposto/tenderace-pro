@@ -1170,8 +1170,8 @@ const DocumentosModal = ({ empresa, open, onClose }: { empresa: Empresa | null; 
   );
 };
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
-const Empresas = () => {
+// ─── Conteúdo reutilizável (sem MainLayout) ──────────────────────────────────
+export const EmpresasContent = () => {
   const { data: empresas = [], isLoading, refetch } = useEmpresas();
   const deleteEmpresa = useDeleteEmpresa();
 
@@ -1214,7 +1214,7 @@ const Empresas = () => {
   };
 
   return (
-    <MainLayout title="Empresas">
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1493,8 +1493,15 @@ const Empresas = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </MainLayout>
+    </>
   );
 };
 
+const Empresas = () => (
+  <MainLayout title="Empresas / Cadastro">
+    <EmpresasContent />
+  </MainLayout>
+);
+
 export default Empresas;
+
