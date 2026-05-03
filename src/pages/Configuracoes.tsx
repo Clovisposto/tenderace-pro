@@ -325,7 +325,35 @@ const Configuracoes = () => {
 
   return (
     <MainLayout title="Configurações">
-      <div className="max-w-4xl space-y-8">
+      <Tabs defaultValue="empresa" className="max-w-6xl">
+        <TabsList className="mb-6">
+          <TabsTrigger value="empresa" className="gap-2">
+            <Building2 className="w-4 h-4" /> Empresa / Cadastro
+          </TabsTrigger>
+          <TabsTrigger value="sistema" className="gap-2">
+            <SettingsIcon className="w-4 h-4" /> Sistema
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="empresa">
+          <div className="glass-card p-4 sm:p-6">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary" />
+                Cadastro Profissional da Empresa
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cadastre aqui a empresa que utilizará o sistema. CNPJ, CNAEs, SICAF, certidões,
+                certificado digital, Gov.br, papel timbrado e e-mail ficam unificados por empresa,
+                e o sistema opera direcionado a ela de forma profissional e verídica.
+              </p>
+            </div>
+            <EmpresasContent />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sistema">
+          <div className="max-w-4xl space-y-8">
         {/* Estados Prioritários */}
         <div className="glass-card p-6 space-y-6 animate-slide-up opacity-0" style={{ animationDelay: '50ms', animationFillMode: 'forwards' }}>
           <div className="flex items-center gap-3">
