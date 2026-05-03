@@ -129,10 +129,34 @@ export function PNCPConsultaPanel() {
                         href={item.linkSistemaOrigem}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-primary inline-flex items-center gap-1 mt-1"
+                        className="text-xs text-primary inline-flex items-center gap-1 mt-1 mr-3"
                       >
                         Abrir no portal <ExternalLink className="h-3 w-3" />
                       </a>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 h-7 text-xs"
+                      onClick={() => analisar(i, item)}
+                      disabled={analisando[i]}
+                    >
+                      {analisando[i] ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldAlert className="h-3 w-3 mr-1" />}
+                      Analisar riscos
+                    </Button>
+                    {analises[i] && (
+                      <div className="mt-2 p-2 bg-muted/50 rounded text-xs space-y-1">
+                        <div className="font-semibold">
+                          Decisão: <Badge variant={analises[i].decisao === 'NÃO RECOMENDADO' ? 'destructive' : 'secondary'}>{analises[i].decisao}</Badge>
+                        </div>
+                        {analises[i].riscos?.length > 0 ? (
+                          <ul className="list-disc pl-4">
+                            {analises[i].riscos.map((r: string, k: number) => <li key={k}>{r}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="text-muted-foreground">Nenhum risco detectado</div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
