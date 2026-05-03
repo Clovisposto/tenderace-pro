@@ -548,6 +548,70 @@ export type Database = {
         }
         Relationships: []
       }
+      livro_caixa: {
+        Row: {
+          conta_id: string | null
+          created_at: string
+          created_by: string | null
+          data_lancamento: string
+          documento: string | null
+          empresa_id: string
+          historico: string
+          id: string
+          natureza: Database["public"]["Enums"]["caixa_natureza"]
+          nf_id: string | null
+          valor: number
+        }
+        Insert: {
+          conta_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_lancamento?: string
+          documento?: string | null
+          empresa_id: string
+          historico: string
+          id?: string
+          natureza: Database["public"]["Enums"]["caixa_natureza"]
+          nf_id?: string | null
+          valor: number
+        }
+        Update: {
+          conta_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_lancamento?: string
+          documento?: string | null
+          empresa_id?: string
+          historico?: string
+          id?: string
+          natureza?: Database["public"]["Enums"]["caixa_natureza"]
+          nf_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livro_caixa_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "livro_caixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "livro_caixa_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logs_auditoria: {
         Row: {
           acao: string
@@ -588,6 +652,383 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "logs_auditoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimentacoes_estoque: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          custo_unitario: number
+          data_movimento: string
+          empresa_id: string
+          id: string
+          nf_id: string | null
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          tipo: Database["public"]["Enums"]["movimento_tipo"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number
+          data_movimento?: string
+          empresa_id: string
+          id?: string
+          nf_id?: string | null
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          tipo: Database["public"]["Enums"]["movimento_tipo"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number
+          data_movimento?: string
+          empresa_id?: string
+          id?: string
+          nf_id?: string | null
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          tipo?: Database["public"]["Enums"]["movimento_tipo"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_estoque_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf_itens: {
+        Row: {
+          cfop: string
+          cofins_valor: number | null
+          created_at: string
+          descricao: string
+          icms_aliquota: number | null
+          icms_base: number | null
+          icms_valor: number | null
+          id: string
+          ipi_valor: number | null
+          ncm: string | null
+          nf_id: string
+          ordem: number
+          pis_valor: number | null
+          produto_id: string | null
+          quantidade: number
+          unidade: string
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          cfop: string
+          cofins_valor?: number | null
+          created_at?: string
+          descricao: string
+          icms_aliquota?: number | null
+          icms_base?: number | null
+          icms_valor?: number | null
+          id?: string
+          ipi_valor?: number | null
+          ncm?: string | null
+          nf_id: string
+          ordem?: number
+          pis_valor?: number | null
+          produto_id?: string | null
+          quantidade: number
+          unidade?: string
+          valor_total: number
+          valor_unitario: number
+        }
+        Update: {
+          cfop?: string
+          cofins_valor?: number | null
+          created_at?: string
+          descricao?: string
+          icms_aliquota?: number | null
+          icms_base?: number | null
+          icms_valor?: number | null
+          id?: string
+          ipi_valor?: number | null
+          ncm?: string | null
+          nf_id?: string
+          ordem?: number
+          pis_valor?: number | null
+          produto_id?: string | null
+          quantidade?: number
+          unidade?: string
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf_itens_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_fiscais: {
+        Row: {
+          chave: string | null
+          created_at: string
+          data_autorizacao: string | null
+          data_emissao: string
+          destinatario_cnpj_cpf: string | null
+          destinatario_endereco: Json | null
+          destinatario_ie: string | null
+          destinatario_nome: string | null
+          emitente_cnpj: string | null
+          empresa_id: string
+          id: string
+          modelo: Database["public"]["Enums"]["nf_modelo"]
+          motivo_rejeicao: string | null
+          natureza_operacao: string
+          numero: number | null
+          observacoes: string | null
+          pdf_url: string | null
+          plugnotas_id: string | null
+          protocolo: string | null
+          serie: number
+          status: Database["public"]["Enums"]["nf_status"]
+          tipo: Database["public"]["Enums"]["nf_tipo"]
+          updated_at: string
+          valor_cofins: number
+          valor_icms: number
+          valor_ipi: number
+          valor_pis: number
+          valor_produtos: number
+          valor_total: number
+          xml_url: string | null
+        }
+        Insert: {
+          chave?: string | null
+          created_at?: string
+          data_autorizacao?: string | null
+          data_emissao?: string
+          destinatario_cnpj_cpf?: string | null
+          destinatario_endereco?: Json | null
+          destinatario_ie?: string | null
+          destinatario_nome?: string | null
+          emitente_cnpj?: string | null
+          empresa_id: string
+          id?: string
+          modelo?: Database["public"]["Enums"]["nf_modelo"]
+          motivo_rejeicao?: string | null
+          natureza_operacao?: string
+          numero?: number | null
+          observacoes?: string | null
+          pdf_url?: string | null
+          plugnotas_id?: string | null
+          protocolo?: string | null
+          serie?: number
+          status?: Database["public"]["Enums"]["nf_status"]
+          tipo: Database["public"]["Enums"]["nf_tipo"]
+          updated_at?: string
+          valor_cofins?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_pis?: number
+          valor_produtos?: number
+          valor_total?: number
+          xml_url?: string | null
+        }
+        Update: {
+          chave?: string | null
+          created_at?: string
+          data_autorizacao?: string | null
+          data_emissao?: string
+          destinatario_cnpj_cpf?: string | null
+          destinatario_endereco?: Json | null
+          destinatario_ie?: string | null
+          destinatario_nome?: string | null
+          emitente_cnpj?: string | null
+          empresa_id?: string
+          id?: string
+          modelo?: Database["public"]["Enums"]["nf_modelo"]
+          motivo_rejeicao?: string | null
+          natureza_operacao?: string
+          numero?: number | null
+          observacoes?: string | null
+          pdf_url?: string | null
+          plugnotas_id?: string | null
+          protocolo?: string | null
+          serie?: number
+          status?: Database["public"]["Enums"]["nf_status"]
+          tipo?: Database["public"]["Enums"]["nf_tipo"]
+          updated_at?: string
+          valor_cofins?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_pis?: number
+          valor_produtos?: number
+          valor_total?: number
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_contas: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          conta_pai_id: string | null
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          conta_pai_id?: string | null
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          conta_pai_id?: string | null
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          tipo?: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_contas_conta_pai_id_fkey"
+            columns: ["conta_pai_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_contas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produtos: {
+        Row: {
+          ativo: boolean
+          cest: string | null
+          cfop_padrao: string | null
+          cofins_cst: string | null
+          created_at: string
+          custo_medio: number
+          descricao: string
+          empresa_id: string
+          estoque_atual: number
+          estoque_minimo: number
+          icms_aliquota: number | null
+          icms_cst: string | null
+          id: string
+          ncm: string | null
+          origem: string | null
+          pis_cst: string | null
+          preco_venda: number
+          sku: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cest?: string | null
+          cfop_padrao?: string | null
+          cofins_cst?: string | null
+          created_at?: string
+          custo_medio?: number
+          descricao: string
+          empresa_id: string
+          estoque_atual?: number
+          estoque_minimo?: number
+          icms_aliquota?: number | null
+          icms_cst?: string | null
+          id?: string
+          ncm?: string | null
+          origem?: string | null
+          pis_cst?: string | null
+          preco_venda?: number
+          sku: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cest?: string | null
+          cfop_padrao?: string | null
+          cofins_cst?: string | null
+          created_at?: string
+          custo_medio?: number
+          descricao?: string
+          empresa_id?: string
+          estoque_atual?: number
+          estoque_minimo?: number
+          icms_aliquota?: number | null
+          icms_cst?: string | null
+          id?: string
+          ncm?: string | null
+          origem?: string | null
+          pis_cst?: string | null
+          preco_venda?: number
+          sku?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
@@ -868,7 +1309,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operador" | "viewer"
+      caixa_natureza: "debito" | "credito"
       compliance_status: "Apta" | "Apta c/ Ressalva" | "Inapta"
+      conta_tipo: "ativo" | "passivo" | "receita" | "despesa" | "patrimonio"
       licitacao_status:
         | "Nova"
         | "Em Análise"
@@ -882,6 +1325,17 @@ export type Database = {
         | "Dispensa com Disputa"
         | "Dispensa sem Disputa"
         | "Compra Direta"
+      movimento_tipo: "entrada" | "saida" | "ajuste"
+      nf_modelo: "55" | "65"
+      nf_status:
+        | "rascunho"
+        | "enviando"
+        | "autorizada"
+        | "rejeitada"
+        | "cancelada"
+        | "denegada"
+        | "erro"
+      nf_tipo: "entrada" | "saida"
       portal_type:
         | "PNCP"
         | "ComprasNet"
@@ -1029,7 +1483,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operador", "viewer"],
+      caixa_natureza: ["debito", "credito"],
       compliance_status: ["Apta", "Apta c/ Ressalva", "Inapta"],
+      conta_tipo: ["ativo", "passivo", "receita", "despesa", "patrimonio"],
       licitacao_status: [
         "Nova",
         "Em Análise",
@@ -1045,6 +1501,18 @@ export const Constants = {
         "Dispensa sem Disputa",
         "Compra Direta",
       ],
+      movimento_tipo: ["entrada", "saida", "ajuste"],
+      nf_modelo: ["55", "65"],
+      nf_status: [
+        "rascunho",
+        "enviando",
+        "autorizada",
+        "rejeitada",
+        "cancelada",
+        "denegada",
+        "erro",
+      ],
+      nf_tipo: ["entrada", "saida"],
       portal_type: [
         "PNCP",
         "ComprasNet",
