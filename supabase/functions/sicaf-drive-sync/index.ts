@@ -161,11 +161,17 @@ Deno.serve(async (req) => {
               (e) => String(e.cnpj || '').replace(/\D/g, '') === cnpjDigits
             );
             if (empresa && cnpjDigits.length === 14) {
+              const certidoes = extracted.certidoes || {};
+              const validadeIso = extracted.sicaf_validade ? new Date(extracted.sicaf_validade).toISOString() : null;
+              const allValid = Object.values(certidoes).every((c: any) => !c || c.status === 'valido' || c.status == null);
               await supabase
                 .from('empresas')
                 .update({
                   sicaf_status: extracted.sicaf_status || 'regular',
-                  certidoes_validas: extracted.sicaf_status === 'regular',
+                  sicaf_validade: validadeIso,
+                  sicaf_atualizado_em: new Date().toISOString(),
+                  certidoes,
+                  certidoes_validas: extracted.sicaf_status === 'regular' && allValid,
                   updated_at: new Date().toISOString(),
                 })
                 .eq('id', empresa.id);
