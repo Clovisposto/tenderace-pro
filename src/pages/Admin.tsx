@@ -248,7 +248,16 @@ const Admin = () => {
               <Shield className="w-4 h-4" />
               Segurança
             </TabsTrigger>
+            <TabsTrigger value="pncp" className="gap-2">
+              <Server className="w-4 h-4" />
+              PNCP
+            </TabsTrigger>
           </TabsList>
+
+          {/* PNCP Tab */}
+          <TabsContent value="pncp">
+            <PNCPConsultaPanel />
+          </TabsContent>
 
           {/* SICAF Tab */}
           <TabsContent value="sicaf">
