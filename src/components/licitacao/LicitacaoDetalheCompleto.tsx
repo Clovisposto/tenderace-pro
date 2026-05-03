@@ -80,6 +80,11 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
   const [editingEmail, setEditingEmail] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const queryClient = useQueryClient();
+  const { data: empresas } = useEmpresas();
+  // Pega a empresa do segmento da licitação (ou primeira). Realtime já invalida via useEmpresas.
+  const empresaAtiva = (empresas || []).find((e: any) => e.segmento === licitacao.segmento) || (empresas || [])[0];
+  const certidoesEmpresa: any = (empresaAtiva as any)?.certidoes || {};
+  const sicafAtualizadoEm: string | null = (empresaAtiva as any)?.sicaf_atualizado_em || null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
