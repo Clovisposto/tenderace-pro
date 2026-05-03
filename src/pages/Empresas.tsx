@@ -1493,8 +1493,15 @@ export const EmpresasContent = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </MainLayout>
+    </>
   );
 };
 
+const Empresas = () => (
+  <MainLayout title="Empresas / Cadastro">
+    <EmpresasContent />
+  </MainLayout>
+);
+
 export default Empresas;
+
