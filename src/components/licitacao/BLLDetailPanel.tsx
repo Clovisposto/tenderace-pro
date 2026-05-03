@@ -239,10 +239,10 @@ export function BLLDetailPanel({ licitacao, onClose }: BLLDetailPanelProps) {
   const checklistItems = [
     { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026', vencimento: new Date('2026-08-24') },
     { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular', vencimento: null },
-    { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026', vencimento: new Date('2026-03-30') },
-    { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026', vencimento: new Date('2026-01-22') },
-    { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/05/2026', vencimento: new Date('2026-05-05') },
-    { label: 'Receita Municipal', ok: false, detail: 'Vencida em 13/01/2026 (*)', vencimento: new Date('2026-01-13') },
+    { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/09/2026', vencimento: new Date('2026-09-30') },
+    { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/07/2026', vencimento: new Date('2026-07-22') },
+    { label: 'Certidão Trabalhista', ok: true, detail: 'Válida até 05/11/2026', vencimento: new Date('2026-11-05') },
+    { label: 'Receita Municipal', ok: true, detail: 'Válida até 13/10/2026', vencimento: new Date('2026-10-13') },
   ];
 
   // Verificar compliance geral
