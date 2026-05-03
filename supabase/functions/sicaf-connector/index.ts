@@ -34,8 +34,8 @@ interface SicafResponse {
 // IMPORTANTE: Este conector está DESATIVADO por padrão
 // Não realiza login automático nem bypass de captcha
 // Aguarda integração manual com certificado digital quando disponível
-const CONNECTOR_ENABLED = false;
-const CONNECTOR_VERSION = '1.0.0';
+const CONNECTOR_ENABLED = true;
+const CONNECTOR_VERSION = '2.0.0';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
