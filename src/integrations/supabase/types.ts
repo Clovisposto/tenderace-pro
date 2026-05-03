@@ -759,6 +759,39 @@ export type Database = {
           },
         ]
       }
+      sicaf_drive_config: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          folder_id: string
+          folder_name: string | null
+          id: string
+          ultima_sincronizacao: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          folder_id: string
+          folder_name?: string | null
+          id?: string
+          ultima_sincronizacao?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          folder_id?: string
+          folder_name?: string | null
+          id?: string
+          ultima_sincronizacao?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sicaf_refresh_log: {
         Row: {
           erros: number

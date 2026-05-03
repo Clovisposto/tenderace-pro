@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SicafConnector } from '@/components/conectores/SicafConnector';
+import { SicafDriveConfig } from '@/components/conectores/SicafDriveConfig';
 import { BanparaConnector } from '@/components/conectores/BanparaConnector';
 import { CaixaConnector } from '@/components/conectores/CaixaConnector';
 import { MedicalVMConnector } from '@/components/conectores/MedicalVMConnector';
@@ -210,7 +211,8 @@ const Conectores = () => {
           </TabsContent>
 
           {/* SICAF Tab */}
-          <TabsContent value="sicaf">
+          <TabsContent value="sicaf" className="space-y-4">
+            <SicafDriveConfig />
             <SicafConnector />
           </TabsContent>
 
