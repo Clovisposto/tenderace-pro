@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { getSafeErrorMessage } from '@/lib/safeError';
 
@@ -10,6 +11,23 @@ export type EmpresaInsert = TablesInsert<'empresas'>;
 
 export function useEmpresas() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime: atualiza UI instantaneamente quando SICAF/empresa muda
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('empresas-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'empresas' },
+        () => queryClient.invalidateQueries({ queryKey: ['empresas'] })
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['empresas', user?.id],
@@ -22,6 +40,8 @@ export function useEmpresas() {
       return data;
     },
     enabled: !!user,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 
