@@ -36,10 +36,6 @@ export function SicafDriveConfig() {
   async function loadFolders() {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sicaf-drive-sync', {
-        body: {}, // GET via query
-      });
-      // fallback: call with fetch to add ?action=list-folders
       const url = `https://ccsmnqqwobrsvepwacrg.supabase.co/functions/v1/sicaf-drive-sync?action=list-folders`;
       const session = (await supabase.auth.getSession()).data.session;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${session?.access_token}` } });
