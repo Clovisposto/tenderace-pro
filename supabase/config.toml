@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.verificar-sicaf]
 verify_jwt = false
 
+[functions.consultar-pncp]
+verify_jwt = false
+
 [api]
 enabled = true
 port = 54321
