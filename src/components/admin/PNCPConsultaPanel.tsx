@@ -22,6 +22,28 @@ export function PNCPConsultaPanel() {
   const [tamanho, setTamanho] = useState(20);
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
+  const [analises, setAnalises] = useState<Record<number, any>>({});
+  const [analisando, setAnalisando] = useState<Record<number, boolean>>({});
+
+  const analisar = async (idx: number, item: any) => {
+    setAnalisando((p) => ({ ...p, [idx]: true }));
+    try {
+      const url = `https://ccsmnqqwobrsvepwacrg.supabase.co/functions/v1/analisar-risco`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+      const json = await r.json();
+      if (json.status !== 'analisado') throw new Error(json.erro || 'Erro');
+      setAnalises((p) => ({ ...p, [idx]: json }));
+      toast.success(`Análise: ${json.decisao}`);
+    } catch (e: any) {
+      toast.error('Erro ao analisar', { description: e.message });
+    } finally {
+      setAnalisando((p) => ({ ...p, [idx]: false }));
+    }
+  };
 
   const consultar = async () => {
     setLoading(true);
