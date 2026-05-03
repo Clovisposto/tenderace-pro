@@ -81,9 +81,19 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("ElevenLabs API error:", response.status, errorText);
+      let parsed: any = null;
+      try { parsed = JSON.parse(errorText); } catch (_) {}
+      const isUnusualActivity =
+        response.status === 401 &&
+        parsed?.detail?.status === "detected_unusual_activity";
+      // Return 200 with fallback signal so the client can degrade to browser speechSynthesis
       return new Response(
-        JSON.stringify({ error: "TTS generation failed", details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: isUnusualActivity ? "TTS_UNUSUAL_ACTIVITY" : "TTS_FAILED",
+          message: parsed?.detail?.message || errorText,
+          fallback: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
