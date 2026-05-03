@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { FolderSync, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { FolderSync, RefreshCw, CheckCircle2, FolderPlus, Sparkles } from 'lucide-react';
 
 interface Folder { id: string; name: string }
 
@@ -36,10 +36,6 @@ export function SicafDriveConfig() {
   async function loadFolders() {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sicaf-drive-sync', {
-        body: {}, // GET via query
-      });
-      // fallback: call with fetch to add ?action=list-folders
       const url = `https://ccsmnqqwobrsvepwacrg.supabase.co/functions/v1/sicaf-drive-sync?action=list-folders`;
       const session = (await supabase.auth.getSession()).data.session;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${session?.access_token}` } });
@@ -74,6 +70,29 @@ export function SicafDriveConfig() {
     } finally { setSyncing(false); }
   }
 
+  async function createSicafFolder() {
+    setLoading(true);
+    try {
+      const url = `https://ccsmnqqwobrsvepwacrg.supabase.co/functions/v1/sicaf-drive-sync?action=ensure-folder`;
+      const session = (await supabase.auth.getSession()).data.session;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setFolderId(json.folder.id);
+      setFolderName(json.folder.name);
+      toast.success(`Pasta "${json.folder.name}" pronta no Google Drive`);
+      // auto-save
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('sicaf_drive_config').upsert({
+          user_id: user.id, folder_id: json.folder.id, folder_name: json.folder.name, ativo: true,
+        }, { onConflict: 'user_id' });
+      }
+    } catch (e: any) {
+      toast.error('Erro ao criar pasta: ' + e.message);
+    } finally { setLoading(false); }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -85,10 +104,21 @@ export function SicafDriveConfig() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-2">
+          <Sparkles className="h-4 w-4 text-primary mt-0.5" />
+          <div>
+            <strong>IA inteligente ativada:</strong> A cada 15 minutos, lemos os PDFs da pasta,
+            extraímos CNPJ/validade/status com Gemini e atualizamos o SICAF de cada empresa automaticamente.
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={createSicafFolder} disabled={loading}>
+            <FolderPlus className="h-4 w-4 mr-2" />
+            Criar pasta SICAF no Drive
+          </Button>
           <Button onClick={loadFolders} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Listar pastas do Drive
+            Listar pastas existentes
           </Button>
         </div>
 
