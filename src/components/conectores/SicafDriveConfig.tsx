@@ -104,10 +104,21 @@ export function SicafDriveConfig() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-2">
+          <Sparkles className="h-4 w-4 text-primary mt-0.5" />
+          <div>
+            <strong>IA inteligente ativada:</strong> A cada 15 minutos, lemos os PDFs da pasta,
+            extraímos CNPJ/validade/status com Gemini e atualizamos o SICAF de cada empresa automaticamente.
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={createSicafFolder} disabled={loading}>
+            <FolderPlus className="h-4 w-4 mr-2" />
+            Criar pasta SICAF no Drive
+          </Button>
           <Button onClick={loadFolders} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Listar pastas do Drive
+            Listar pastas existentes
           </Button>
         </div>
 
