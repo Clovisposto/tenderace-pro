@@ -74,6 +74,29 @@ export function SicafDriveConfig() {
     } finally { setSyncing(false); }
   }
 
+  async function createSicafFolder() {
+    setLoading(true);
+    try {
+      const url = `https://ccsmnqqwobrsvepwacrg.supabase.co/functions/v1/sicaf-drive-sync?action=ensure-folder`;
+      const session = (await supabase.auth.getSession()).data.session;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setFolderId(json.folder.id);
+      setFolderName(json.folder.name);
+      toast.success(`Pasta "${json.folder.name}" pronta no Google Drive`);
+      // auto-save
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('sicaf_drive_config').upsert({
+          user_id: user.id, folder_id: json.folder.id, folder_name: json.folder.name, ativo: true,
+        }, { onConflict: 'user_id' });
+      }
+    } catch (e: any) {
+      toast.error('Erro ao criar pasta: ' + e.message);
+    } finally { setLoading(false); }
+  }
+
   return (
     <Card>
       <CardHeader>
