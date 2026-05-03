@@ -1042,7 +1042,9 @@ const Configuracoes = () => {
             Salvar Configurações
           </Button>
         </div>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </MainLayout>
   );
 };
