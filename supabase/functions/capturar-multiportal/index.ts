@@ -822,116 +822,117 @@ serve(async (req) => {
       .select()
       .single();
 
-    // Capture from all portals in parallel (real APIs only, no demo data)
-    const results = await Promise.all([
-      capturePNCP(supabase, ufsPermitidas),
-      captureComprasPublicas(supabase, ufsPermitidas),
-      captureBNC(supabase, ufsPermitidas),
-      captureBanpara(supabase, ufsPermitidas),
-      captureComprasNet(supabase, ufsPermitidas),
-      captureCaixa(supabase, ufsPermitidas),
-      captureBancoBrasil(supabase, ufsPermitidas),
-    ]);
+    // Run heavy capture work in the background to avoid 150s edge function idle timeout.
+    // Respond to the client immediately; results are persisted via captura_jobs_log + licitacoes.
+    const backgroundWork = (async () => {
+      try {
+        const results = await Promise.all([
+          capturePNCP(supabase, ufsPermitidas),
+          captureComprasPublicas(supabase, ufsPermitidas),
+          captureBNC(supabase, ufsPermitidas),
+          captureBanpara(supabase, ufsPermitidas),
+          captureComprasNet(supabase, ufsPermitidas),
+          captureCaixa(supabase, ufsPermitidas),
+          captureBancoBrasil(supabase, ufsPermitidas),
+        ]);
 
-    // Verify existing PNCP tenders - remove those now concluída/homologada
-    // Skip verification if capture took too long (avoid edge function timeout)
-    const captureEndTime = Date.now();
-    const elapsedSeconds = (captureEndTime - Date.now()) / 1000;
-    let removedByStatus = 0;
-    
-    // Only run verification if we have existing tenders worth checking
-    const { count: existingCount } = await supabase
-      .from('licitacoes')
-      .select('id', { count: 'exact', head: true })
-      .eq('portal', 'PNCP');
-    
-    if (existingCount && existingCount > 0) {
-      // Limit verification to 3 UFs max to stay within time limits
-      const ufsToVerify = ufsPermitidas.slice(0, 3);
-      removedByStatus = await verifyAndCleanPncpTenders(supabase, ufsToVerify);
-    } else {
-      console.log('[MultiPortal] Skipping PNCP verification - no existing tenders to check');
-    }
+        let removedByStatus = 0;
+        const { count: existingCount } = await supabase
+          .from('licitacoes')
+          .select('id', { count: 'exact', head: true })
+          .eq('portal', 'PNCP');
 
-    // Filter recently captured tenders by tipo, modalidade, and valor limits
-    console.log('[MultiPortal] Aplicando filtros pós-captura (incluindo valor)...');
-    
-    const { data: licitacoesRecentes } = await supabase
-      .from('licitacoes')
-      .select('id, objeto, modalidade, valor')
-      .gte('created_at', new Date(Date.now() - 120000).toISOString());
-    
-    let removidas = 0;
-    if (licitacoesRecentes) {
-      for (const lic of licitacoesRecentes) {
-        const passaTipo = passaTipoFiltro(lic.objeto, tiposPermitidos);
-        const passaModalidade = passaModalidadeFiltro(lic.modalidade, modalidadesPermitidas);
-        const passaValor = lic.valor >= valorLimits.valorMinimo && lic.valor <= valorLimits.valorMaximo;
-        
-        if (!passaTipo || !passaModalidade || !passaValor) {
+        if (existingCount && existingCount > 0) {
+          const ufsToVerify = ufsPermitidas.slice(0, 3);
+          removedByStatus = await verifyAndCleanPncpTenders(supabase, ufsToVerify);
+        } else {
+          console.log('[MultiPortal] Skipping PNCP verification - no existing tenders to check');
+        }
+
+        console.log('[MultiPortal] Aplicando filtros pós-captura (incluindo valor)...');
+        const { data: licitacoesRecentes } = await supabase
+          .from('licitacoes')
+          .select('id, objeto, modalidade, valor')
+          .gte('created_at', new Date(Date.now() - 120000).toISOString());
+
+        let removidas = 0;
+        if (licitacoesRecentes) {
+          for (const lic of licitacoesRecentes) {
+            const passaTipo = passaTipoFiltro(lic.objeto, tiposPermitidos);
+            const passaModalidade = passaModalidadeFiltro(lic.modalidade, modalidadesPermitidas);
+            const passaValor = lic.valor >= valorLimits.valorMinimo && lic.valor <= valorLimits.valorMaximo;
+
+            if (!passaTipo || !passaModalidade || !passaValor) {
+              await supabase.from('licitacoes').delete().eq('id', lic.id);
+              removidas++;
+            }
+          }
+        }
+        console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas`);
+
+        const { data: foraDoRange } = await supabase
+          .from('licitacoes')
+          .select('id, valor')
+          .or(`valor.lt.${valorLimits.valorMinimo},valor.gt.${valorLimits.valorMaximo}`);
+
+        if (foraDoRange) {
+          for (const lic of foraDoRange) {
+            await supabase.from('licitacoes').delete().eq('id', lic.id);
+          }
+        }
+
+        const totalCount = results.reduce((sum, r) => sum + r.count, 0);
+        const successCount = results.filter(r => r.success).length;
+
+        if (jobLog?.id) {
           await supabase
-            .from('licitacoes')
-            .delete()
-            .eq('id', lic.id);
-          removidas++;
-          if (!passaValor) console.log(`[MultiPortal] Removida ${lic.id}: valor R$${lic.valor} fora do range R$${valorLimits.valorMinimo}-R$${valorLimits.valorMaximo}`);
+            .from('captura_jobs_log')
+            .update({
+              status: 'completed',
+              details: {
+                results,
+                total: totalCount,
+                removidas,
+                removedByStatus,
+                successfulPortals: successCount,
+                ufs: ufsPermitidas,
+                tipos_licitacao: tiposPermitidos,
+                modalidades: modalidadesPermitidas,
+                completedAt: new Date().toISOString(),
+              }
+            })
+            .eq('id', jobLog.id);
+        }
+
+        console.log(`[MultiPortal] Completed: ${totalCount} real tenders from ${successCount} portals`);
+      } catch (bgErr) {
+        console.error('[MultiPortal] Background error:', bgErr);
+        if (jobLog?.id) {
+          await supabase
+            .from('captura_jobs_log')
+            .update({
+              status: 'error',
+              details: { error: bgErr instanceof Error ? bgErr.message : String(bgErr) }
+            })
+            .eq('id', jobLog.id);
         }
       }
+    })();
+
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundWork);
     }
-    console.log(`[MultiPortal] Filtro aplicado: ${removidas} licitações removidas por tipo/modalidade/valor`);
-
-    // Also clean existing tenders outside value range
-    const { data: foraDoRange } = await supabase
-      .from('licitacoes')
-      .select('id, valor')
-      .or(`valor.lt.${valorLimits.valorMinimo},valor.gt.${valorLimits.valorMaximo}`);
-    
-    let removidasPorValor = 0;
-    if (foraDoRange) {
-      for (const lic of foraDoRange) {
-        await supabase.from('licitacoes').delete().eq('id', lic.id);
-        removidasPorValor++;
-      }
-      if (removidasPorValor > 0) {
-        console.log(`[MultiPortal] ${removidasPorValor} licitações existentes removidas por estar fora do range de valor`);
-      }
-    }
-    console.log(`[MultiPortal] Verificação PNCP: ${removedByStatus} licitações concluídas removidas`);
-
-    const totalCount = results.reduce((sum, r) => sum + r.count, 0);
-    const successCount = results.filter(r => r.success).length;
-
-    if (jobLog?.id) {
-      await supabase
-        .from('captura_jobs_log')
-        .update({
-          status: 'completed',
-          details: {
-            results,
-            total: totalCount,
-            removidas,
-            removedByStatus,
-            successfulPortals: successCount,
-            ufs: ufsPermitidas,
-            tipos_licitacao: tiposPermitidos,
-            modalidades: modalidadesPermitidas,
-            completedAt: new Date().toISOString(),
-          }
-        })
-        .eq('id', jobLog.id);
-    }
-
-    console.log(`[MultiPortal] Completed: ${totalCount} real tenders from ${successCount} portals`);
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Capturadas ${totalCount} licitações reais de ${successCount} portais. ${removedByStatus} concluídas removidas.`,
-      results,
-      total: totalCount,
-      removedByStatus,
+      message: 'Captura iniciada em background. Acompanhe o progresso em captura_jobs_log.',
+      job_id: jobLog?.id,
       ufs: ufsPermitidas,
       tipos_licitacao: tiposPermitidos,
     }), {
+      status: 202,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
