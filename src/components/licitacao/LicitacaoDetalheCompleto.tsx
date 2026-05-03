@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DocumentosEditalCard } from './DocumentosEditalCard';
+import { useEmpresas } from '@/hooks/useEmpresas';
 
 interface LicitacaoDetalheCompletoProps {
   licitacao: Licitacao;
