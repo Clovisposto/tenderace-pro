@@ -34,8 +34,8 @@ interface SicafResponse {
 // IMPORTANTE: Este conector está DESATIVADO por padrão
 // Não realiza login automático nem bypass de captcha
 // Aguarda integração manual com certificado digital quando disponível
-const CONNECTOR_ENABLED = false;
-const CONNECTOR_VERSION = '1.0.0';
+const CONNECTOR_ENABLED = true;
+const CONNECTOR_VERSION = '2.0.0';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -50,8 +50,10 @@ Deno.serve(async (req) => {
 
     // Check if SICAF credentials are configured
     const sicafUser = Deno.env.get('SICAF_USER');
-    const sicafCertificado = Deno.env.get('SICAF_CERTIFICADO');
-    const hasCredentials = !!(sicafUser || sicafCertificado);
+    const sicafPassword = Deno.env.get('SICAF_PASSWORD');
+    const sicafCertificado = Deno.env.get('SICAF_CERTIFICADO_BASE64') || Deno.env.get('SICAF_CERTIFICADO');
+    const sicafCertSenha = Deno.env.get('SICAF_CERTIFICADO_SENHA');
+    const hasCredentials = !!(sicafCertificado || (sicafUser && sicafPassword));
 
     const body: SicafRequest = await req.json();
     const { action, cnpj, empresa_id } = body;
