@@ -282,6 +282,7 @@ export type Database = {
       }
       empresas: {
         Row: {
+          certidoes: Json
           certidoes_validas: boolean | null
           certificado_digital_emissor: string | null
           certificado_digital_senha: string | null
@@ -313,13 +314,16 @@ export type Database = {
           politica_participacao: Json | null
           razao_social: string | null
           segmento: Database["public"]["Enums"]["segmento_type"]
+          sicaf_atualizado_em: string | null
           sicaf_status: string | null
+          sicaf_validade: string | null
           telefone: string | null
           uf: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          certidoes?: Json
           certidoes_validas?: boolean | null
           certificado_digital_emissor?: string | null
           certificado_digital_senha?: string | null
@@ -351,13 +355,16 @@ export type Database = {
           politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
+          sicaf_atualizado_em?: string | null
           sicaf_status?: string | null
+          sicaf_validade?: string | null
           telefone?: string | null
           uf: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          certidoes?: Json
           certidoes_validas?: boolean | null
           certificado_digital_emissor?: string | null
           certificado_digital_senha?: string | null
@@ -389,7 +396,9 @@ export type Database = {
           politica_participacao?: Json | null
           razao_social?: string | null
           segmento?: Database["public"]["Enums"]["segmento_type"]
+          sicaf_atualizado_em?: string | null
           sicaf_status?: string | null
+          sicaf_validade?: string | null
           telefone?: string | null
           uf?: string
           updated_at?: string

@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DocumentosEditalCard } from './DocumentosEditalCard';
+import { useEmpresas } from '@/hooks/useEmpresas';
 
 interface LicitacaoDetalheCompletoProps {
   licitacao: Licitacao;
@@ -79,6 +80,11 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
   const [editingEmail, setEditingEmail] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const queryClient = useQueryClient();
+  const { data: empresas } = useEmpresas();
+  // Pega a empresa do segmento da licitação (ou primeira). Realtime já invalida via useEmpresas.
+  const empresaAtiva = (empresas || []).find((e: any) => e.segmento === licitacao.segmento) || (empresas || [])[0];
+  const certidoesEmpresa: any = (empresaAtiva as any)?.certidoes || {};
+  const sicafAtualizadoEm: string | null = (empresaAtiva as any)?.sicaf_atualizado_em || null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -577,6 +583,11 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                     <CardTitle className="flex items-center gap-2">
                       <Shield className="w-5 h-5" />
                       Status de Compliance SICAF
+                      {sicafAtualizadoEm && (
+                        <Badge variant="outline" className="ml-auto text-[10px] font-normal">
+                          🟢 Atualizado {format(new Date(sicafAtualizadoEm), "dd/MM HH:mm", { locale: ptBR })}
+                        </Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -588,23 +599,32 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {licitacao.compliance === 'Apta' && 'Empresa atende a todos os requisitos do edital'}
-                          {licitacao.compliance === 'Apta c/ Ressalva' && 'Pendências menores que podem ser regularizadas (Certidão Municipal)'}
+                          {licitacao.compliance === 'Apta c/ Ressalva' && 'Pendências menores que podem ser regularizadas'}
                           {licitacao.compliance === 'Inapta' && 'Documentação incompleta ou vencida - Não recomendada'}
                         </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
-                        { label: 'Credenciamento SICAF', ok: true, detail: 'Válido até 24/08/2026', vencimento: new Date('2026-08-24') },
-                        { label: 'Habilitação Jurídica', ok: true, detail: 'Contrato Social Regular', vencimento: null },
-                        { label: 'Receita Federal e PGFN', ok: true, detail: 'Válida até 30/03/2026', vencimento: new Date('2026-03-30') },
-                        { label: 'FGTS - CRF', ok: true, detail: 'Válida até 22/01/2026', vencimento: new Date('2026-01-22') },
-                        { label: 'Certidão Trabalhista (TST)', ok: true, detail: 'Válida até 05/05/2026', vencimento: new Date('2026-05-05') },
-                        { label: 'Receita Estadual/Distrital', ok: true, detail: 'Válida até 28/02/2026', vencimento: new Date('2026-02-28') },
-                        { label: 'Receita Municipal', ok: licitacao.compliance === 'Apta', detail: licitacao.compliance === 'Apta' ? 'Válida' : 'Vencida em 13/01/2026 (*)', vencimento: new Date('2026-01-13') },
-                        { label: 'Qualificação Econômico-Financeira', ok: true, detail: 'Válida até 30/06/2026', vencimento: new Date('2026-06-30') },
-                      ].map((item, i) => {
+                      {(() => {
+                        const defs: Array<{ key: string; label: string }> = [
+                          { key: 'credenciamento_sicaf', label: 'Credenciamento SICAF' },
+                          { key: 'habilitacao_juridica', label: 'Habilitação Jurídica' },
+                          { key: 'receita_federal_pgfn', label: 'Receita Federal e PGFN' },
+                          { key: 'fgts_crf', label: 'FGTS - CRF' },
+                          { key: 'trabalhista_tst', label: 'Certidão Trabalhista (TST)' },
+                          { key: 'receita_estadual', label: 'Receita Estadual/Distrital' },
+                          { key: 'receita_municipal', label: 'Receita Municipal' },
+                          { key: 'qualificacao_economico_financeira', label: 'Qualificação Econômico-Financeira' },
+                        ];
+                        return defs.map((d) => {
+                          const c = certidoesEmpresa?.[d.key] || {};
+                          const venc: Date | null = c.validade ? new Date(c.validade) : null;
+                          const status = c.status || 'ausente';
+                          const detail = c.detalhe || (venc ? `Válida até ${format(venc, 'dd/MM/yyyy')}` : 'Aguardando sincronização');
+                          return { label: d.label, ok: status === 'valido', detail, vencimento: venc, statusRaw: status };
+                        });
+                      })().map((item, i) => {
                         const hoje = new Date();
                         const diasParaVencer = item.vencimento ? Math.ceil((item.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 999;
                         const vencendo = diasParaVencer > 0 && diasParaVencer <= 15;
