@@ -328,12 +328,24 @@ const Configuracoes = () => {
   return (
     <MainLayout title="Configurações">
       <Tabs defaultValue="empresa" className="max-w-6xl">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex-wrap h-auto">
           <TabsTrigger value="empresa" className="gap-2">
-            <Building2 className="w-4 h-4" /> Empresa / Cadastro
+            <Building2 className="w-4 h-4" /> 1. Empresa
           </TabsTrigger>
           <TabsTrigger value="sistema" className="gap-2">
-            <SettingsIcon className="w-4 h-4" /> Sistema
+            <SettingsIcon className="w-4 h-4" /> 2. Sistema
+          </TabsTrigger>
+          <TabsTrigger value="conectores" className="gap-2" asChild>
+            <a href="/conectores"><Globe className="w-4 h-4" /> 3. Conectores</a>
+          </TabsTrigger>
+          <TabsTrigger value="relatorios" className="gap-2" asChild>
+            <a href="/relatorios"><Trophy className="w-4 h-4" /> 4. Relatórios</a>
+          </TabsTrigger>
+          <TabsTrigger value="manual" className="gap-2" asChild>
+            <a href="/manual"><FileText className="w-4 h-4" /> 5. Manual</a>
+          </TabsTrigger>
+          <TabsTrigger value="admin" className="gap-2" asChild>
+            <a href="/admin"><Shield className="w-4 h-4" /> 6. Admin</a>
           </TabsTrigger>
         </TabsList>
 
