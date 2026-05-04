@@ -105,7 +105,7 @@ const conectoresDisponiveis = [
   },
 ];
 
-const Conectores = () => {
+export const ConectoresContent = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ativo':
@@ -118,7 +118,6 @@ const Conectores = () => {
   };
 
   return (
-    <MainLayout title="Conectores">
       <div className="space-y-6">
         {/* Header */}
         <div>
