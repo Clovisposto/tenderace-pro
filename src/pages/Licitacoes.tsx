@@ -13,12 +13,28 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+
+const STAGE_TO_TAB: Record<string, string> = {
+  captacao: 'todas',
+  cotacao: 'aguardando',
+  disputa: 'disputa',
+};
+const TAB_TO_STAGE: Record<string, string> = {
+  todas: 'captacao',
+  aguardando: 'cotacao',
+  disputa: 'disputa',
+};
 
 const Licitacoes = () => {
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
   const [filtros, setFiltros] = useState<any>({});
-  const [activeTab, setActiveTab] = useState('todas');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stage = searchParams.get('stage') || 'captacao';
+  const activeTab = STAGE_TO_TAB[stage] || 'todas';
+  const setActiveTab = (t: string) => {
+    setSearchParams({ stage: TAB_TO_STAGE[t] || 'captacao' }, { replace: true });
+  };
 
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { data: configuracoes } = useConfiguracoes();
