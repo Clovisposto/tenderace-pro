@@ -186,12 +186,11 @@ const Licitacoes = () => {
       result = result.filter(l => ufsPrioritarias.includes(l.uf));
     }
 
-    if (activeTab === 'novas') {
-      result = result.filter(l => l.status === 'Nova');
-    } else if (activeTab === 'analise') {
-      result = result.filter(l => l.status === 'Em Análise');
+    if (activeTab === 'todas') {
+      // Captação: todas no prazo (já filtradas acima)
     } else if (activeTab === 'aguardando') {
-      result = result.filter(l => l.status === 'Aguardando Autorização');
+      // Cotação: novas, em análise e aguardando autorização
+      result = result.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização');
     } else if (activeTab === 'disputa') {
       result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
     }
@@ -232,15 +231,13 @@ const Licitacoes = () => {
 
   const counts = useMemo(() => {
     const agora = new Date();
-    const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora) || [];
+    const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora && ufsPrioritarias.includes(l.uf)) || [];
     return {
-      todas: licitacoesFiltradas?.length || 0,
-      novas: noPrazo.filter(l => l.status === 'Nova' && ufsPrioritarias.includes(l.uf)).length,
-      analise: noPrazo.filter(l => l.status === 'Em Análise' && ufsPrioritarias.includes(l.uf)).length,
-      aguardando: noPrazo.filter(l => l.status === 'Aguardando Autorização' && ufsPrioritarias.includes(l.uf)).length,
-      disputa: noPrazo.filter(l => (l.status === 'Em Disputa' || l.status === 'Autorizada') && ufsPrioritarias.includes(l.uf)).length,
+      todas: noPrazo.length,
+      aguardando: noPrazo.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização').length,
+      disputa: noPrazo.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
     };
-  }, [licitacoes, licitacoesFiltradas, ufsPrioritarias]);
+  }, [licitacoes, ufsPrioritarias]);
 
   const mapToLegacyFormat = (l: Licitacao) => ({
     id: l.id,
@@ -338,21 +335,15 @@ const Licitacoes = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-secondary/50">
+          <TabsList className="bg-secondary/50 grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="todas">
-              Todas <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
-            </TabsTrigger>
-            <TabsTrigger value="novas">
-              Novas <span className="ml-2 text-xs opacity-70">({counts.novas})</span>
-            </TabsTrigger>
-            <TabsTrigger value="analise">
-              Em Análise <span className="ml-2 text-xs opacity-70">({counts.analise})</span>
+              1. Captação <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
             </TabsTrigger>
             <TabsTrigger value="aguardando">
-              Aguardando <span className="ml-2 text-xs opacity-70">({counts.aguardando})</span>
+              2. Cotação <span className="ml-2 text-xs opacity-70">({counts.aguardando})</span>
             </TabsTrigger>
             <TabsTrigger value="disputa">
-              Em Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
+              3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
             </TabsTrigger>
           </TabsList>
 

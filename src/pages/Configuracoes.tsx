@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EmpresasContent } from '@/pages/Empresas';
+import { ConectoresContent } from '@/pages/Conectores';
+import { RelatoriosContent } from '@/pages/Relatorios';
+import { ManualContent } from '@/pages/Manual';
+import { AdminContent } from '@/pages/Admin';
 import { 
   Settings as SettingsIcon,
   Bell,
@@ -335,17 +339,17 @@ const Configuracoes = () => {
           <TabsTrigger value="sistema" className="gap-2">
             <SettingsIcon className="w-4 h-4" /> 2. Sistema
           </TabsTrigger>
-          <TabsTrigger value="conectores" className="gap-2" asChild>
-            <a href="/conectores"><Globe className="w-4 h-4" /> 3. Conectores</a>
+          <TabsTrigger value="manual" className="gap-2">
+            <FileText className="w-4 h-4" /> 3. Manual
           </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-2" asChild>
-            <a href="/relatorios"><Trophy className="w-4 h-4" /> 4. Relatórios</a>
+          <TabsTrigger value="relatorios" className="gap-2">
+            <Trophy className="w-4 h-4" /> 4. Relatórios
           </TabsTrigger>
-          <TabsTrigger value="manual" className="gap-2" asChild>
-            <a href="/manual"><FileText className="w-4 h-4" /> 5. Manual</a>
+          <TabsTrigger value="conectores" className="gap-2">
+            <Globe className="w-4 h-4" /> 5. Conectores
           </TabsTrigger>
-          <TabsTrigger value="admin" className="gap-2" asChild>
-            <a href="/admin"><Shield className="w-4 h-4" /> 6. Admin</a>
+          <TabsTrigger value="admin" className="gap-2">
+            <Shield className="w-4 h-4" /> 6. Admin
           </TabsTrigger>
         </TabsList>
 
@@ -358,13 +362,17 @@ const Configuracoes = () => {
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Cadastre aqui a empresa que utilizará o sistema. CNPJ, CNAEs, SICAF, certidões,
-                certificado digital, Gov.br, papel timbrado e e-mail ficam unificados por empresa,
-                e o sistema opera direcionado a ela de forma profissional e verídica.
+                certificado digital, Gov.br, papel timbrado e e-mail ficam unificados por empresa.
               </p>
             </div>
             <EmpresasContent />
           </div>
         </TabsContent>
+
+        <TabsContent value="manual"><ManualContent /></TabsContent>
+        <TabsContent value="relatorios"><RelatoriosContent /></TabsContent>
+        <TabsContent value="conectores"><ConectoresContent /></TabsContent>
+        <TabsContent value="admin"><AdminContent /></TabsContent>
 
         <TabsContent value="sistema">
           <div className="max-w-4xl space-y-8">

@@ -26,17 +26,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const Manual = () => {
-  const handleExportPDF = () => {
-    toast.info('Gerando PDF do manual...');
-    // In a real implementation, this would generate a PDF
-    setTimeout(() => {
-      toast.success('Manual exportado com sucesso!');
-    }, 1500);
-  };
+const handleExportPDF = () => {
+  toast.info('Gerando PDF do manual...');
+  setTimeout(() => {
+    toast.success('Manual exportado com sucesso!');
+  }, 1500);
+};
 
+export const ManualContent = () => {
   return (
-    <MainLayout title="Manual do Sistema">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -460,8 +458,13 @@ const Manual = () => {
           </p>
         </div>
       </div>
-    </MainLayout>
   );
 };
+
+const Manual = () => (
+  <MainLayout title="Manual do Sistema">
+    <ManualContent />
+  </MainLayout>
+);
 
 export default Manual;
