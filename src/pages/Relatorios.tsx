@@ -16,9 +16,8 @@ import { RobotPerformanceDashboard } from '@/components/relatorios/RobotPerforma
 import { GeographicPerformanceDashboard } from '@/components/relatorios/GeographicPerformanceDashboard';
 import { AIvsManualDashboard } from '@/components/relatorios/AIvsManualDashboard';
 
-const Relatorios = () => {
+export const RelatoriosContent = () => {
   return (
-    <MainLayout title="Relatórios">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground">
@@ -175,8 +174,13 @@ const Relatorios = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
   );
 };
+
+const Relatorios = () => (
+  <MainLayout title="Relatórios">
+    <RelatoriosContent />
+  </MainLayout>
+);
 
 export default Relatorios;
