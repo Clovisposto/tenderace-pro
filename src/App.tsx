@@ -25,7 +25,7 @@ const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const MinhasParticipacoes = lazy(() => import("./pages/MinhasParticipacoes"));
-const Administrativo = lazy(() => import("./pages/Administrativo"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
 
 // Create QueryClient with error handling
 const queryClient = new QueryClient({
@@ -75,7 +75,8 @@ const AppRoutes = () => (
     <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
     <Route path="/participacoes" element={<ProtectedRoute><MinhasParticipacoes /></ProtectedRoute>} />
-    <Route path="/administrativo" element={<ProtectedRoute><Administrativo /></ProtectedRoute>} />
+    <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
+    <Route path="/administrativo" element={<Navigate to="/financeiro" replace />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
