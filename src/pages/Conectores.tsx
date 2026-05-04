@@ -268,8 +268,13 @@ export const ConectoresContent = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
   );
 };
+
+const Conectores = () => (
+  <MainLayout title="Conectores">
+    <ConectoresContent />
+  </MainLayout>
+);
 
 export default Conectores;
