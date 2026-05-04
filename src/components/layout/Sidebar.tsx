@@ -13,16 +13,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Fluxo profissional: Operação no topo, governança e configuração ao final
+// Fluxo profissional: Operação no topo, configuração unificada ao final
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, group: 'Operação' },
   { name: 'Licitações', href: '/licitacoes', icon: FileSearch, group: 'Operação' },
   { name: 'Portal BLL', href: '/portal', icon: Globe, group: 'Operação' },
   { name: 'Participações', href: '/participacoes', icon: Trophy, group: 'Operação' },
-  { name: 'Conectores', href: '/conectores', icon: Plug, group: 'Configuração' },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart3, group: 'Configuração' },
-  { name: 'Manual', href: '/manual', icon: BookOpen, group: 'Configuração' },
-  { name: 'Admin', href: '/admin', icon: Shield, group: 'Configuração' },
   { name: 'Configurações', href: '/configuracoes', icon: Settings, group: 'Configuração' },
 ];
 
