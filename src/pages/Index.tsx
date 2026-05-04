@@ -18,6 +18,9 @@ import {
   PieChart,
   Bot,
   LayoutDashboard,
+  Search,
+  Calculator,
+  Gavel,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -25,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
   const [selectedLicitacao, setSelectedLicitacao] = useState<Licitacao | null>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('captacao');
   
   const { data: licitacoes, isLoading } = useLicitacoes();
   const { data: metricas } = useMetricas();
@@ -79,18 +82,35 @@ const Index = () => {
     <MainLayout title="Dashboard">
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <LayoutDashboard className="w-4 h-4" />
-            Visão Geral
+        <TabsList className="grid w-full max-w-3xl grid-cols-3">
+          <TabsTrigger value="captacao" className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            <span className="hidden sm:inline">1. Captação & Análise</span>
+            <span className="sm:hidden">Captação</span>
           </TabsTrigger>
-          <TabsTrigger value="participacoes" className="flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            Participações
+          <TabsTrigger value="cotacao" className="flex items-center gap-2">
+            <Calculator className="w-4 h-4" />
+            <span className="hidden sm:inline">2. Cotação IA</span>
+            <span className="sm:hidden">Cotação</span>
+          </TabsTrigger>
+          <TabsTrigger value="disputa" className="flex items-center gap-2">
+            <Gavel className="w-4 h-4" />
+            <span className="hidden sm:inline">3. Disputa</span>
+            <span className="sm:hidden">Disputa</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard" className="mt-6">
+        <TabsContent value="captacao" className="mt-6">
+          <div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/5">
+            <h2 className="font-semibold text-base mb-1 flex items-center gap-2">
+              <Search className="w-4 h-4 text-primary" /> Etapa 1 — Captação, Análise & Autorização
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Conciliação de documentos, edital e política de participação. Após sua análise,
+              gere o <strong>Termo de Confirmação</strong> autorizando o sistema a montar a proposta.
+            </p>
+          </div>
+
           {/* Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
             {metricasDisplay.map((metrica, index) => (
@@ -268,7 +288,30 @@ const Index = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="participacoes" className="mt-6">
+        <TabsContent value="cotacao" className="mt-6">
+          <div className="mb-6 p-4 rounded-lg border border-accent/20 bg-accent/5">
+            <h2 className="font-semibold text-base mb-1 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-accent" /> Etapa 2 — Cotação Automática & Termo de Ciência
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              A IA cota cada item do edital com fonte, impostos (ICMS/PIS/COFINS/IPI) e margem.
+              Você pode <strong>aceitar</strong>, <strong>ajustar manualmente</strong> e assinar o
+              Termo de Autorização — então a proposta sai pronta para o portal.
+            </p>
+          </div>
+          <ParticipacoesDashboardTab />
+        </TabsContent>
+
+        <TabsContent value="disputa" className="mt-6">
+          <div className="mb-6 p-4 rounded-lg border border-warning/30 bg-warning/5">
+            <h2 className="font-semibold text-base mb-1 flex items-center gap-2">
+              <Gavel className="w-4 h-4 text-warning" /> Etapa 3 — Sala de Disputa
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Protocolo da proposta nos portais via Termo de Autorização, lances ao vivo,
+              monitoramento e histórico imutável da disputa.
+            </p>
+          </div>
           <ParticipacoesDashboardTab />
         </TabsContent>
       </Tabs>

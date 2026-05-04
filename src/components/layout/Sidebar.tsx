@@ -2,7 +2,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileSearch, 
-  Building2, 
   Settings,
   Bot,
   BarChart3,
@@ -10,20 +9,21 @@ import {
   BookOpen,
   Plug,
   Shield,
-  Trophy
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Fluxo profissional: Operação no topo, governança e configuração ao final
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Portal BLL', href: '/portal', icon: Globe },
-  { name: 'Licitações', href: '/licitacoes', icon: FileSearch },
-  { name: 'Participações', href: '/participacoes', icon: Trophy },
-  { name: 'Conectores', href: '/conectores', icon: Plug },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
-  { name: 'Manual', href: '/manual', icon: BookOpen },
-  { name: 'Admin', href: '/admin', icon: Shield },
-  { name: 'Configurações', href: '/configuracoes', icon: Settings },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, group: 'Operação' },
+  { name: 'Licitações', href: '/licitacoes', icon: FileSearch, group: 'Operação' },
+  { name: 'Portal BLL', href: '/portal', icon: Globe, group: 'Operação' },
+  { name: 'Participações', href: '/participacoes', icon: Trophy, group: 'Operação' },
+  { name: 'Conectores', href: '/conectores', icon: Plug, group: 'Configuração' },
+  { name: 'Relatórios', href: '/relatorios', icon: BarChart3, group: 'Configuração' },
+  { name: 'Manual', href: '/manual', icon: BookOpen, group: 'Configuração' },
+  { name: 'Admin', href: '/admin', icon: Shield, group: 'Configuração' },
+  { name: 'Configurações', href: '/configuracoes', icon: Settings, group: 'Configuração' },
 ];
 
 interface SidebarProps {
@@ -54,25 +54,32 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
-          return (
-            <NavLink
-              key={item.name}
-              to={item.href}
-              onClick={handleClick}
-              className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-              )}
-            >
-              <item.icon className={cn('w-5 h-5', isActive && 'text-sidebar-primary')} />
-              {item.name}
-            </NavLink>
-          );
-        })}
+        {['Operação', 'Configuração'].map((group) => (
+          <div key={group} className="mb-3">
+            <p className="px-3 mb-1 text-[10px] font-semibold tracking-wider text-sidebar-foreground/40 uppercase">
+              {group}
+            </p>
+            {navigation.filter((n) => n.group === group).map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={handleClick}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-primary'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  )}
+                >
+                  <item.icon className={cn('w-5 h-5', isActive && 'text-sidebar-primary')} />
+                  {item.name}
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Footer - Status 24/7 */}

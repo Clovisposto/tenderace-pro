@@ -92,7 +92,7 @@ export const VoiceCopilot = () => {
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text: text.substring(0, 800), alertType: 'normal' }),
+          body: JSON.stringify({ text: text.substring(0, 280), alertType: 'normal' }),
         }
       );
       if (!response.ok) { useBrowserTTS(text); return; }
@@ -131,7 +131,12 @@ export const VoiceCopilot = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) }
+        body: {
+          messages: [
+            { role: 'system', content: 'Você é o Gerente Digital do LicitaIA. Responda em português brasileiro de forma curta, direta e prática (máximo 2 frases). Sem jargão. Se for navegar, diga "Abrindo X" e nada mais.' },
+            ...[...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+          ],
+        }
       });
       if (error) throw error;
       const content = data.content || 'Desculpe, não entendi. Pode repetir?';
