@@ -39,7 +39,7 @@ import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
 import { SicafRefreshHistory } from '@/components/admin/SicafRefreshHistory';
 import { PNCPConsultaPanel } from '@/components/admin/PNCPConsultaPanel';
 
-const Admin = () => {
+export const AdminContent = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
   const [lastCapture, setLastCapture] = useState<Date | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -159,7 +159,6 @@ const Admin = () => {
   };
 
   return (
-    <MainLayout title="Painel Administrativo">
       <div className="space-y-6">
         {/* Admin Temporário Banner */}
         <div className="bg-warning/20 border border-warning/50 rounded-lg p-4 flex items-center gap-3">
@@ -547,8 +546,13 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
   );
 };
+
+const Admin = () => (
+  <MainLayout title="Painel Administrativo">
+    <AdminContent />
+  </MainLayout>
+);
 
 export default Admin;
