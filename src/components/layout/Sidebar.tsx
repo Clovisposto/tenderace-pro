@@ -12,10 +12,7 @@ import {
   BarChart3,
   Shield,
   Plug,
-  Wallet,
-  Package,
-  ArrowDownToLine,
-  ArrowUpFromLine,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,11 +33,8 @@ const navigation = [
   { name: 'Painel Admin', href: '/admin', icon: Shield, group: 'Configuração' },
   { name: 'Configurações', href: '/configuracoes', icon: Settings, group: 'Configuração' },
 
-  // Administrativo (livro caixa, estoque)
-  { name: 'Livro Caixa', href: '/administrativo?tab=caixa', icon: Wallet, group: 'Administrativo', match: '/administrativo' },
-  { name: 'Estoque', href: '/administrativo?tab=estoque', icon: Package, group: 'Administrativo', match: '/administrativo' },
-  { name: 'Entradas', href: '/administrativo?tab=entradas', icon: ArrowDownToLine, group: 'Administrativo', match: '/administrativo' },
-  { name: 'Saídas', href: '/administrativo?tab=saidas', icon: ArrowUpFromLine, group: 'Administrativo', match: '/administrativo' },
+  // Financeiro (unificado: livro caixa, estoque, entradas, saídas e NF-e)
+  { name: 'Financeiro', href: '/financeiro', icon: DollarSign, group: 'Financeiro', match: '/financeiro' },
 ];
 
 interface SidebarProps {
@@ -84,7 +78,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {['Operação', 'Licitação', 'Configuração', 'Administrativo'].map((group) => (
+        {['Operação', 'Licitação', 'Configuração', 'Financeiro'].map((group) => (
           <div key={group} className="mb-3">
             <p className="px-3 mb-1 text-[10px] font-semibold tracking-wider text-sidebar-foreground/40 uppercase">
               {group}
