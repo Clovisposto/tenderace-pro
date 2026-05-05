@@ -683,7 +683,9 @@ const MinhasParticipacoes = () => {
             proposta_id: propostaId,
             licitacao_id: data.licitacao_id,
             empresa_id: data.empresa_id,
+            autorizacao: 'AUTORIZAR_PARTICIPAÇÃO',
           },
+          headers: { 'x-autorizacao-participacao': 'AUTORIZAR_PARTICIPAÇÃO' },
         });
         if (fnError) {
           console.warn('[REENVIO] Edge Function retornou erro, VPS tentará via polling:', fnError);
