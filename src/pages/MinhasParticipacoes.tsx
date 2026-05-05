@@ -1280,9 +1280,9 @@ const MinhasParticipacoes = () => {
                             size="sm"
                             className="gap-2"
                             disabled={resendProposalMutation.isPending}
-                            onClick={() => resendProposalMutation.mutate(p.id)}
+                            onClick={() => setGateProposta(p)}
                           >
-                            {resendProposalMutation.isPending ? (
+                            {resendProposalMutation.isPending && gateProposta?.id === p.id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                               <RotateCcw className="w-4 h-4" />
