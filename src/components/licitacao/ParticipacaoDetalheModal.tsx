@@ -48,6 +48,9 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { RobotActionLog } from './RobotActionLog';
+import { HabilitacaoDocsPanel } from './HabilitacaoDocsPanel';
+import { ImpugnacaoSystem } from './ImpugnacaoSystem';
+import { FolderCheck } from 'lucide-react';
 
 interface Participacao {
   id: string;
