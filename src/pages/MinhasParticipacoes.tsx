@@ -54,6 +54,7 @@ import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
 import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
 import { AutorizacaoGateDialog } from '@/components/licitacao/AutorizacaoGateDialog';
+import { AutomacaoPosVitoriaBar } from '@/components/licitacao/AutomacaoPosVitoriaBar';
 
 interface Participacao {
   id: string;
