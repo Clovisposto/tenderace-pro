@@ -100,6 +100,7 @@ export function ParticipacaoDetalheModal({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [impugnacaoOpen, setImpugnacaoOpen] = useState(false);
   const queryClient = useQueryClient();
   const contractRef = useRef<HTMLDivElement>(null);
 
