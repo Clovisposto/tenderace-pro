@@ -54,6 +54,7 @@ import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
 import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
 import { AutorizacaoGateDialog } from '@/components/licitacao/AutorizacaoGateDialog';
+import { AutomacaoPosVitoriaBar } from '@/components/licitacao/AutomacaoPosVitoriaBar';
 
 interface Participacao {
   id: string;
@@ -1161,6 +1162,7 @@ const MinhasParticipacoes = () => {
             </div>
 
             <div className="pb-6 grid gap-4">
+              <AutomacaoPosVitoriaBar vencidas={vencidas} />
               {vencidas.length === 0 ? (
                 <Card className="p-12 text-center border-2 border-dashed border-success/30">
                   <Trophy className="w-20 h-20 mx-auto text-success/30 mb-4" />
