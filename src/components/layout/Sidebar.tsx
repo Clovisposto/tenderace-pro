@@ -20,10 +20,8 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, group: 'Operação' },
 
-  // Fluxo de Licitação (3 etapas)
-  { name: 'Captação', href: '/licitacoes?stage=captacao', icon: Search, group: 'Licitação', match: '/licitacoes' },
-  { name: 'Cotação', href: '/licitacoes?stage=cotacao', icon: Calculator, group: 'Licitação', match: '/licitacoes' },
-  { name: 'Sala de Disputa', href: '/licitacoes?stage=disputa', icon: Gavel, group: 'Licitação', match: '/licitacoes' },
+  // Licitação unificada (Captação + Cotação + Sala de Disputa em abas internas)
+  { name: 'Licitação', href: '/licitacoes', icon: Gavel, group: 'Licitação', match: '/licitacoes' },
   { name: 'Participações', href: '/participacoes', icon: Trophy, group: 'Licitação' },
 
   // Configuração unificada (Empresa, Sistema, Manual, Relatórios, Conexões, Admin)
