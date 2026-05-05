@@ -1491,6 +1491,7 @@ const MinhasParticipacoes = () => {
             participacao={selectedParticipacao}
             open={!!selectedParticipacao}
             onOpenChange={(open) => !open && setSelectedParticipacao(null)}
+            defaultTab={modalDefaultTab}
           />
         )}
 
