@@ -641,10 +641,12 @@ const MinhasParticipacoes = () => {
   });
   const [creatingTest, setCreatingTest] = useState(false);
   const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
+  const [modalDefaultTab, setModalDefaultTab] = useState<string>('resumo');
   const [isAiUpdating, setIsAiUpdating] = useState(false);
   const [gateProposta, setGateProposta] = useState<Participacao | null>(null);
 
-  const handleOpenDetails = (participacao: Participacao) => {
+  const handleOpenDetails = (participacao: Participacao, tab: string = 'resumo') => {
+    setModalDefaultTab(tab);
     setSelectedParticipacao(participacao);
   };
 
