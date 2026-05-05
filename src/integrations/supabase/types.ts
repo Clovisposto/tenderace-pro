@@ -70,6 +70,54 @@ export type Database = {
           },
         ]
       }
+      autorizacao_participacao_log: {
+        Row: {
+          acao: string
+          created_at: string
+          empresa_id: string | null
+          frase_recebida: string | null
+          id: string
+          ip_address: string | null
+          licitacao_id: string | null
+          metadata: Json | null
+          motivo: string | null
+          proposta_id: string | null
+          resultado: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          empresa_id?: string | null
+          frase_recebida?: string | null
+          id?: string
+          ip_address?: string | null
+          licitacao_id?: string | null
+          metadata?: Json | null
+          motivo?: string | null
+          proposta_id?: string | null
+          resultado: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          empresa_id?: string | null
+          frase_recebida?: string | null
+          id?: string
+          ip_address?: string | null
+          licitacao_id?: string | null
+          metadata?: Json | null
+          motivo?: string | null
+          proposta_id?: string | null
+          resultado?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       captura_jobs_log: {
         Row: {
           details: Json | null
