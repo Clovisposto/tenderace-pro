@@ -53,6 +53,7 @@ import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDet
 import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
 import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
+import { AutorizacaoGateDialog } from '@/components/licitacao/AutorizacaoGateDialog';
 
 interface Participacao {
   id: string;
@@ -641,6 +642,7 @@ const MinhasParticipacoes = () => {
   const [creatingTest, setCreatingTest] = useState(false);
   const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
   const [isAiUpdating, setIsAiUpdating] = useState(false);
+  const [gateProposta, setGateProposta] = useState<Participacao | null>(null);
 
   const handleOpenDetails = (participacao: Participacao) => {
     setSelectedParticipacao(participacao);
@@ -681,7 +683,9 @@ const MinhasParticipacoes = () => {
             proposta_id: propostaId,
             licitacao_id: data.licitacao_id,
             empresa_id: data.empresa_id,
+            autorizacao: 'AUTORIZAR_PARTICIPAÇÃO',
           },
+          headers: { 'x-autorizacao-participacao': 'AUTORIZAR_PARTICIPAÇÃO' },
         });
         if (fnError) {
           console.warn('[REENVIO] Edge Function retornou erro, VPS tentará via polling:', fnError);
@@ -1276,9 +1280,9 @@ const MinhasParticipacoes = () => {
                             size="sm"
                             className="gap-2"
                             disabled={resendProposalMutation.isPending}
-                            onClick={() => resendProposalMutation.mutate(p.id)}
+                            onClick={() => setGateProposta(p)}
                           >
-                            {resendProposalMutation.isPending ? (
+                            {resendProposalMutation.isPending && gateProposta?.id === p.id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                               <RotateCcw className="w-4 h-4" />
@@ -1487,6 +1491,25 @@ const MinhasParticipacoes = () => {
             onOpenChange={(open) => !open && setSelectedParticipacao(null)}
           />
         )}
+
+        {/* GATE_LEGAL: bloqueio explícito antes de qualquer reenvio */}
+        <AutorizacaoGateDialog
+          open={!!gateProposta}
+          onOpenChange={(o) => !o && setGateProposta(null)}
+          isPending={resendProposalMutation.isPending}
+          contextLabel={
+            gateProposta
+              ? `Licitação ${gateProposta.licitacao.numero} • ${gateProposta.licitacao.orgao} • R$ ${gateProposta.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+              : undefined
+          }
+          actionDescription="Você está prestes a reenviar uma proposta oficial ao portal. Nenhum lance ou envio ocorrerá sem esta autorização explícita."
+          onAuthorize={() => {
+            if (!gateProposta) return;
+            const id = gateProposta.id;
+            setGateProposta(null);
+            resendProposalMutation.mutate(id);
+          }}
+        />
       </div>
     </MainLayout>
   );
