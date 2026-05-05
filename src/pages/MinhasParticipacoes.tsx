@@ -642,6 +642,7 @@ const MinhasParticipacoes = () => {
   const [creatingTest, setCreatingTest] = useState(false);
   const [selectedParticipacao, setSelectedParticipacao] = useState<Participacao | null>(null);
   const [isAiUpdating, setIsAiUpdating] = useState(false);
+  const [gateProposta, setGateProposta] = useState<Participacao | null>(null);
 
   const handleOpenDetails = (participacao: Participacao) => {
     setSelectedParticipacao(participacao);
