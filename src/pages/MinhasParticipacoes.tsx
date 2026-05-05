@@ -53,6 +53,7 @@ import { ParticipacaoDetalheModal } from '@/components/licitacao/ParticipacaoDet
 import { getSafeErrorMessage } from '@/lib/safeError';
 import { DisputeAlertModeSelector } from '@/components/voice/DisputeAlertModeSelector';
 import { RoboActivationPanel } from '@/components/certificado/RoboActivationPanel';
+import { AutorizacaoGateDialog } from '@/components/licitacao/AutorizacaoGateDialog';
 
 interface Participacao {
   id: string;
