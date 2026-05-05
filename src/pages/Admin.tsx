@@ -265,8 +265,9 @@ export const AdminContent = () => {
           </TabsContent>
 
           {/* Realtime Tab */}
-          <TabsContent value="realtime">
+          <TabsContent value="realtime" className="space-y-4">
             <RealtimeMonitor />
+            <AutorizacaoAuditLog />
           </TabsContent>
 
           {/* Services Tab */}
