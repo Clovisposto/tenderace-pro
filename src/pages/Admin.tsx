@@ -38,6 +38,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RealtimeMonitor } from '@/components/admin/RealtimeMonitor';
 import { SicafRefreshHistory } from '@/components/admin/SicafRefreshHistory';
 import { PNCPConsultaPanel } from '@/components/admin/PNCPConsultaPanel';
+import { AutorizacaoAuditLog } from '@/components/admin/AutorizacaoAuditLog';
 
 export const AdminContent = () => {
   const [cronStatus, setCronStatus] = useState<'running' | 'paused'>('running');
