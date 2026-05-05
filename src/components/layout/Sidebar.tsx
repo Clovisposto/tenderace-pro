@@ -26,12 +26,8 @@ const navigation = [
   { name: 'Sala de Disputa', href: '/licitacoes?stage=disputa', icon: Gavel, group: 'Licitação', match: '/licitacoes' },
   { name: 'Participações', href: '/participacoes', icon: Trophy, group: 'Licitação' },
 
-  // Configuração (manual, relatórios, conectores, admin, configuração geral)
-  { name: 'Manual', href: '/manual', icon: BookOpen, group: 'Configuração' },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart3, group: 'Configuração' },
-  { name: 'Conexões', href: '/conectores', icon: Plug, group: 'Configuração' },
-  { name: 'Painel Admin', href: '/admin', icon: Shield, group: 'Configuração' },
-  { name: 'Configurações', href: '/configuracoes', icon: Settings, group: 'Configuração' },
+  // Configuração unificada (Empresa, Sistema, Manual, Relatórios, Conexões, Admin)
+  { name: 'Configuração', href: '/configuracoes', icon: Settings, group: 'Configuração' },
 
   // Financeiro (unificado: livro caixa, estoque, entradas, saídas e NF-e)
   { name: 'Financeiro', href: '/financeiro', icon: DollarSign, group: 'Financeiro', match: '/financeiro' },
