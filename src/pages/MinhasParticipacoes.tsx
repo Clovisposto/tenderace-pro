@@ -1491,6 +1491,25 @@ const MinhasParticipacoes = () => {
             onOpenChange={(open) => !open && setSelectedParticipacao(null)}
           />
         )}
+
+        {/* GATE_LEGAL: bloqueio explícito antes de qualquer reenvio */}
+        <AutorizacaoGateDialog
+          open={!!gateProposta}
+          onOpenChange={(o) => !o && setGateProposta(null)}
+          isPending={resendProposalMutation.isPending}
+          contextLabel={
+            gateProposta
+              ? `Licitação ${gateProposta.licitacao.numero} • ${gateProposta.licitacao.orgao} • R$ ${gateProposta.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+              : undefined
+          }
+          actionDescription="Você está prestes a reenviar uma proposta oficial ao portal. Nenhum lance ou envio ocorrerá sem esta autorização explícita."
+          onAuthorize={() => {
+            if (!gateProposta) return;
+            const id = gateProposta.id;
+            setGateProposta(null);
+            resendProposalMutation.mutate(id);
+          }}
+        />
       </div>
     </MainLayout>
   );
