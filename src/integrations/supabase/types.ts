@@ -328,6 +328,75 @@ export type Database = {
           },
         ]
       }
+      documentos_habilitacao: {
+        Row: {
+          categoria: Database["public"]["Enums"]["doc_habilitacao_categoria"]
+          created_at: string
+          descricao: string | null
+          drive_file_id: string | null
+          drive_url: string | null
+          empresa_id: string
+          id: string
+          licitacao_id: string
+          metadata: Json
+          mime_type: string | null
+          nome: string
+          observacoes_ia: string | null
+          origem: Database["public"]["Enums"]["doc_habilitacao_origem"]
+          proposta_id: string | null
+          status: Database["public"]["Enums"]["doc_habilitacao_status"]
+          storage_path: string | null
+          tamanho_bytes: number | null
+          updated_at: string
+          validade: string | null
+          validado_por_ia: boolean
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["doc_habilitacao_categoria"]
+          created_at?: string
+          descricao?: string | null
+          drive_file_id?: string | null
+          drive_url?: string | null
+          empresa_id: string
+          id?: string
+          licitacao_id: string
+          metadata?: Json
+          mime_type?: string | null
+          nome: string
+          observacoes_ia?: string | null
+          origem?: Database["public"]["Enums"]["doc_habilitacao_origem"]
+          proposta_id?: string | null
+          status?: Database["public"]["Enums"]["doc_habilitacao_status"]
+          storage_path?: string | null
+          tamanho_bytes?: number | null
+          updated_at?: string
+          validade?: string | null
+          validado_por_ia?: boolean
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["doc_habilitacao_categoria"]
+          created_at?: string
+          descricao?: string | null
+          drive_file_id?: string | null
+          drive_url?: string | null
+          empresa_id?: string
+          id?: string
+          licitacao_id?: string
+          metadata?: Json
+          mime_type?: string | null
+          nome?: string
+          observacoes_ia?: string | null
+          origem?: Database["public"]["Enums"]["doc_habilitacao_origem"]
+          proposta_id?: string | null
+          status?: Database["public"]["Enums"]["doc_habilitacao_status"]
+          storage_path?: string | null
+          tamanho_bytes?: number | null
+          updated_at?: string
+          validade?: string | null
+          validado_por_ia?: boolean
+        }
+        Relationships: []
+      }
       empresas: {
         Row: {
           certidoes: Json
@@ -1360,6 +1429,15 @@ export type Database = {
       caixa_natureza: "debito" | "credito"
       compliance_status: "Apta" | "Apta c/ Ressalva" | "Inapta"
       conta_tipo: "ativo" | "passivo" | "receita" | "despesa" | "patrimonio"
+      doc_habilitacao_categoria:
+        | "proposta"
+        | "juridica"
+        | "tecnica"
+        | "economica"
+        | "fiscal_trabalhista"
+        | "catalogo"
+      doc_habilitacao_origem: "manual" | "drive" | "sicaf"
+      doc_habilitacao_status: "pendente" | "valido" | "vencido" | "rejeitado"
       licitacao_status:
         | "Nova"
         | "Em Análise"
@@ -1534,6 +1612,16 @@ export const Constants = {
       caixa_natureza: ["debito", "credito"],
       compliance_status: ["Apta", "Apta c/ Ressalva", "Inapta"],
       conta_tipo: ["ativo", "passivo", "receita", "despesa", "patrimonio"],
+      doc_habilitacao_categoria: [
+        "proposta",
+        "juridica",
+        "tecnica",
+        "economica",
+        "fiscal_trabalhista",
+        "catalogo",
+      ],
+      doc_habilitacao_origem: ["manual", "drive", "sicaf"],
+      doc_habilitacao_status: ["pendente", "valido", "vencido", "rejeitado"],
       licitacao_status: [
         "Nova",
         "Em Análise",

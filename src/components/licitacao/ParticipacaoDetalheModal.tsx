@@ -48,6 +48,9 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { RobotActionLog } from './RobotActionLog';
+import { HabilitacaoDocsPanel } from './HabilitacaoDocsPanel';
+import { ImpugnacaoSystem } from './ImpugnacaoSystem';
+import { FolderCheck } from 'lucide-react';
 
 interface Participacao {
   id: string;
@@ -97,6 +100,7 @@ export function ParticipacaoDetalheModal({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [impugnacaoOpen, setImpugnacaoOpen] = useState(false);
   const queryClient = useQueryClient();
   const contractRef = useRef<HTMLDivElement>(null);
 
@@ -269,7 +273,7 @@ export function ParticipacaoDetalheModal({
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-6 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
             <TabsTrigger value="resumo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Resumo</span>
@@ -278,6 +282,10 @@ export function ParticipacaoDetalheModal({
               <Eye className="w-4 h-4" />
               <span className="hidden sm:inline">Proposta</span>
             </TabsTrigger>
+            <TabsTrigger value="habilitacao" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              <FolderCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Habilitação</span>
+            </TabsTrigger>
             <TabsTrigger value="robo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Gavel className="w-4 h-4" />
               <span className="hidden sm:inline">Robô</span>
@@ -285,6 +293,10 @@ export function ParticipacaoDetalheModal({
             <TabsTrigger value="contrato" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileSignature className="w-4 h-4" />
               <span className="hidden sm:inline">Contrato</span>
+            </TabsTrigger>
+            <TabsTrigger value="impugnacao" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              <Scale className="w-4 h-4" />
+              <span className="hidden sm:inline">Impugnação</span>
             </TabsTrigger>
             <TabsTrigger value="atualizacao" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <Sparkles className="w-4 h-4" />
@@ -508,6 +520,50 @@ export function ParticipacaoDetalheModal({
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* Habilitação Tab */}
+            <TabsContent value="habilitacao" className="m-0">
+              <HabilitacaoDocsPanel
+                licitacaoId={licitacao.id}
+                empresaId={participacao.empresa_id}
+                propostaId={participacao.id}
+              />
+            </TabsContent>
+
+            {/* Impugnação Tab */}
+            <TabsContent value="impugnacao" className="m-0 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-primary" />
+                    Sistema de Impugnação Automática
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Caso a licitação tenha irregularidades ou você tenha perdido o contrato injustamente,
+                    use a IA jurídica para gerar uma petição de impugnação fundamentada na Lei 14.133/2021.
+                  </p>
+                  <Button onClick={() => setImpugnacaoOpen(true)} className="gap-2">
+                    <Scale className="w-4 h-4" />
+                    Abrir Análise Jurídica IA
+                  </Button>
+                </CardContent>
+              </Card>
+              <ImpugnacaoSystem
+                licitacao={{
+                  id: licitacao.id,
+                  numero: licitacao.numero,
+                  orgao: licitacao.orgao,
+                  objeto: licitacao.objeto,
+                  valor: licitacao.valor,
+                  modalidade: licitacao.modalidade,
+                  edital_url: (licitacao as any).edital_url,
+                }}
+                isOpen={impugnacaoOpen}
+                onClose={() => setImpugnacaoOpen(false)}
+              />
             </TabsContent>
 
             {/* Robô Tab - Log de Ações em Tempo Real */}
