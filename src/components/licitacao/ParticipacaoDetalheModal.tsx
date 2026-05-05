@@ -88,12 +88,14 @@ interface ParticipacaoDetalheModalProps {
   participacao: Participacao;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: string;
 }
 
 export function ParticipacaoDetalheModal({
   participacao,
   open,
   onOpenChange,
+  defaultTab = 'resumo',
 }: ParticipacaoDetalheModalProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [aiUpdateLog, setAiUpdateLog] = useState<string[]>([]);
