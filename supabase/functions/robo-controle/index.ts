@@ -435,18 +435,62 @@ Deno.serve(async (req: Request) => {
     // ─── POST: Frontend triggers immediate proposal submission ───
     if (req.method === "POST" && action === "enviar-proposta") {
       const body = parsedBody || await req.json();
-      const { proposta_id, licitacao_id, empresa_id, autorizacao } = body as Record<string, string>;
+      const { proposta_id, licitacao_id, empresa_id, autorizacao, user_id: bodyUserId } = body as Record<string, string>;
 
       // GATE_LEGAL: exige autorização explícita do usuário
       const headerAuth = req.headers.get("x-autorizacao-participacao") || "";
       const REQUIRED = "AUTORIZAR_PARTICIPAÇÃO";
+      const fraseRecebida = autorizacao || headerAuth || "";
+      const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        || req.headers.get("x-real-ip") || null;
+      const userAgent = req.headers.get("user-agent") || null;
+
+      // Resolve user_id from JWT for audit
+      let auditUserId: string | null = bodyUserId || null;
+      const authHeader = req.headers.get("authorization") || "";
+      if (!auditUserId && authHeader.startsWith("Bearer ")) {
+        try {
+          const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+          auditUserId = userData?.user?.id || null;
+        } catch { /* ignore */ }
+      }
+
       if (autorizacao !== REQUIRED && headerAuth !== REQUIRED) {
         console.warn(`[robo-controle] ❌ enviar-proposta BLOQUEADO: autorização ausente`);
+        // AUDIT: registra tentativa bloqueada
+        await supabase.from("autorizacao_participacao_log").insert({
+          user_id: auditUserId,
+          empresa_id: empresa_id || null,
+          licitacao_id: licitacao_id || null,
+          proposta_id: proposta_id || null,
+          acao: "enviar-proposta",
+          resultado: "bloqueada",
+          motivo: "Autorização explícita ausente ou inválida",
+          frase_recebida: fraseRecebida ? "[REDACTED:" + fraseRecebida.length + "chars]" : null,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          metadata: { code: "AUTORIZACAO_REQUERIDA" },
+        });
         return new Response(JSON.stringify({
           error: "Ação bloqueada: autorização explícita ausente. Envie 'AUTORIZAR_PARTICIPAÇÃO'.",
           code: "AUTORIZACAO_REQUERIDA",
         }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+
+      // AUDIT: registra autorização liberada
+      await supabase.from("autorizacao_participacao_log").insert({
+        user_id: auditUserId,
+        empresa_id: empresa_id || null,
+        licitacao_id: licitacao_id || null,
+        proposta_id: proposta_id || null,
+        acao: "enviar-proposta",
+        resultado: "liberada",
+        motivo: "Frase AUTORIZAR_PARTICIPAÇÃO confirmada pelo usuário",
+        frase_recebida: REQUIRED,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: { source: autorizacao === REQUIRED ? "body" : "header" },
+      });
 
       console.log(`[robo-controle] enviar-proposta → proposta=${proposta_id} licitacao=${licitacao_id} empresa=${empresa_id}`);
 
