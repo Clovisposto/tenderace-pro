@@ -274,7 +274,7 @@ export function ParticipacaoDetalheModal({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="resumo" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs key={defaultTab} defaultValue={defaultTab} className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 shrink-0 rounded-none border-b border-border px-6 bg-transparent h-auto pb-0">
             <TabsTrigger value="resumo" className="gap-1.5 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
               <FileText className="w-4 h-4" />
