@@ -1093,8 +1093,13 @@ const MinhasParticipacoes = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="autorizadas" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+        <Tabs defaultValue="sala-disputa" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-9">
+            <TabsTrigger value="sala-disputa" className="gap-1 text-xs md:text-sm bg-gradient-to-r from-success/20 to-primary/20 data-[state=active]:from-success/40 data-[state=active]:to-primary/40 font-bold border border-success/40">
+              <Trophy className="w-3 h-3 md:w-4 md:h-4 text-success" />
+              <span className="hidden sm:inline">🏆 Sala</span>
+              <Badge variant="secondary" className="ml-0.5 bg-success/30 text-success text-xs px-1.5">{stats.vencidas}</Badge>
+            </TabsTrigger>
             <TabsTrigger value="autorizadas" className="gap-1 text-xs md:text-sm">
               <Bot className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Robô</span>
@@ -1136,6 +1141,92 @@ const MinhasParticipacoes = () => {
               <Badge variant="secondary" className="ml-0.5 text-xs px-1.5">{stats.total}</Badge>
             </TabsTrigger>
           </TabsList>
+
+          {/* 🏆 SALA DE DISPUTA — Pós-vitória: Habilitação, Contrato, Impugnação */}
+          <TabsContent value="sala-disputa">
+            <div className="mb-4 p-5 rounded-lg bg-gradient-to-r from-success/15 via-primary/10 to-success/15 border-2 border-success/40">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-full bg-success/20">
+                  <Trophy className="w-7 h-7 text-success" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-success flex items-center gap-2">
+                    🏆 Sala de Disputa Pós-Vitória
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Após vencer a licitação, complete sua <strong>Habilitação Jurídica, Técnica, Econômica, Fiscal/Trabalhista</strong>, gere o <strong>Contrato</strong> ou registre uma <strong>Impugnação</strong>. A IA busca os documentos no Google Drive automaticamente conforme a Lei 14.133/2021.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pb-6 grid gap-4">
+              {vencidas.length === 0 ? (
+                <Card className="p-12 text-center border-2 border-dashed border-success/30">
+                  <Trophy className="w-20 h-20 mx-auto text-success/30 mb-4" />
+                  <p className="text-xl font-bold mb-2">Nenhuma licitação vencida ainda</p>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Quando uma de suas participações for declarada vencedora, ela aparecerá aqui com acesso direto à habilitação, contrato e impugnação.
+                  </p>
+                </Card>
+              ) : (
+                vencidas.map(p => (
+                  <Card key={p.id} className="overflow-hidden border-2 border-success/30 hover:border-success/60 transition-all hover:shadow-xl">
+                    <div className="bg-gradient-to-r from-success/10 to-primary/10 px-5 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Trophy className="w-5 h-5 text-success" />
+                        <div>
+                          <p className="font-bold text-sm">{p.licitacao.numero} — {p.licitacao.orgao}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{p.licitacao.objeto_resumido || p.licitacao.objeto}</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-success text-white">VENCEDORA</Badge>
+                    </div>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div><span className="text-muted-foreground">Valor:</span> <strong className="text-success">R$ {p.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+                        <div><span className="text-muted-foreground">Portal:</span> <strong>{p.licitacao.portal}</strong></div>
+                        <div><span className="text-muted-foreground">Local:</span> <strong>{p.licitacao.municipio}/{p.licitacao.uf}</strong></div>
+                        <div><span className="text-muted-foreground">Empresa:</span> <strong>{p.empresa.nome}</strong></div>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">📋 Documentação Pós-Vitória (Lei 14.133/2021)</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                          <Button variant="outline" size="sm" className="h-auto py-2.5 flex-col gap-1 hover:bg-primary/10 hover:border-primary" onClick={() => handleOpenDetails(p, 'proposta-pdf')}>
+                            <FileText className="w-4 h-4" />
+                            <span className="text-[11px]">Proposta</span>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-auto py-2.5 flex-col gap-1 hover:bg-success/10 hover:border-success" onClick={() => handleOpenDetails(p, 'habilitacao')}>
+                            <ShieldCheck className="w-4 h-4 text-success" />
+                            <span className="text-[11px]">Habilitação</span>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-auto py-2.5 flex-col gap-1 hover:bg-primary/10 hover:border-primary" onClick={() => handleOpenDetails(p, 'robo')}>
+                            <Bot className="w-4 h-4" />
+                            <span className="text-[11px]">Robô</span>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-auto py-2.5 flex-col gap-1 hover:bg-success/10 hover:border-success" onClick={() => handleOpenDetails(p, 'contrato')}>
+                            <FileSignature className="w-4 h-4 text-success" />
+                            <span className="text-[11px]">Contrato</span>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-auto py-2.5 flex-col gap-1 hover:bg-destructive/10 hover:border-destructive" onClick={() => handleOpenDetails(p, 'impugnacao')}>
+                            <Gavel className="w-4 h-4 text-destructive" />
+                            <span className="text-[11px]">Impugnação</span>
+                          </Button>
+                          <Button variant="default" size="sm" className="h-auto py-2.5 flex-col gap-1 bg-gradient-to-br from-primary to-success" onClick={() => handleOpenDetails(p, 'resumo')}>
+                            <Eye className="w-4 h-4" />
+                            <span className="text-[11px]">Abrir Tudo</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
 
           {/* Aba de Licitações Autorizadas para o Robô */}
           <TabsContent value="autorizadas">
