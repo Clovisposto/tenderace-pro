@@ -522,6 +522,50 @@ export function ParticipacaoDetalheModal({
               )}
             </TabsContent>
 
+            {/* Habilitação Tab */}
+            <TabsContent value="habilitacao" className="m-0">
+              <HabilitacaoDocsPanel
+                licitacaoId={licitacao.id}
+                empresaId={participacao.empresa_id}
+                propostaId={participacao.id}
+              />
+            </TabsContent>
+
+            {/* Impugnação Tab */}
+            <TabsContent value="impugnacao" className="m-0 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-primary" />
+                    Sistema de Impugnação Automática
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Caso a licitação tenha irregularidades ou você tenha perdido o contrato injustamente,
+                    use a IA jurídica para gerar uma petição de impugnação fundamentada na Lei 14.133/2021.
+                  </p>
+                  <Button onClick={() => setImpugnacaoOpen(true)} className="gap-2">
+                    <Scale className="w-4 h-4" />
+                    Abrir Análise Jurídica IA
+                  </Button>
+                </CardContent>
+              </Card>
+              <ImpugnacaoSystem
+                licitacao={{
+                  id: licitacao.id,
+                  numero: licitacao.numero,
+                  orgao: licitacao.orgao,
+                  objeto: licitacao.objeto,
+                  valor: licitacao.valor,
+                  modalidade: licitacao.modalidade,
+                  edital_url: (licitacao as any).edital_url,
+                }}
+                isOpen={impugnacaoOpen}
+                onClose={() => setImpugnacaoOpen(false)}
+              />
+            </TabsContent>
+
             {/* Robô Tab - Log de Ações em Tempo Real */}
             <TabsContent value="robo" className="m-0">
               <RobotActionLog
