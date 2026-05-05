@@ -435,7 +435,18 @@ Deno.serve(async (req: Request) => {
     // ─── POST: Frontend triggers immediate proposal submission ───
     if (req.method === "POST" && action === "enviar-proposta") {
       const body = parsedBody || await req.json();
-      const { proposta_id, licitacao_id, empresa_id } = body as Record<string, string>;
+      const { proposta_id, licitacao_id, empresa_id, autorizacao } = body as Record<string, string>;
+
+      // GATE_LEGAL: exige autorização explícita do usuário
+      const headerAuth = req.headers.get("x-autorizacao-participacao") || "";
+      const REQUIRED = "AUTORIZAR_PARTICIPAÇÃO";
+      if (autorizacao !== REQUIRED && headerAuth !== REQUIRED) {
+        console.warn(`[robo-controle] ❌ enviar-proposta BLOQUEADO: autorização ausente`);
+        return new Response(JSON.stringify({
+          error: "Ação bloqueada: autorização explícita ausente. Envie 'AUTORIZAR_PARTICIPAÇÃO'.",
+          code: "AUTORIZACAO_REQUERIDA",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       console.log(`[robo-controle] enviar-proposta → proposta=${proposta_id} licitacao=${licitacao_id} empresa=${empresa_id}`);
 
