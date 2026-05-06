@@ -12,7 +12,8 @@ import {
   Bot,
   Check,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +21,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface LicitacaoCardProps {
   licitacao: Licitacao & { editalUrl?: string; enviadoParaCotacao?: boolean };
@@ -27,6 +39,8 @@ interface LicitacaoCardProps {
   delay?: number;
   onEnviarParaCotacao?: () => void;
   enviarPending?: boolean;
+  onDescartar?: () => void;
+  descartarPending?: boolean;
 }
 
 // Generate portal URL based on portal type and tender number
