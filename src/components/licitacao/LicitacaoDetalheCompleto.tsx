@@ -676,74 +676,19 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
               </TabsContent>
 
               {/* Cotação Tab */}
-              <TabsContent value="cotacao" className="mt-4">
+              <TabsContent value="cotacao" className="mt-4 space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calculator className="w-5 h-5" />
-                      Calculadora de Cotação
+                      Planilha de Cotação por Item
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="p-4 rounded-lg bg-secondary/50 border">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <DollarSign className="w-4 h-4" />
-                          Preço de Referência
-                        </div>
-                        <p className="text-xl font-bold">{formatCurrency(cotacao.precoReferencia)}</p>
-                      </div>
-                      
-                      <div className="p-4 rounded-lg bg-secondary/50 border">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <Percent className="w-4 h-4" />
-                          ICMS {licitacao.uf}
-                        </div>
-                        <p className="text-xl font-bold">{cotacao.icmsUf}%</p>
-                      </div>
-                      
-                      <div className="p-4 rounded-lg bg-secondary/50 border">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <Truck className="w-4 h-4" />
-                          Custo Logística
-                        </div>
-                        <p className="text-xl font-bold">{formatCurrency(cotacao.custoLogistica)}</p>
-                      </div>
-
-                      <div className="p-4 rounded-lg bg-secondary/50 border">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <Percent className="w-4 h-4" />
-                          Margem Mínima
-                        </div>
-                        <p className="text-xl font-bold">{cotacao.margemMinima}%</p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-lg font-semibold">Preço Final da Proposta</label>
-                        <Badge className={margemCalculada >= cotacao.margemMinima ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}>
-                          Margem: {margemCalculada.toFixed(1)}%
-                        </Badge>
-                      </div>
-                      <div className="flex gap-4">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-                          <Input
-                            type="number"
-                            value={precoFinal}
-                            onChange={(e) => setPrecoFinal(parseFloat(e.target.value) || 0)}
-                            className="text-2xl font-bold pl-10 h-14"
-                          />
-                        </div>
-                        <Button variant="outline" size="lg" onClick={() => setPrecoFinal(licitacao.valor * 0.92)}>
-                          Preço Sugerido
-                        </Button>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Preço sugerido com margem de 8%: <strong>{formatCurrency(licitacao.valor * 0.92)}</strong>
-                      </p>
-                    </div>
+                  <CardContent>
+                    <PlanilhaCotacao
+                      licitacaoId={licitacao.id}
+                      itensJaExtraidos={(licitacao as any).itensExtraidos || (licitacao as any).itens_extraidos || false}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
