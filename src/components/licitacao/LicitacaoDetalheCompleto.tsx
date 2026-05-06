@@ -181,6 +181,10 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
         toast.success(`Método detectado: ${result.metodo_envio === 'email' ? 'Envio por E-mail' : result.metodo_envio === 'presencial' ? 'Presencial' : 'Portal Eletrônico'}`, {
           description: result.justificativa,
         });
+      } else if (result.error_code === 'AI_CREDITS_EXHAUSTED') {
+        toast.error('Créditos de IA esgotados', {
+          description: 'Adicione créditos em Configurações > Workspace > Uso para retomar a detecção automática.',
+        });
       } else {
         toast.error(result.error || 'Erro ao detectar método');
       }
