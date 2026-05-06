@@ -76,14 +76,17 @@ Use SOMENTE a função extract_itens.`;
       userContent.push({ type: 'image_url', image_url: { url: pdfDataUrl } });
     }
 
-    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Groq não suporta vision em PDFs nativamente — incluímos um aviso de tamanho do PDF no prompt
+    const userText = `Edital nº ${lic.numero} — Órgão: ${lic.orgao}\nObjeto: ${lic.objeto}\n${pdfDataUrl ? `\n[PDF do edital disponível em ${lic.edital_url}]` : ''}\n\nExtraia a relação completa de itens da tabela do edital, um por um, sem agrupar.`;
+
+    const aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemMsg },
-          { role: 'user', content: userContent }
+          { role: 'user', content: userText }
         ],
         tools: [{
           type: 'function',
