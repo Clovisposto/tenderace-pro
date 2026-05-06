@@ -277,6 +277,19 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button size="sm" variant="default" onClick={async () => {
+            const pendentes = itens.filter(i => i.preco_robo == null && i.modo_cotacao !== 'manual');
+            if (pendentes.length === 0) { toast.info('Todos os itens já foram cotados'); return; }
+            toast.info(`Cotando ${pendentes.length} item(ns) com IA…`);
+            for (const it of pendentes) {
+              try { await cotar.mutateAsync(it); } catch (e) { /* continua */ }
+              await new Promise(r => setTimeout(r, 800));
+            }
+            toast.success('Cotação em lote concluída');
+          }} disabled={cotar.isPending}>
+            <Sparkles className={`w-3 h-3 mr-1 ${cotar.isPending ? 'animate-pulse' : ''}`} />
+            Cotar todos com IA
+          </Button>
           <Button size="sm" variant="outline" onClick={() => extrair.mutate(licitacaoId)} disabled={extrair.isPending}>
             <RotateCw className={`w-3 h-3 mr-1 ${extrair.isPending ? 'animate-spin' : ''}`} />
             Re-extrair
