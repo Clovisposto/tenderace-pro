@@ -513,6 +513,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <td colSpan={7} className="p-2 border-r text-right">TOTAIS</td>
               <td className="p-2 border-r text-right">{fmt(totalCusto)}</td>
               <td className="p-2 border-r text-right text-primary">{fmt(totalRef)}</td>
+              <td className="p-2 border-r text-right text-warning bg-warning/5">{fmt(totalLanceMin)}</td>
+              <td className="p-2 border-r text-right text-success bg-success/5">{fmt(totalLanceAlvo)}</td>
               <td className={`p-2 text-right ${(totalRef - totalCusto) > 0 ? 'text-success' : 'text-destructive'}`}>
                 {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
               </td>
