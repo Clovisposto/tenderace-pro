@@ -3,6 +3,8 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { FiltrosLicitacao } from '@/components/licitacao/FiltrosLicitacao';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
 import { LicitacaoDetalheCompleto } from '@/components/licitacao/LicitacaoDetalheCompleto';
+import { PlanilhaCotacao } from '@/components/licitacao/PlanilhaCotacao';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -407,20 +409,57 @@ const Licitacoes = () => {
                 ))}
               </div>
             ) : licitacoesFiltradas.length > 0 ? (
-              <div className="space-y-4">
-                {licitacoesFiltradas.map((licitacao, index) => (
-                  <LicitacaoCard
-                    key={licitacao.id}
-                    licitacao={mapToLegacyFormat(licitacao)}
-                    onClick={() => setSelectedLicitacao(licitacao)}
-                    delay={index * 50}
-                    onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
-                    enviarPending={enviarParaCotacao.isPending}
-                    onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
-                    descartarPending={descartarLicitacao.isPending}
-                  />
-                ))}
-              </div>
+              activeTab === 'aguardando' ? (
+                <Accordion type="multiple" className="space-y-3">
+                  {licitacoesFiltradas.map((licitacao) => (
+                    <AccordionItem
+                      key={licitacao.id}
+                      value={licitacao.id}
+                      className="glass-card border rounded-lg px-4"
+                    >
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-col items-start text-left gap-1">
+                          <div className="font-semibold">
+                            {licitacao.numero} — {licitacao.orgao}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {licitacao.municipio}/{licitacao.uf} • {licitacao.modalidade} •{' '}
+                            {licitacao.objeto_resumido || licitacao.objeto?.slice(0, 80)}
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex justify-end mb-3">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedLicitacao(licitacao)}>
+                            Abrir detalhes completos
+                          </Button>
+                        </div>
+                        <PlanilhaCotacao
+                          licitacaoId={licitacao.id}
+                          itensJaExtraidos={(licitacao as any).itens_extraidos || false}
+                          licitacaoNumero={licitacao.numero}
+                          licitacaoStatus={licitacao.status}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              ) : (
+                <div className="space-y-4">
+                  {licitacoesFiltradas.map((licitacao, index) => (
+                    <LicitacaoCard
+                      key={licitacao.id}
+                      licitacao={mapToLegacyFormat(licitacao)}
+                      onClick={() => setSelectedLicitacao(licitacao)}
+                      delay={index * 50}
+                      onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
+                      enviarPending={enviarParaCotacao.isPending}
+                      onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
+                      descartarPending={descartarLicitacao.isPending}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
               <div className="glass-card p-12 text-center">
                 <p className="text-muted-foreground">Nenhuma licitação encontrada para os estados selecionados.</p>
