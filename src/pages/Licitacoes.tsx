@@ -254,8 +254,8 @@ const Licitacoes = () => {
     const agora = new Date();
     const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora && ufsPrioritarias.includes(l.uf)) || [];
     return {
-      todas: noPrazo.length,
-      aguardando: noPrazo.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização').length,
+      todas: noPrazo.filter(l => !(l as any).enviado_para_cotacao).length,
+      aguardando: noPrazo.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada').length,
       disputa: noPrazo.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
     };
   }, [licitacoes, ufsPrioritarias]);
