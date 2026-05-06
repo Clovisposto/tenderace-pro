@@ -27,8 +27,8 @@ serve(async (req) => {
       .from('licitacoes').select('*').eq('id', licitacao_id).maybeSingle();
     if (licErr || !lic) return json({ success: false, error: 'licitacao não encontrada' }, 404);
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) return json({ success: false, error: 'LOVABLE_API_KEY not configured' }, 200);
+    const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+    if (!GROQ_API_KEY) return json({ success: false, error: 'GROQ_API_KEY not configured' }, 200);
 
     // 1) Try to fetch the edital PDF and inline as base64 for Gemini Vision
     let pdfDataUrl: string | null = null;
