@@ -155,6 +155,10 @@ const Licitacoes = () => {
             if (result.metodo_envio === 'email') emailsEncontrados++;
           } else {
             resultados.push({ numero: lic.numero, metodo: 'portal', erro: result.error });
+            // Stop batch on credits exhausted or rate limit signaled via fallback
+            if (result.error_code === 'AI_CREDITS_EXHAUSTED' || result.error_code === 'RATE_LIMITED') {
+              break;
+            }
           }
 
           // Small delay to avoid rate limiting
