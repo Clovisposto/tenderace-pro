@@ -561,7 +561,7 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
             </Card>
 
             {/* Tabs for Details */}
-            <Tabs defaultValue="compliance" className="w-full">
+            <Tabs defaultValue="cotacao" className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="compliance" className="gap-2">
                   <Shield className="w-4 h-4" />
