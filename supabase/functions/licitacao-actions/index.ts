@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'autorizar') {
-      const { error: upErr } = await admin.from('licitacoes').update({ status: 'Autorizada' }).eq('id', licitacao_id);
+      const { error: upErr } = await admin.from('licitacoes').update({ status: 'Autorizada', enviado_para_cotacao: true }).eq('id', licitacao_id);
       if (upErr) throw upErr;
 
       await admin.from('autorizacao_participacao_log').insert({
