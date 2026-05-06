@@ -101,12 +101,14 @@ serve(async (req) => {
                   items: {
                     type: 'object',
                     properties: {
-                      loja: { type: 'string' },
-                      url: { type: 'string' },
-                      preco: { type: 'number' },
+                      loja: { type: 'string', description: 'Nome da loja/vendedor' },
+                      produto_encontrado: { type: 'string', description: 'Nome completo do produto na oferta' },
+                      url: { type: 'string', description: 'URL completa do produto' },
+                      preco: { type: 'number', description: 'Preço unitário em BRL' },
+                      frete: { type: 'string', description: 'Informação de frete se disponível' },
                       endereco: { type: 'string' }
                     },
-                    required: ['loja', 'preco']
+                    required: ['loja', 'preco', 'produto_encontrado']
                   }
                 }
               },
