@@ -158,8 +158,8 @@ serve(async (req) => {
 
     console.log(`[Filtro IA] Analisando ${targetLicitacoes.length} licitações com IA...`);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) {
       // Fallback to algorithmic scoring if no AI key
       console.log("[Filtro IA] Usando scoring algorítmico (sem API key)...");
       const analyzed = targetLicitacoes.map(l => algorithmicScore(l));
@@ -190,14 +190,14 @@ serve(async (req) => {
       risco_score: l.risco_score,
     }));
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { 
