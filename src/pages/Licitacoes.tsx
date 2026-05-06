@@ -281,8 +281,21 @@ const Licitacoes = () => {
     riscoScore: l.risco_score || 20,
     metodoEnvio: (l as any).metodo_envio || 'portal',
     emailDestino: (l as any).email_destino || undefined,
+    enviadoParaCotacao: (l as any).enviado_para_cotacao || false,
     createdAt: new Date(l.created_at),
     updatedAt: new Date(l.updated_at),
+  });
+
+  const enviarParaCotacao = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('licitacoes').update({ enviado_para_cotacao: true } as any).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Enviada para Cotação', { description: 'Abra a aba 2. Cotação para montar a planilha.' });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
