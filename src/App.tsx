@@ -26,6 +26,7 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const MinhasParticipacoes = lazy(() => import("./pages/MinhasParticipacoes"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
+const CotacaoDetalhe = lazy(() => import("./pages/CotacaoDetalhe"));
 
 // Create QueryClient with error handling
 const queryClient = new QueryClient({
