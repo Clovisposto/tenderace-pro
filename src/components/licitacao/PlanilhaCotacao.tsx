@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -51,6 +52,15 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Record<string, string>>({});
   const autoExtractedRef = useRef(false);
+
+  // Parâmetros de impostos / logística / margem estratégica (Lei 14.133/2021)
+  const [icmsPct, setIcmsPct] = useState<number>(18);     // ICMS médio
+  const [pisCofinsPct, setPisCofinsPct] = useState<number>(9.25); // PIS+COFINS
+  const [issPct, setIssPct] = useState<number>(0);        // ISS (serviços)
+  const [logisticaPct, setLogisticaPct] = useState<number>(3); // % sobre custo
+  const [margemMinPct, setMargemMinPct] = useState<number>(15);   // margem mínima aceitável
+  const [margemAlvoPct, setMargemAlvoPct] = useState<number>(25); // margem desejada para lance inicial
+  const tributosPct = icmsPct + pisCofinsPct + issPct;
 
   // Auto-extrair via IA na primeira vez que a aba é aberta
   useEffect(() => {
@@ -235,13 +245,90 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const todosCotados = itens.length > 0 && itens.every(i => i.modo_cotacao === 'robo' || i.modo_cotacao === 'manual' || i.modo_cotacao === 'cancelado');
   const jaAutorizada = licitacaoStatus === 'Autorizada' || licitacaoStatus === 'Em Disputa';
 
+  // Cálculo profissional: custo + tributos + logística → lance mínimo (margem mín) e lance alvo (margem desejada)
+  const calcLances = (custoUnit: number | null) => {
+    if (!custoUnit || custoUnit <= 0) return { custoFinal: null as number | null, lanceMin: null as number | null, lanceAlvo: null as number | null };
+    const custoFinal = custoUnit * (1 + logisticaPct / 100);
+    // Preço = custo / (1 - (tributos+margem)/100)  → garante margem líquida desejada
+    const denMin = 1 - (tributosPct + margemMinPct) / 100;
+    const denAlvo = 1 - (tributosPct + margemAlvoPct) / 100;
+    const lanceMin = denMin > 0 ? custoFinal / denMin : null;
+    const lanceAlvo = denAlvo > 0 ? custoFinal / denAlvo : null;
+    return { custoFinal, lanceMin, lanceAlvo };
+  };
+
+  const totalLanceMin = itens.reduce((s, i) => {
+    const c = i.modo_cotacao === 'manual' ? i.preco_manual : i.modo_cotacao === 'robo' ? i.preco_robo : 0;
+    const { lanceMin } = calcLances(c);
+    return s + (lanceMin || 0) * i.quantidade;
+  }, 0);
+  const totalLanceAlvo = itens.reduce((s, i) => {
+    const c = i.modo_cotacao === 'manual' ? i.preco_manual : i.modo_cotacao === 'robo' ? i.preco_robo : 0;
+    const { lanceAlvo } = calcLances(c);
+    return s + (lanceAlvo || 0) * i.quantidade;
+  }, 0);
+
   return (
     <div className="space-y-4">
+      {/* Parâmetros legais — Lei 14.133/2021 */}
+      <Card className="p-4 space-y-3 border-primary/20">
+        <div className="flex items-start gap-2">
+          <ShieldCheck className="w-4 h-4 text-primary mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-sm">Parâmetros tributários e de margem</h4>
+            <p className="text-[11px] text-muted-foreground">
+              Aplicados a todos os itens. Lance mínimo respeita custo + tributos + logística (sem prejuízo, conforme art. 59 da Lei 14.133/2021). Lance alvo é o ponto de partida na disputa.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div>
+            <Label className="text-[10px]">ICMS %</Label>
+            <Input type="number" step="0.01" value={icmsPct} onChange={(e) => setIcmsPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">PIS+COFINS %</Label>
+            <Input type="number" step="0.01" value={pisCofinsPct} onChange={(e) => setPisCofinsPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">ISS %</Label>
+            <Input type="number" step="0.01" value={issPct} onChange={(e) => setIssPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">Logística %</Label>
+            <Input type="number" step="0.01" value={logisticaPct} onChange={(e) => setLogisticaPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">Margem mín. %</Label>
+            <Input type="number" step="0.01" value={margemMinPct} onChange={(e) => setMargemMinPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">Margem alvo %</Label>
+            <Input type="number" step="0.01" value={margemAlvoPct} onChange={(e) => setMargemAlvoPct(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Tributos totais: <strong>{tributosPct.toFixed(2)}%</strong>. Fórmula do lance: custo × (1 + logística) ÷ (1 − tributos − margem).
+        </p>
+      </Card>
+
       {/* Sumário */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Total Referência (Edital)</p>
           <p className="font-bold text-primary">{fmt(totalRef)}</p>
+        </Card>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Custo Estimado</p>
+          <p className="font-bold">{fmt(totalCusto)}</p>
+        </Card>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Lance Mínimo (margem {margemMinPct}%)</p>
+          <p className="font-bold text-warning">{fmt(totalLanceMin)}</p>
+        </Card>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Lance Alvo (margem {margemAlvoPct}%)</p>
+          <p className="font-bold text-success">{fmt(totalLanceAlvo)}</p>
         </Card>
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Custo Estimado</p>
@@ -332,6 +419,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <th className="p-2 border-b border-r font-semibold w-44 text-right bg-amber-500/5">Cotação Manual</th>
               <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Custo</th>
               <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Ref.</th>
+              <th className="p-2 border-b border-r font-semibold w-28 text-right bg-warning/10">Lance Mín.</th>
+              <th className="p-2 border-b border-r font-semibold w-28 text-right bg-success/10">Lance Alvo</th>
               <th className="p-2 border-b font-semibold w-24 text-right">Margem</th>
             </tr>
           </thead>
@@ -341,6 +430,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               const subRef = (item.preco_referencia || 0) * item.quantidade;
               const subCusto = (custo || 0) * item.quantidade;
               const margemOk = (item.margem_lucro ?? 0) > 0;
+              const { lanceMin, lanceAlvo } = calcLances(custo);
+              const acimaRef = lanceMin != null && item.preco_referencia != null && lanceMin > item.preco_referencia;
               return (
                 <tr key={item.id} className={`border-b hover:bg-muted/30 align-top ${item.modo_cotacao === 'cancelado' ? 'opacity-50' : ''}`}>
                   <td className="p-2 border-r font-mono">{item.numero_item}</td>
@@ -403,6 +494,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
                   </td>
                   <td className="p-2 border-r text-right font-medium">{custo != null ? fmt(subCusto) : '—'}</td>
                   <td className="p-2 border-r text-right font-medium text-primary">{fmt(subRef)}</td>
+                  <td className={`p-2 border-r text-right font-semibold bg-warning/5 ${acimaRef ? 'text-destructive' : 'text-warning'}`}>
+                    {lanceMin != null ? fmt(lanceMin) : '—'}
+                    {acimaRef && <p className="text-[9px] font-normal">acima do ref.</p>}
+                  </td>
+                  <td className="p-2 border-r text-right font-semibold bg-success/5 text-success">
+                    {lanceAlvo != null ? fmt(lanceAlvo) : '—'}
+                  </td>
                   <td className={`p-2 text-right font-bold ${margemOk ? 'text-success' : item.margem_lucro != null ? 'text-destructive' : ''}`}>
                     {item.margem_lucro != null ? `${item.margem_lucro.toFixed(1)}%` : '—'}
                   </td>
@@ -415,6 +513,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <td colSpan={7} className="p-2 border-r text-right">TOTAIS</td>
               <td className="p-2 border-r text-right">{fmt(totalCusto)}</td>
               <td className="p-2 border-r text-right text-primary">{fmt(totalRef)}</td>
+              <td className="p-2 border-r text-right text-warning bg-warning/5">{fmt(totalLanceMin)}</td>
+              <td className="p-2 border-r text-right text-success bg-success/5">{fmt(totalLanceAlvo)}</td>
               <td className={`p-2 text-right ${(totalRef - totalCusto) > 0 ? 'text-success' : 'text-destructive'}`}>
                 {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
               </td>
