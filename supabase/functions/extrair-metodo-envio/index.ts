@@ -191,18 +191,35 @@ Responda em JSON:
     if (!aiResponse.ok) {
       const status = aiResponse.status;
       if (status === 429) {
-        return new Response(JSON.stringify({ success: false, error: 'Limite de requisições excedido' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({
+          success: false,
+          fallback: true,
+          error_code: 'RATE_LIMITED',
+          error: 'Limite de requisições da IA atingido. Tente novamente em instantes.',
+        }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (status === 402) {
-        return new Response(JSON.stringify({ success: false, error: 'Créditos de IA esgotados' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({
+          success: false,
+          fallback: true,
+          error_code: 'AI_CREDITS_EXHAUSTED',
+          error: 'Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Uso para retomar a detecção automática.',
+        }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const errorText = await aiResponse.text();
       console.error(`[Extrair Método] AI error ${status}: ${errorText.substring(0, 200)}`);
-      throw new Error(`AI gateway error: ${status}`);
+      return new Response(JSON.stringify({
+        success: false,
+        fallback: true,
+        error_code: 'AI_ERROR',
+        error: `Falha temporária da IA (${status}). Tente novamente.`,
+      }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiData = await aiResponse.json();
