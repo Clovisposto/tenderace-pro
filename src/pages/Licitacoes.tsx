@@ -298,6 +298,21 @@ const Licitacoes = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const descartarLicitacao = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke('licitacao-actions', {
+        body: { action: 'descartar', licitacao_id: id, motivo: 'Sem interesse (captação)' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao descartar');
+    },
+    onSuccess: () => {
+      toast.success('Licitação descartada', { description: 'Removida do painel. Registro salvo na auditoria.' });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error('Erro ao descartar', { description: e.message }),
+  });
+
   return (
     <MainLayout title="Licitações">
       <div className="space-y-6">
