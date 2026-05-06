@@ -617,15 +617,17 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </Card>
       )}
 
-      {/* Autorização para Disputa */}
+      {/* Termo de Autorização para Disputa — Lei 14.133/2021 */}
       {itens.length > 0 && (
         <Card className="p-4 border-2 border-primary/30 bg-primary/5 space-y-3">
           <div className="flex items-start gap-3">
             <ShieldCheck className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-bold">Autorização para Disputa</h4>
+              <h4 className="font-bold">Termo de Autorização para Participação</h4>
               <p className="text-xs text-muted-foreground">
-                Após revisar a planilha, autorize a participação. O robô vai usar exatamente os preços aprovados.
+                Ao autorizar, você declara que revisou os preços por item, que a proposta atende ao edital e às condições da
+                <strong> Lei nº 14.133/2021</strong> (arts. 17, 59 e 63), e autoriza o robô a enviar a proposta nos exatos valores aprovados.
+                A ação é registrada no log de auditoria com data, hora e usuário.
               </p>
             </div>
           </div>
@@ -634,32 +636,16 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <ShieldCheck className="w-4 h-4 mr-2" /> Já autorizada — em Disputa
             </Badge>
           ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="authorize"
-                  className="w-full"
-                  disabled={!todosCotados || (margemMedia != null && margemMedia < 0)}
-                >
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  AUTORIZAR PARA DISPUTA
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Autorizar participação na disputa?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Você está autorizando o robô a participar da licitação <strong>{licitacaoNumero}</strong> com {itens.length} item(ns), custo total estimado de <strong>{fmt(totalCusto)}</strong> e margem média de <strong>{margemMedia?.toFixed(1)}%</strong>. Esta ação fica registrada no log de auditoria.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => autorizarDisputa.mutate()}>
-                    {autorizarDisputa.isPending ? 'Autorizando…' : 'Confirmar autorização'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <AutorizacaoTermo
+              licitacaoNumero={licitacaoNumero}
+              totalItens={itens.length}
+              totalCusto={totalCusto}
+              totalRef={totalRef}
+              margemMedia={margemMedia}
+              disabled={!todosCotados || (margemMedia != null && margemMedia < 0)}
+              loading={autorizarDisputa.isPending}
+              onConfirm={() => autorizarDisputa.mutate()}
+            />
           )}
           {!todosCotados && !jaAutorizada && (
             <p className="text-xs text-muted-foreground text-center">
@@ -669,5 +655,64 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </Card>
       )}
     </div>
+  );
+};
+
+interface TermoProps {
+  licitacaoNumero?: string;
+  totalItens: number;
+  totalCusto: number;
+  totalRef: number;
+  margemMedia: number | null;
+  disabled: boolean;
+  loading: boolean;
+  onConfirm: () => void;
+}
+
+const AutorizacaoTermo = ({ licitacaoNumero, totalItens, totalCusto, totalRef, margemMedia, disabled, loading, onConfirm }: TermoProps) => {
+  const [frase, setFrase] = useState('');
+  const ok = frase.trim().toUpperCase() === 'AUTORIZAR_PARTICIPACAO';
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="authorize" className="w-full" disabled={disabled}>
+          <ShieldCheck className="w-4 h-4 mr-2" />
+          AUTORIZAR PARA DISPUTA
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Termo de Autorização — Lei 14.133/2021</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-xs">
+              <p>
+                Eu autorizo o envio da proposta na licitação <strong>{licitacaoNumero}</strong>, com <strong>{totalItens} item(ns)</strong>,
+                custo total estimado de <strong>{fmt(totalCusto)}</strong>, valor de referência de <strong>{fmt(totalRef)}</strong> e margem média
+                de <strong>{margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}</strong>.
+              </p>
+              <p>
+                Declaro que a proposta atende às exigências do edital e à Lei nº 14.133/2021 (arts. 17, 59 e 63),
+                respeitando os preços máximos e a vedação de proposta inexequível.
+              </p>
+              <p className="font-medium">
+                Para confirmar, digite: <code className="bg-muted px-1 rounded">AUTORIZAR_PARTICIPACAO</code>
+              </p>
+              <Input
+                value={frase}
+                onChange={(e) => setFrase(e.target.value)}
+                placeholder="Digite a frase exata"
+                className="h-9"
+              />
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction disabled={!ok || loading} onClick={onConfirm}>
+            {loading ? 'Autorizando…' : 'Confirmar autorização'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
