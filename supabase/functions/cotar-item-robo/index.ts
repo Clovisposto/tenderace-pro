@@ -32,39 +32,48 @@ serve(async (req) => {
     if (!GROQ_API_KEY) return json({ success: false, error: 'GROQ_API_KEY not configured' }, 200);
     if (!FIRECRAWL_API_KEY) return json({ success: false, error: 'FIRECRAWL_API_KEY not configured' }, 200);
 
-    // 1) Scrape Google Shopping (BR) for the item
-    const query = encodeURIComponent(item.descricao.slice(0, 200));
-    const shopUrl = `https://www.google.com/search?tbm=shop&hl=pt-BR&gl=br&q=${query}`;
-    console.log('[cotar-item-robo] Scraping Google Shopping:', shopUrl);
+    // 1) Scrape multiple Brazilian shopping sources using EDITAL ITEM description
+    const queryRaw = (item.descricao || '').trim();
+    const query = encodeURIComponent(queryRaw.slice(0, 180));
 
-    let shoppingMarkdown = '';
-    try {
-      const fcResp = await fetch('https://api.firecrawl.dev/v2/scrape', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: shopUrl,
-          formats: ['markdown'],
-          onlyMainContent: true,
-          location: { country: 'BR', languages: ['pt-BR'] },
-        }),
-      });
-      const fcData = await fcResp.json();
-      shoppingMarkdown = fcData?.data?.markdown || fcData?.markdown || '';
-      console.log('[cotar-item-robo] Firecrawl bytes:', shoppingMarkdown.length);
-    } catch (e) {
-      console.error('[cotar-item-robo] Firecrawl error:', e);
-    }
+    const sources = [
+      { name: 'Google Shopping', url: `https://www.google.com/search?tbm=shop&hl=pt-BR&gl=br&q=${query}` },
+      { name: 'Mercado Livre',   url: `https://lista.mercadolivre.com.br/${query}` },
+      { name: 'Buscapé',          url: `https://www.buscape.com.br/search?q=${query}` },
+    ];
 
-    if (!shoppingMarkdown || shoppingMarkdown.length < 100) {
+    const scrapeOne = async (url: string) => {
+      try {
+        const r = await fetch('https://api.firecrawl.dev/v2/scrape', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url, formats: ['markdown'], onlyMainContent: false, waitFor: 2500,
+            location: { country: 'BR', languages: ['pt-BR'] },
+          }),
+        });
+        const d = await r.json();
+        return d?.data?.markdown || d?.markdown || '';
+      } catch { return ''; }
+    };
+
+    const results = await Promise.all(sources.map(s => scrapeOne(s.url)));
+    let combined = '';
+    sources.forEach((s, i) => {
+      if (results[i] && results[i].length > 200) {
+        combined += `\n\n===== FONTE: ${s.name} (${s.url}) =====\n${results[i].slice(0, 8000)}`;
+      }
+    });
+    console.log('[cotar-item-robo] Combined bytes:', combined.length);
+
+    if (combined.length < 300) {
       await supabase.from('licitacao_itens').update({
         preco_robo: null, robo_fontes: [], observacoes: 'NAO_ENCONTRADO',
       }).eq('id', item_id);
-      return json({ success: true, nao_encontrado: true, error: 'Google Shopping sem resultados' });
+      return json({ success: true, nao_encontrado: true, error: 'Sem resultados nas fontes de cotação' });
     }
 
-    // Truncate to keep token usage low
-    const ctx = shoppingMarkdown.slice(0, 15000);
+    const ctx = combined.slice(0, 24000);
 
     const aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -74,9 +83,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você extrai cotações reais do conteúdo bruto do Google Shopping (Brasil). Selecione APENAS as 3 a 5 LOJAS COM OS MENORES PREÇOS para o item solicitado. Use somente lojas/preços que aparecem no conteúdo fornecido — NÃO invente. Calcule preco_medio_unitario como a média dos preços mais baratos. Retorne via função quote_item.'
+            content: 'Você é cotador de preços para licitações públicas brasileiras. Recebe o ITEM EXATO do edital (descrição, unidade, quantidade) e o conteúdo BRUTO de buscas no Google Shopping, Mercado Livre e Buscapé. Selecione 3 a 5 ofertas REAIS que correspondam à descrição do edital (mesmo produto, marca/modelo similares, mesma unidade). Priorize MENOR PREÇO entre as ofertas compatíveis. Use SOMENTE lojas/preços/URLs presentes no conteúdo — NUNCA invente. No campo "produto_encontrado" coloque o nome completo do produto da oferta. Calcule preco_medio_unitario como média dos preços selecionados. Retorne pela função quote_item.'
           },
-          { role: 'user', content: `ITEM:\n${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}\n\nRESULTADOS GOOGLE SHOPPING (markdown):\n${ctx}` }
+          { role: 'user', content: `ITEM DO EDITAL:\nDescrição: ${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}\nPreço de referência (edital): ${item.preco_referencia ?? 'não informado'}\n\nCONTEÚDO DAS BUSCAS:\n${ctx}` }
         ],
         tools: [{
           type: 'function',
@@ -92,12 +101,14 @@ serve(async (req) => {
                   items: {
                     type: 'object',
                     properties: {
-                      loja: { type: 'string' },
-                      url: { type: 'string' },
-                      preco: { type: 'number' },
+                      loja: { type: 'string', description: 'Nome da loja/vendedor' },
+                      produto_encontrado: { type: 'string', description: 'Nome completo do produto na oferta' },
+                      url: { type: 'string', description: 'URL completa do produto' },
+                      preco: { type: 'number', description: 'Preço unitário em BRL' },
+                      frete: { type: 'string', description: 'Informação de frete se disponível' },
                       endereco: { type: 'string' }
                     },
-                    required: ['loja', 'preco']
+                    required: ['loja', 'preco', 'produto_encontrado']
                   }
                 }
               },
