@@ -419,6 +419,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <th className="p-2 border-b border-r font-semibold w-44 text-right bg-amber-500/5">Cotação Manual</th>
               <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Custo</th>
               <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Ref.</th>
+              <th className="p-2 border-b border-r font-semibold w-28 text-right bg-warning/10">Lance Mín.</th>
+              <th className="p-2 border-b border-r font-semibold w-28 text-right bg-success/10">Lance Alvo</th>
               <th className="p-2 border-b font-semibold w-24 text-right">Margem</th>
             </tr>
           </thead>
