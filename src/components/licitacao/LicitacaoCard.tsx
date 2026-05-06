@@ -22,9 +22,11 @@ import { toast } from '@/hooks/use-toast';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
 
 interface LicitacaoCardProps {
-  licitacao: Licitacao & { editalUrl?: string };
+  licitacao: Licitacao & { editalUrl?: string; enviadoParaCotacao?: boolean };
   onClick?: () => void;
   delay?: number;
+  onEnviarParaCotacao?: () => void;
+  enviarPending?: boolean;
 }
 
 // Generate portal URL based on portal type and tender number
