@@ -75,38 +75,38 @@ serve(async (req) => {
 
     const ctx = combined.slice(0, 24000);
 
-    const aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
-            content: 'Você é cotador de preços para licitações públicas brasileiras. Recebe o ITEM EXATO do edital (descrição, unidade, quantidade) e o conteúdo BRUTO de buscas no Google Shopping, Mercado Livre e Buscapé. Selecione 3 a 5 ofertas REAIS que correspondam à descrição do edital (mesmo produto, marca/modelo similares, mesma unidade). Priorize MENOR PREÇO entre as ofertas compatíveis. Use SOMENTE lojas/preços/URLs presentes no conteúdo — NUNCA invente. No campo "produto_encontrado" coloque o nome completo do produto da oferta. Calcule preco_medio_unitario como média dos preços selecionados. Retorne pela função quote_item.'
+            content: 'Você é cotador de preços para licitações públicas brasileiras. Recebe o ITEM EXATO do edital e o conteúdo BRUTO de buscas no Google Shopping, Mercado Livre e Buscapé. Extraia 3 a 5 ofertas REAIS compatíveis com o item. Use SOMENTE lojas/preços/URLs presentes no conteúdo — NUNCA invente. Preços em BRL como número (ex: 199.90, sem separadores de milhar). Calcule preco_medio_unitario como média dos preços. SEMPRE chame a função quote_item, mesmo que encontre apenas 1 oferta.'
           },
-          { role: 'user', content: `ITEM DO EDITAL:\nDescrição: ${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}\nPreço de referência (edital): ${item.preco_referencia ?? 'não informado'}\n\nCONTEÚDO DAS BUSCAS:\n${ctx}` }
+          { role: 'user', content: `ITEM DO EDITAL:\nDescrição: ${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}\n\nCONTEÚDO DAS BUSCAS:\n${ctx}` }
         ],
         tools: [{
           type: 'function',
           function: {
             name: 'quote_item',
-            description: 'Cotação do item',
+            description: 'Retorna a cotação extraída',
             parameters: {
               type: 'object',
               properties: {
-                preco_medio_unitario: { type: 'number' },
+                preco_medio_unitario: { type: 'number', description: 'Média dos preços em BRL' },
                 fontes: {
                   type: 'array',
                   items: {
                     type: 'object',
                     properties: {
-                      loja: { type: 'string', description: 'Nome da loja/vendedor' },
-                      produto_encontrado: { type: 'string', description: 'Nome completo do produto na oferta' },
-                      url: { type: 'string', description: 'URL completa do produto' },
-                      preco: { type: 'number', description: 'Preço unitário em BRL' },
-                      frete: { type: 'string', description: 'Informação de frete se disponível' },
-                      endereco: { type: 'string' }
+                      loja: { type: 'string' },
+                      produto_encontrado: { type: 'string' },
+                      url: { type: 'string' },
+                      preco: { type: 'number' },
+                      frete: { type: 'string' }
                     },
                     required: ['loja', 'preco', 'produto_encontrado']
                   }
@@ -122,10 +122,19 @@ serve(async (req) => {
 
     if (aiResp.status === 429) return json({ success: false, fallback: true, error_code: 'RATE_LIMITED', error: 'Limite de IA' }, 200);
     if (aiResp.status === 402) return json({ success: false, fallback: true, error_code: 'AI_CREDITS_EXHAUSTED', error: 'Créditos de IA esgotados' }, 200);
-    if (!aiResp.ok) return json({ success: false, error: `AI error ${aiResp.status}` }, 200);
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      console.error('[cotar-item-robo] AI error', aiResp.status, errText);
+      return json({ success: false, error: `AI error ${aiResp.status}` }, 200);
+    }
 
     const aiData = await aiResp.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    console.log('[cotar-item-robo] AI response:', JSON.stringify({
+      finish_reason: aiData.choices?.[0]?.finish_reason,
+      has_tool_call: !!toolCall,
+      message_content: aiData.choices?.[0]?.message?.content?.slice(0, 300),
+    }));
     if (!toolCall) {
       await supabase.from('licitacao_itens').update({
         preco_robo: null,
