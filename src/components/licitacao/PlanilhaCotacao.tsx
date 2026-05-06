@@ -430,6 +430,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               const subRef = (item.preco_referencia || 0) * item.quantidade;
               const subCusto = (custo || 0) * item.quantidade;
               const margemOk = (item.margem_lucro ?? 0) > 0;
+              const { lanceMin, lanceAlvo } = calcLances(custo);
+              const acimaRef = lanceMin != null && item.preco_referencia != null && lanceMin > item.preco_referencia;
               return (
                 <tr key={item.id} className={`border-b hover:bg-muted/30 align-top ${item.modo_cotacao === 'cancelado' ? 'opacity-50' : ''}`}>
                   <td className="p-2 border-r font-mono">{item.numero_item}</td>
