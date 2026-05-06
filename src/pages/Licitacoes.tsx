@@ -255,7 +255,7 @@ const Licitacoes = () => {
 
   const counts = useMemo(() => {
     const agora = new Date();
-    const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora && ufsPrioritarias.includes(l.uf)) || [];
+    const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora && l.status !== 'Cancelada' && ufsPrioritarias.includes(l.uf)) || [];
     return {
       todas: noPrazo.filter(l => !(l as any).enviado_para_cotacao).length,
       aguardando: noPrazo.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada').length,

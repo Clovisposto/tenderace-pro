@@ -79,23 +79,40 @@ serve(async (req) => {
 
     const aiData = await aiResp.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return json({ success: false, error: 'sem cotação' }, 200);
+    if (!toolCall) {
+      await supabase.from('licitacao_itens').update({
+        preco_robo: null,
+        robo_fontes: [],
+        observacoes: 'NAO_ENCONTRADO',
+      }).eq('id', item_id);
+      return json({ success: true, nao_encontrado: true });
+    }
 
     const result = JSON.parse(toolCall.function.arguments);
     const precoRobo = result.preco_medio_unitario;
+    const fontes = result.fontes || [];
+    if (!precoRobo || precoRobo <= 0 || fontes.length === 0) {
+      await supabase.from('licitacao_itens').update({
+        preco_robo: null,
+        robo_fontes: [],
+        observacoes: 'NAO_ENCONTRADO',
+      }).eq('id', item_id);
+      return json({ success: true, nao_encontrado: true });
+    }
     const ref = item.preco_referencia || precoRobo;
     const margem = ref ? ((ref - precoRobo) / ref) * 100 : null;
 
     await supabase.from('licitacao_itens').update({
       preco_robo: precoRobo,
-      robo_fontes: result.fontes,
+      robo_fontes: fontes,
       custo_estimado: precoRobo,
       margem_lucro: margem,
       modo_cotacao: 'robo',
       preco_final: ref,
+      observacoes: null,
     }).eq('id', item_id);
 
-    return json({ success: true, preco_robo: precoRobo, margem, fontes: result.fontes });
+    return json({ success: true, preco_robo: precoRobo, margem, fontes });
   } catch (e: any) {
     console.error('cotar-item-robo error:', e);
     return json({ success: false, error: e.message }, 500);

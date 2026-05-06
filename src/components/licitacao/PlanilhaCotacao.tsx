@@ -277,6 +277,19 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button size="sm" variant="default" onClick={async () => {
+            const pendentes = itens.filter(i => i.preco_robo == null && i.modo_cotacao !== 'manual');
+            if (pendentes.length === 0) { toast.info('Todos os itens já foram cotados'); return; }
+            toast.info(`Cotando ${pendentes.length} item(ns) com IA…`);
+            for (const it of pendentes) {
+              try { await cotar.mutateAsync(it); } catch (e) { /* continua */ }
+              await new Promise(r => setTimeout(r, 800));
+            }
+            toast.success('Cotação em lote concluída');
+          }} disabled={cotar.isPending}>
+            <Sparkles className={`w-3 h-3 mr-1 ${cotar.isPending ? 'animate-pulse' : ''}`} />
+            Cotar todos com IA
+          </Button>
           <Button size="sm" variant="outline" onClick={() => extrair.mutate(licitacaoId)} disabled={extrair.isPending}>
             <RotateCw className={`w-3 h-3 mr-1 ${extrair.isPending ? 'animate-spin' : ''}`} />
             Re-extrair
@@ -354,6 +367,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
                         ))}
                         <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1" onClick={() => handleCancelarRobo(item)}>
                           <X className="w-2.5 h-2.5 mr-0.5" /> limpar
+                        </Button>
+                      </div>
+                    ) : item.observacoes === 'NAO_ENCONTRADO' ? (
+                      <div className="space-y-1">
+                        <p className="text-destructive font-bold text-[11px]">Não encontrado</p>
+                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => cotar.mutate(item)} disabled={cotar.isPending}>
+                          <RotateCw className="w-2.5 h-2.5 mr-0.5" /> tentar novamente
                         </Button>
                       </div>
                     ) : (
