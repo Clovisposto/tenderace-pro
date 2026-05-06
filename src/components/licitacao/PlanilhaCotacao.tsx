@@ -62,13 +62,8 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const [margemAlvoPct, setMargemAlvoPct] = useState<number>(25); // margem desejada para lance inicial
   const tributosPct = icmsPct + pisCofinsPct + issPct;
 
-  // Auto-extrair via IA na primeira vez que a aba é aberta
-  useEffect(() => {
-    if (!itensJaExtraidos && itens.length === 0 && !extrair.isPending && !autoExtractedRef.current && !isLoading) {
-      autoExtractedRef.current = true;
-      extrair.mutate(licitacaoId);
-    }
-  }, [itensJaExtraidos, itens.length, isLoading, licitacaoId, extrair]);
+  // Extração de itens só ocorre por ação manual (botão) ou ao autorizar a participação.
+  // Não fazemos auto-extração ao abrir, para não mover a licitação para Cotação sem o termo de autorização.
 
   const callAction = async (action: 'autorizar' | 'descartar', motivo?: string) => {
     const { data: { session } } = await supabase.auth.getSession();
