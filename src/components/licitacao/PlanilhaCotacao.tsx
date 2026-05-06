@@ -356,6 +356,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
                           <X className="w-2.5 h-2.5 mr-0.5" /> limpar
                         </Button>
                       </div>
+                    ) : item.observacoes === 'NAO_ENCONTRADO' ? (
+                      <div className="space-y-1">
+                        <p className="text-destructive font-bold text-[11px]">Não encontrado</p>
+                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => cotar.mutate(item)} disabled={cotar.isPending}>
+                          <RotateCw className="w-2.5 h-2.5 mr-0.5" /> tentar novamente
+                        </Button>
+                      </div>
                     ) : (
                       <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => cotar.mutate(item)} disabled={cotar.isPending}>
                         {cotar.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Sparkles className="w-3 h-3 mr-1" />Cotar</>}
