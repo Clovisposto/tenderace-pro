@@ -53,6 +53,15 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const [editing, setEditing] = useState<Record<string, string>>({});
   const autoExtractedRef = useRef(false);
 
+  // Parâmetros de impostos / logística / margem estratégica (Lei 14.133/2021)
+  const [icmsPct, setIcmsPct] = useState<number>(18);     // ICMS médio
+  const [pisCofinsPct, setPisCofinsPct] = useState<number>(9.25); // PIS+COFINS
+  const [issPct, setIssPct] = useState<number>(0);        // ISS (serviços)
+  const [logisticaPct, setLogisticaPct] = useState<number>(3); // % sobre custo
+  const [margemMinPct, setMargemMinPct] = useState<number>(15);   // margem mínima aceitável
+  const [margemAlvoPct, setMargemAlvoPct] = useState<number>(25); // margem desejada para lance inicial
+  const tributosPct = icmsPct + pisCofinsPct + issPct;
+
   // Auto-extrair via IA na primeira vez que a aba é aberta
   useEffect(() => {
     if (!itensJaExtraidos && itens.length === 0 && !extrair.isPending && !autoExtractedRef.current && !isLoading) {
