@@ -569,7 +569,7 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                 </TabsTrigger>
                 <TabsTrigger value="cotacao" className="gap-2">
                   <Calculator className="w-4 h-4" />
-                  Cotação
+                  Planilha (Edital + IA + Manual)
                 </TabsTrigger>
                 <TabsTrigger value="documentos" className="gap-2">
                   <FileText className="w-4 h-4" />
