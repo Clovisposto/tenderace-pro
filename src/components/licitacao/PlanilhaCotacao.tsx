@@ -400,37 +400,65 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </div>
       </div>
 
-      {/* Visão resumida — estilo Edital (Número / Descrição / Qtde / Valor unit. / Valor total) */}
+      {/* Visão resumida — estilo Edital + cotação manual e margem por item */}
       <Card className="overflow-hidden">
         <div className="px-4 py-3 border-b bg-secondary/40">
-          <h4 className="font-semibold text-sm">Itens do Edital</h4>
+          <h4 className="font-semibold text-sm">Itens do Edital — Cotação por item</h4>
           <p className="text-[11px] text-muted-foreground">
-            Quantidades e valores conforme publicado. {itens.length} item(ns).
+            Preço de referência conforme publicado. Informe o seu custo unitário para ver a margem de lucro por item. {itens.length} item(ns).
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary/60">
               <tr className="text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium w-24">Número</th>
-                <th className="px-4 py-3 font-medium">Descrição</th>
-                <th className="px-4 py-3 font-medium w-28">Quantidade</th>
-                <th className="px-4 py-3 font-medium w-44">Valor unitário estimado</th>
-                <th className="px-4 py-3 font-medium w-44">Valor total estimado</th>
-                <th className="px-4 py-3 font-medium w-20 text-center">Detalhar</th>
+                <th className="px-3 py-3 font-medium w-16">Nº</th>
+                <th className="px-3 py-3 font-medium">Descrição</th>
+                <th className="px-3 py-3 font-medium w-24">Qtde</th>
+                <th className="px-3 py-3 font-medium w-32">Valor unit. ref.</th>
+                <th className="px-3 py-3 font-medium w-36">Valor total ref.</th>
+                <th className="px-3 py-3 font-medium w-44 bg-amber-500/5">Cotação manual (un.)</th>
+                <th className="px-3 py-3 font-medium w-24 text-right bg-success/5">Margem</th>
+                <th className="px-3 py-3 font-medium w-16 text-center">Detalhar</th>
               </tr>
             </thead>
             <tbody>
               {itens.map((item) => {
                 const subRef = (item.preco_referencia || 0) * item.quantidade;
+                const custoLinha = item.modo_cotacao === 'manual' ? item.preco_manual : item.modo_cotacao === 'robo' ? item.preco_robo : null;
+                const margemLinha = (item.preco_referencia && custoLinha)
+                  ? ((item.preco_referencia - custoLinha) / item.preco_referencia) * 100
+                  : null;
                 return (
                   <tr key={`resumo-${item.id}`} className="border-t hover:bg-muted/20 align-top">
-                    <td className="px-4 py-3 text-primary font-mono">{item.numero_item}</td>
-                    <td className="px-4 py-3 text-foreground/90 leading-snug">{item.descricao}</td>
-                    <td className="px-4 py-3">{item.quantidade} {item.unidade}</td>
-                    <td className="px-4 py-3">{fmt(item.preco_referencia)}</td>
-                    <td className="px-4 py-3">{fmt(subRef)}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-3 text-primary font-mono">{item.numero_item}</td>
+                    <td className="px-3 py-3 text-foreground/90 leading-snug">{item.descricao}</td>
+                    <td className="px-3 py-3">{item.quantidade} {item.unidade}</td>
+                    <td className="px-3 py-3">{fmt(item.preco_referencia)}</td>
+                    <td className="px-3 py-3">{fmt(subRef)}</td>
+                    <td className="px-3 py-3 bg-amber-500/5">
+                      {item.preco_manual != null && item.modo_cotacao === 'manual' && (
+                        <p className="text-xs font-semibold mb-1">{fmt(item.preco_manual)}</p>
+                      )}
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="R$ /un"
+                          className="h-8 text-xs"
+                          value={editing[item.id] || ''}
+                          onChange={(e) => setEditing((s) => ({ ...s, [item.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleManual(item); }}
+                        />
+                        <Button size="sm" variant="secondary" className="h-8 px-2" onClick={() => handleManual(item)}>
+                          <Edit3 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className={`px-3 py-3 text-right font-bold bg-success/5 ${margemLinha == null ? 'text-muted-foreground' : margemLinha > 0 ? 'text-success' : 'text-destructive'}`}>
+                      {margemLinha != null ? `${margemLinha.toFixed(1)}%` : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-center">
                       <button
                         type="button"
                         title="Ver detalhes da cotação"
@@ -448,8 +476,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
             </tbody>
             <tfoot>
               <tr className="border-t bg-secondary/40 font-semibold">
-                <td className="px-4 py-3" colSpan={4}>Total estimado do edital</td>
-                <td className="px-4 py-3 text-primary">{fmt(totalRef)}</td>
+                <td className="px-3 py-3" colSpan={4}>Total estimado do edital</td>
+                <td className="px-3 py-3 text-primary">{fmt(totalRef)}</td>
+                <td className="px-3 py-3 text-right" colSpan={2}>
+                  Margem média: <span className={margemMedia && margemMedia > 0 ? 'text-success' : 'text-destructive'}>
+                    {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
+                  </span>
+                </td>
                 <td></td>
               </tr>
             </tfoot>
