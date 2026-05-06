@@ -494,6 +494,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
                   </td>
                   <td className="p-2 border-r text-right font-medium">{custo != null ? fmt(subCusto) : '—'}</td>
                   <td className="p-2 border-r text-right font-medium text-primary">{fmt(subRef)}</td>
+                  <td className={`p-2 border-r text-right font-semibold bg-warning/5 ${acimaRef ? 'text-destructive' : 'text-warning'}`}>
+                    {lanceMin != null ? fmt(lanceMin) : '—'}
+                    {acimaRef && <p className="text-[9px] font-normal">acima do ref.</p>}
+                  </td>
+                  <td className="p-2 border-r text-right font-semibold bg-success/5 text-success">
+                    {lanceAlvo != null ? fmt(lanceAlvo) : '—'}
+                  </td>
                   <td className={`p-2 text-right font-bold ${margemOk ? 'text-success' : item.margem_lucro != null ? 'text-destructive' : ''}`}>
                     {item.margem_lucro != null ? `${item.margem_lucro.toFixed(1)}%` : '—'}
                   </td>
