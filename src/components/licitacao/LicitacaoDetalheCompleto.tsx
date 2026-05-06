@@ -689,6 +689,8 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
                     <PlanilhaCotacao
                       licitacaoId={licitacao.id}
                       itensJaExtraidos={(licitacao as any).itensExtraidos || (licitacao as any).itens_extraidos || false}
+                      licitacaoNumero={licitacao.numero}
+                      licitacaoStatus={licitacao.status}
                     />
                   </CardContent>
                 </Card>

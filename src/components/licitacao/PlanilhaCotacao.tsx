@@ -1,9 +1,30 @@
-import { useState } from 'react';
-import { Sparkles, Loader2, RotateCw, Edit3, X, ExternalLink, TrendingUp, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sparkles, Loader2, RotateCw, Edit3, X, ExternalLink, TrendingUp, AlertCircle, Download, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   useLicitacaoItens,
   useExtrairItens,
@@ -15,17 +36,44 @@ import {
 interface Props {
   licitacaoId: string;
   itensJaExtraidos: boolean;
+  licitacaoNumero?: string;
+  licitacaoStatus?: string;
 }
 
 const fmt = (v: number | null | undefined) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
+export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero, licitacaoStatus }: Props) => {
   const { data: itens = [], isLoading } = useLicitacaoItens(licitacaoId);
   const extrair = useExtrairItens();
   const cotar = useCotarItemRobo();
   const update = useUpdateItem();
+  const qc = useQueryClient();
   const [editing, setEditing] = useState<Record<string, string>>({});
+  const autoExtractedRef = useRef(false);
+
+  // Auto-extrair via IA na primeira vez que a aba é aberta
+  useEffect(() => {
+    if (!itensJaExtraidos && itens.length === 0 && !extrair.isPending && !autoExtractedRef.current && !isLoading) {
+      autoExtractedRef.current = true;
+      extrair.mutate(licitacaoId);
+    }
+  }, [itensJaExtraidos, itens.length, isLoading, licitacaoId, extrair]);
+
+  const autorizarDisputa = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('licitacoes')
+        .update({ status: 'Autorizada' })
+        .eq('id', licitacaoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('🤖 Autorizado para Disputa', { description: 'O robô vai participar conforme planilha aprovada.' });
+      qc.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error('Falha ao autorizar', { description: e.message }),
+  });
 
   const handleManual = (item: LicitacaoItem) => {
     const valor = parseFloat(editing[item.id] || '0');
@@ -49,14 +97,90 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
     } as any);
   };
 
+  const buildExportRows = () => {
+    const rows = itens.map((i) => {
+      const custo = i.modo_cotacao === 'manual' ? i.preco_manual : i.modo_cotacao === 'robo' ? i.preco_robo : null;
+      const subtotalRef = (i.preco_referencia || 0) * i.quantidade;
+      const subtotalCusto = (custo || 0) * i.quantidade;
+      const lucro = subtotalRef - subtotalCusto;
+      return {
+        'Item': i.numero_item,
+        'Descrição': i.descricao,
+        'Unid.': i.unidade,
+        'Qtde': i.quantidade,
+        'Preço Ref. (Edital)': i.preco_referencia ?? '',
+        'Preço Robô (IA)': i.preco_robo ?? '',
+        'Preço Manual': i.preco_manual ?? '',
+        'Modo': i.modo_cotacao,
+        'Custo Unit. Final': custo ?? '',
+        'Subtotal Ref.': subtotalRef,
+        'Subtotal Custo': subtotalCusto,
+        'Lucro Estimado': lucro,
+        'Margem %': i.margem_lucro != null ? Number(i.margem_lucro.toFixed(2)) : '',
+        'Fontes Robô': (i.robo_fontes || []).map(f => `${f.loja}: ${f.preco}${f.url ? ` (${f.url})` : ''}`).join(' | '),
+      };
+    });
+
+    const totalRef = itens.reduce((s, i) => s + (i.preco_referencia || 0) * i.quantidade, 0);
+    const totalCusto = itens.reduce((s, i) => {
+      const c = i.modo_cotacao === 'manual' ? i.preco_manual : i.modo_cotacao === 'robo' ? i.preco_robo : 0;
+      return s + (c || 0) * i.quantidade;
+    }, 0);
+    const margemTotal = totalRef > 0 ? ((totalRef - totalCusto) / totalRef) * 100 : 0;
+
+    (rows as any[]).push({
+      'Item': '',
+      'Descrição': 'TOTAIS',
+      'Unid.': '',
+      'Qtde': '',
+      'Preço Ref. (Edital)': '',
+      'Preço Robô (IA)': '',
+      'Preço Manual': '',
+      'Modo': '',
+      'Custo Unit. Final': '',
+      'Subtotal Ref.': totalRef,
+      'Subtotal Custo': totalCusto,
+      'Lucro Estimado': totalRef - totalCusto,
+      'Margem %': Number(margemTotal.toFixed(2)),
+      'Fontes Robô': '',
+    });
+    return rows;
+  };
+
+  const exportCSV = () => {
+    const rows = buildExportRows();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cotacao_${licitacaoNumero || licitacaoId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exportado');
+  };
+
+  const exportXLSX = () => {
+    const rows = buildExportRows();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 50 }, { wch: 6 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 60 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cotação');
+    XLSX.writeFile(wb, `cotacao_${licitacaoNumero || licitacaoId}.xlsx`);
+    toast.success('Excel exportado');
+  };
+
   if (!itensJaExtraidos && itens.length === 0) {
     return (
       <Card className="p-6 text-center space-y-4">
         <div>
-          <Sparkles className="w-10 h-10 mx-auto text-primary mb-2" />
-          <h3 className="font-semibold">Planilha de cotação ainda não foi montada</h3>
+          <Sparkles className="w-10 h-10 mx-auto text-primary mb-2 animate-pulse" />
+          <h3 className="font-semibold">
+            {extrair.isPending ? 'IA lendo o edital…' : 'Preparando planilha automaticamente'}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            A IA vai ler o edital e criar a lista de itens com preço de referência.
+            A IA vai extrair os itens e preços de referência do edital.
           </p>
         </div>
         <Button
@@ -76,15 +200,21 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando itens…</p>;
 
   const totalRef = itens.reduce((s, i) => s + (i.preco_referencia || 0) * i.quantidade, 0);
-  const totalCusto = itens.reduce((s, i) => s + (i.custo_estimado || 0) * i.quantidade, 0);
+  const totalCusto = itens.reduce((s, i) => {
+    const c = i.modo_cotacao === 'manual' ? i.preco_manual : i.modo_cotacao === 'robo' ? i.preco_robo : 0;
+    return s + (c || 0) * i.quantidade;
+  }, 0);
   const margemMedia = itens.filter(i => i.margem_lucro != null).length
     ? itens.reduce((s, i) => s + (i.margem_lucro || 0), 0) / itens.filter(i => i.margem_lucro != null).length
     : null;
 
+  const todosCotados = itens.length > 0 && itens.every(i => i.modo_cotacao === 'robo' || i.modo_cotacao === 'manual' || i.modo_cotacao === 'cancelado');
+  const jaAutorizada = licitacaoStatus === 'Autorizada' || licitacaoStatus === 'Em Disputa';
+
   return (
     <div className="space-y-4">
       {/* Sumário */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Total Referência (Edital)</p>
           <p className="font-bold text-primary">{fmt(totalRef)}</p>
@@ -94,6 +224,10 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
           <p className="font-bold">{fmt(totalCusto)}</p>
         </Card>
         <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Lucro Estimado</p>
+          <p className={`font-bold ${totalRef - totalCusto > 0 ? 'text-success' : 'text-destructive'}`}>{fmt(totalRef - totalCusto)}</p>
+        </Card>
+        <Card className="p-3">
           <p className="text-xs text-muted-foreground">Margem Média</p>
           <p className={`font-bold ${margemMedia && margemMedia > 0 ? 'text-success' : 'text-destructive'}`}>
             {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
@@ -101,12 +235,29 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
         </Card>
       </div>
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <p className="text-sm font-medium">{itens.length} item(ns)</p>
-        <Button size="sm" variant="outline" onClick={() => extrair.mutate(licitacaoId)} disabled={extrair.isPending}>
-          <RotateCw className={`w-3 h-3 mr-1 ${extrair.isPending ? 'animate-spin' : ''}`} />
-          Re-extrair do edital
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Download className="w-3 h-3 mr-1" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportCSV}>
+                <Download className="w-4 h-4 mr-2" /> CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportXLSX}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={() => extrair.mutate(licitacaoId)} disabled={extrair.isPending}>
+            <RotateCw className={`w-3 h-3 mr-1 ${extrair.isPending ? 'animate-spin' : ''}`} />
+            Re-extrair
+          </Button>
+        </div>
       </div>
 
       {/* Itens */}
@@ -139,7 +290,6 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
               )}
             </div>
 
-            {/* Cotação Robô */}
             {item.preco_robo != null && (
               <div className="bg-muted/40 rounded p-2 text-xs space-y-1 mb-2">
                 <div className="flex justify-between font-medium">
@@ -160,14 +310,12 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
               </div>
             )}
 
-            {/* Preço manual */}
             {item.preco_manual != null && item.modo_cotacao === 'manual' && (
               <div className="bg-secondary/40 rounded p-2 text-xs mb-2">
                 <span className="font-medium">Manual: {fmt(item.preco_manual)}/un</span>
               </div>
             )}
 
-            {/* Ações */}
             <div className="flex gap-2 flex-wrap">
               <Button
                 size="sm"
@@ -202,6 +350,58 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos }: Props) => {
           <p className="text-xs">
             Margem média negativa. Revise os preços manuais antes de autorizar a Disputa.
           </p>
+        </Card>
+      )}
+
+      {/* Autorização para Disputa */}
+      {itens.length > 0 && (
+        <Card className="p-4 border-2 border-primary/30 bg-primary/5 space-y-3">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="font-bold">Autorização para Disputa</h4>
+              <p className="text-xs text-muted-foreground">
+                Após revisar a planilha, autorize a participação. O robô vai usar exatamente os preços aprovados.
+              </p>
+            </div>
+          </div>
+          {jaAutorizada ? (
+            <Badge variant="default" className="w-full justify-center py-2">
+              <ShieldCheck className="w-4 h-4 mr-2" /> Já autorizada — em Disputa
+            </Badge>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="authorize"
+                  className="w-full"
+                  disabled={!todosCotados || (margemMedia != null && margemMedia < 0)}
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  AUTORIZAR PARA DISPUTA
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Autorizar participação na disputa?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Você está autorizando o robô a participar da licitação <strong>{licitacaoNumero}</strong> com {itens.length} item(ns), custo total estimado de <strong>{fmt(totalCusto)}</strong> e margem média de <strong>{margemMedia?.toFixed(1)}%</strong>. Esta ação fica registrada no log de auditoria.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => autorizarDisputa.mutate()}>
+                    {autorizarDisputa.isPending ? 'Autorizando…' : 'Confirmar autorização'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!todosCotados && !jaAutorizada && (
+            <p className="text-xs text-muted-foreground text-center">
+              Cote (robô ou manual) todos os itens antes de autorizar.
+            </p>
+          )}
         </Card>
       )}
     </div>
