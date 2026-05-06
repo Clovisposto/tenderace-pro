@@ -396,6 +396,8 @@ const Licitacoes = () => {
                     licitacao={mapToLegacyFormat(licitacao)}
                     onClick={() => setSelectedLicitacao(licitacao)}
                     delay={index * 50}
+                    onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
+                    enviarPending={enviarParaCotacao.isPending}
                   />
                 ))}
               </div>
