@@ -429,10 +429,7 @@ const Licitacoes = () => {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
-                        <div className="flex justify-end gap-2 mb-3 flex-wrap">
-                          <Button size="sm" variant="default" onClick={() => window.open(`/cotacao/${licitacao.id}`, '_blank')}>
-                            Abrir planilha em tela cheia
-                          </Button>
+                        <div className="flex justify-end mb-3">
                           <Button size="sm" variant="outline" onClick={() => setSelectedLicitacao(licitacao)}>
                             Abrir detalhes completos
                           </Button>
