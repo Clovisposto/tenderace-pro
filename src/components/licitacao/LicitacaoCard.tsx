@@ -243,7 +243,41 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
                 Autorizar
               </Button>
             )}
-            
+
+            {onDescartar && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={descartarPending}
+                  >
+                    {descartarPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    Não tenho interesse
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza que não tem interesse?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      A licitação <strong>{licitacao.numero}</strong> será removida do painel e marcada como descartada. Esta ação ficará registrada na auditoria.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={(e) => { e.stopPropagation(); onDescartar(); }}
+                    >
+                      Sim, descartar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
               <ChevronRight className="w-5 h-5" />
             </Button>
