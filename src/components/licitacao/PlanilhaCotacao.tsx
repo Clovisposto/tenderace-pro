@@ -405,6 +405,63 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </div>
       </div>
 
+      {/* Visão resumida — estilo Edital (Número / Descrição / Qtde / Valor unit. / Valor total) */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b bg-secondary/40">
+          <h4 className="font-semibold text-sm">Itens do Edital</h4>
+          <p className="text-[11px] text-muted-foreground">
+            Quantidades e valores conforme publicado. {itens.length} item(ns).
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/60">
+              <tr className="text-left text-muted-foreground">
+                <th className="px-4 py-3 font-medium w-24">Número</th>
+                <th className="px-4 py-3 font-medium">Descrição</th>
+                <th className="px-4 py-3 font-medium w-28">Quantidade</th>
+                <th className="px-4 py-3 font-medium w-44">Valor unitário estimado</th>
+                <th className="px-4 py-3 font-medium w-44">Valor total estimado</th>
+                <th className="px-4 py-3 font-medium w-20 text-center">Detalhar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itens.map((item) => {
+                const subRef = (item.preco_referencia || 0) * item.quantidade;
+                return (
+                  <tr key={`resumo-${item.id}`} className="border-t hover:bg-muted/20 align-top">
+                    <td className="px-4 py-3 text-primary font-mono">{item.numero_item}</td>
+                    <td className="px-4 py-3 text-foreground/90 leading-snug">{item.descricao}</td>
+                    <td className="px-4 py-3">{item.quantidade} {item.unidade}</td>
+                    <td className="px-4 py-3">{fmt(item.preco_referencia)}</td>
+                    <td className="px-4 py-3">{fmt(subRef)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        title="Ver detalhes da cotação"
+                        onClick={() => {
+                          document.getElementById(`cot-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <Eye className="w-4 h-4 inline" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t bg-secondary/40 font-semibold">
+                <td className="px-4 py-3" colSpan={4}>Total estimado do edital</td>
+                <td className="px-4 py-3 text-primary">{fmt(totalRef)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Card>
+
       {/* Tabela estilo planilha (Excel) */}
       <div className="border rounded-lg overflow-x-auto">
         <table className="w-full text-xs border-collapse">
