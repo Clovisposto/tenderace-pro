@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2, RotateCw, Edit3, X, ExternalLink, TrendingUp, AlertCircle, Download, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import { Sparkles, Loader2, RotateCw, Edit3, X, ExternalLink, TrendingUp, AlertCircle, Download, FileSpreadsheet, ShieldCheck, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
