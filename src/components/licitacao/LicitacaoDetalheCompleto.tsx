@@ -834,7 +834,28 @@ export function LicitacaoDetalheCompleto({ licitacao, onClose, onAutorizar }: Li
               </TabsContent>
 
               {/* Autorização Tab */}
-              <TabsContent value="autorizacao" className="mt-4">
+              <TabsContent value="autorizacao" className="mt-4 space-y-4">
+                {/* Planilha de revisão antes de autorizar */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calculator className="w-5 h-5" />
+                      Revisão da Planilha (Edital + IA + Manual)
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Confira item por item: <strong>Preço de Referência</strong> (edital), <strong>Preço Robô (IA)</strong> e sua <strong>Cotação Manual</strong> antes de autorizar a participação.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <PlanilhaCotacao
+                      licitacaoId={licitacao.id}
+                      itensJaExtraidos={(licitacao as any).itensExtraidos || (licitacao as any).itens_extraidos || false}
+                      licitacaoNumero={licitacao.numero}
+                      licitacaoStatus={licitacao.status}
+                    />
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
