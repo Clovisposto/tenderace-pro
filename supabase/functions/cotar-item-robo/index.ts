@@ -28,7 +28,43 @@ serve(async (req) => {
     if (error || !item) return json({ success: false, error: 'item não encontrado' }, 404);
 
     const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     if (!GROQ_API_KEY) return json({ success: false, error: 'GROQ_API_KEY not configured' }, 200);
+    if (!FIRECRAWL_API_KEY) return json({ success: false, error: 'FIRECRAWL_API_KEY not configured' }, 200);
+
+    // 1) Scrape Google Shopping (BR) for the item
+    const query = encodeURIComponent(item.descricao.slice(0, 200));
+    const shopUrl = `https://www.google.com/search?tbm=shop&hl=pt-BR&gl=br&q=${query}`;
+    console.log('[cotar-item-robo] Scraping Google Shopping:', shopUrl);
+
+    let shoppingMarkdown = '';
+    try {
+      const fcResp = await fetch('https://api.firecrawl.dev/v2/scrape', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: shopUrl,
+          formats: ['markdown'],
+          onlyMainContent: true,
+          location: { country: 'BR', languages: ['pt-BR'] },
+        }),
+      });
+      const fcData = await fcResp.json();
+      shoppingMarkdown = fcData?.data?.markdown || fcData?.markdown || '';
+      console.log('[cotar-item-robo] Firecrawl bytes:', shoppingMarkdown.length);
+    } catch (e) {
+      console.error('[cotar-item-robo] Firecrawl error:', e);
+    }
+
+    if (!shoppingMarkdown || shoppingMarkdown.length < 100) {
+      await supabase.from('licitacao_itens').update({
+        preco_robo: null, robo_fontes: [], observacoes: 'NAO_ENCONTRADO',
+      }).eq('id', item_id);
+      return json({ success: true, nao_encontrado: true, error: 'Google Shopping sem resultados' });
+    }
+
+    // Truncate to keep token usage low
+    const ctx = shoppingMarkdown.slice(0, 15000);
 
     const aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -38,9 +74,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você é um robô de cotação. Pesquise o produto/serviço descrito em sites brasileiros (Mercado Livre, Amazon BR, Magazine Luiza, lojas especializadas, distribuidoras). Retorne APENAS pela função quote_item com 3 a 5 fontes reais com loja, URL completa e preço unitário em BRL.'
+            content: 'Você extrai cotações reais do conteúdo bruto do Google Shopping (Brasil). Selecione APENAS as 3 a 5 LOJAS COM OS MENORES PREÇOS para o item solicitado. Use somente lojas/preços que aparecem no conteúdo fornecido — NÃO invente. Calcule preco_medio_unitario como a média dos preços mais baratos. Retorne via função quote_item.'
           },
-          { role: 'user', content: `Cote este item:\n${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}` }
+          { role: 'user', content: `ITEM:\n${item.descricao}\nUnidade: ${item.unidade}\nQuantidade: ${item.quantidade}\n\nRESULTADOS GOOGLE SHOPPING (markdown):\n${ctx}` }
         ],
         tools: [{
           type: 'function',
