@@ -201,6 +201,9 @@ const Licitacoes = () => {
     // Filtrar apenas licitações dentro do prazo (data_limite > agora)
     result = result.filter(l => new Date(l.data_limite) > agora);
 
+    // Excluir descartadas (Cancelada) de todas as abas
+    result = result.filter(l => l.status !== 'Cancelada');
+
     // Filtrar apenas estados prioritários do usuário
     if (ufsPrioritarias.length > 0) {
       result = result.filter(l => ufsPrioritarias.includes(l.uf));
