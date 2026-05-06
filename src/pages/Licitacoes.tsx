@@ -416,6 +416,8 @@ const Licitacoes = () => {
                     delay={index * 50}
                     onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
                     enviarPending={enviarParaCotacao.isPending}
+                    onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
+                    descartarPending={descartarLicitacao.isPending}
                   />
                 ))}
               </div>
