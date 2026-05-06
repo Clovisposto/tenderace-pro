@@ -128,16 +128,16 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
     }, 0);
     const margemTotal = totalRef > 0 ? ((totalRef - totalCusto) / totalRef) * 100 : 0;
 
-    rows.push({
-      'Item': '' as any,
+    (rows as any[]).push({
+      'Item': '',
       'Descrição': 'TOTAIS',
       'Unid.': '',
-      'Qtde': '' as any,
-      'Preço Ref. (Edital)': '' as any,
-      'Preço Robô (IA)': '' as any,
-      'Preço Manual': '' as any,
+      'Qtde': '',
+      'Preço Ref. (Edital)': '',
+      'Preço Robô (IA)': '',
+      'Preço Manual': '',
       'Modo': '',
-      'Custo Unit. Final': '' as any,
+      'Custo Unit. Final': '',
       'Subtotal Ref.': totalRef,
       'Subtotal Custo': totalCusto,
       'Lucro Estimado': totalRef - totalCusto,
