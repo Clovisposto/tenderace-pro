@@ -207,10 +207,11 @@ const Licitacoes = () => {
     }
 
     if (activeTab === 'todas') {
-      // Captação: todas no prazo (já filtradas acima)
+      // Captação: tudo que ainda NÃO foi enviado para cotação
+      result = result.filter(l => !(l as any).enviado_para_cotacao);
     } else if (activeTab === 'aguardando') {
-      // Cotação: novas, em análise e aguardando autorização
-      result = result.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização');
+      // Cotação: somente as que o operador enviou para cotação
+      result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
     } else if (activeTab === 'disputa') {
       result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
     }
