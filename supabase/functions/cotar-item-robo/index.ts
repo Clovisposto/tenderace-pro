@@ -79,7 +79,14 @@ serve(async (req) => {
 
     const aiData = await aiResp.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return json({ success: false, error: 'sem cotação' }, 200);
+    if (!toolCall) {
+      await supabase.from('licitacao_itens').update({
+        preco_robo: null,
+        robo_fontes: [],
+        observacoes: 'NAO_ENCONTRADO',
+      }).eq('id', item_id);
+      return json({ success: true, nao_encontrado: true });
+    }
 
     const result = JSON.parse(toolCall.function.arguments);
     const precoRobo = result.preco_medio_unitario;
