@@ -305,88 +305,102 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </div>
       </div>
 
-      {/* Itens */}
-      <div className="space-y-3">
-        {itens.map((item) => (
-          <Card key={item.id} className={`p-4 ${item.modo_cotacao === 'cancelado' ? 'opacity-50' : ''}`}>
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline">#{item.numero_item}</Badge>
-                  <Badge variant={
-                    item.modo_cotacao === 'robo' ? 'default' :
-                    item.modo_cotacao === 'manual' ? 'secondary' :
-                    item.modo_cotacao === 'cancelado' ? 'destructive' : 'outline'
-                  }>
-                    {item.modo_cotacao}
-                  </Badge>
-                </div>
-                <p className="text-sm font-medium">{item.descricao}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {item.quantidade} {item.unidade} • Ref: {fmt(item.preco_referencia)}/un
-                </p>
-              </div>
-              {item.margem_lucro != null && (
-                <div className={`text-right ${item.margem_lucro > 0 ? 'text-success' : 'text-destructive'}`}>
-                  <TrendingUp className="w-4 h-4 inline" />
-                  <p className="text-lg font-bold">{item.margem_lucro.toFixed(1)}%</p>
-                  <p className="text-xs">margem</p>
-                </div>
-              )}
-            </div>
-
-            {item.preco_robo != null && (
-              <div className="bg-muted/40 rounded p-2 text-xs space-y-1 mb-2">
-                <div className="flex justify-between font-medium">
-                  <span>Robô: {fmt(item.preco_robo)}/un</span>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => handleCancelarRobo(item)}>
-                    <X className="w-3 h-3 mr-1" /> Cancelar
-                  </Button>
-                </div>
-                {item.robo_fontes?.slice(0, 3).map((f, i) => (
-                  <div key={i} className="flex justify-between text-muted-foreground">
-                    <span>{f.loja} {f.endereco && `· ${f.endereco}`}</span>
-                    <span className="flex items-center gap-1">
-                      {fmt(f.preco)}
-                      {f.url && <a href={f.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-3 h-3" /></a>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {item.preco_manual != null && item.modo_cotacao === 'manual' && (
-              <div className="bg-secondary/40 rounded p-2 text-xs mb-2">
-                <span className="font-medium">Manual: {fmt(item.preco_manual)}/un</span>
-              </div>
-            )}
-
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => cotar.mutate(item)}
-                disabled={cotar.isPending}
-              >
-                {cotar.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                Cotar com Robô
-              </Button>
-
-              <div className="flex gap-1 flex-1 min-w-[200px]">
-                <Input
-                  type="number"
-                  placeholder="Preço manual R$"
-                  className="h-8 text-xs"
-                  value={editing[item.id] || ''}
-                  onChange={(e) => setEditing((s) => ({ ...s, [item.id]: e.target.value }))}
-                />
-                <Button size="sm" variant="secondary" onClick={() => handleManual(item)}>
-                  <Edit3 className="w-3 h-3 mr-1" /> Salvar
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
+      {/* Tabela estilo planilha (Excel) */}
+      <div className="border rounded-lg overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead className="bg-secondary/60 sticky top-0">
+            <tr className="text-left">
+              <th className="p-2 border-b border-r font-semibold w-12">Item</th>
+              <th className="p-2 border-b border-r font-semibold min-w-[260px]">Descrição (Edital)</th>
+              <th className="p-2 border-b border-r font-semibold w-16">Unid.</th>
+              <th className="p-2 border-b border-r font-semibold w-16 text-right">Qtde</th>
+              <th className="p-2 border-b border-r font-semibold w-32 text-right bg-primary/5">Preço Ref. (Edital)</th>
+              <th className="p-2 border-b border-r font-semibold w-40 text-right bg-blue-500/5">Preço Robô (IA)</th>
+              <th className="p-2 border-b border-r font-semibold w-44 text-right bg-amber-500/5">Cotação Manual</th>
+              <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Custo</th>
+              <th className="p-2 border-b border-r font-semibold w-32 text-right">Subtotal Ref.</th>
+              <th className="p-2 border-b font-semibold w-24 text-right">Margem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {itens.map((item) => {
+              const custo = item.modo_cotacao === 'manual' ? item.preco_manual : item.modo_cotacao === 'robo' ? item.preco_robo : null;
+              const subRef = (item.preco_referencia || 0) * item.quantidade;
+              const subCusto = (custo || 0) * item.quantidade;
+              const margemOk = (item.margem_lucro ?? 0) > 0;
+              return (
+                <tr key={item.id} className={`border-b hover:bg-muted/30 align-top ${item.modo_cotacao === 'cancelado' ? 'opacity-50' : ''}`}>
+                  <td className="p-2 border-r font-mono">{item.numero_item}</td>
+                  <td className="p-2 border-r">
+                    <p className="font-medium leading-snug">{item.descricao}</p>
+                    <Badge variant={item.modo_cotacao === 'robo' ? 'default' : item.modo_cotacao === 'manual' ? 'secondary' : 'outline'} className="text-[10px] mt-1">
+                      {item.modo_cotacao}
+                    </Badge>
+                  </td>
+                  <td className="p-2 border-r text-center">{item.unidade}</td>
+                  <td className="p-2 border-r text-right">{item.quantidade}</td>
+                  <td className="p-2 border-r text-right bg-primary/5 font-medium text-primary">
+                    {fmt(item.preco_referencia)}
+                  </td>
+                  <td className="p-2 border-r text-right bg-blue-500/5">
+                    {item.preco_robo != null ? (
+                      <div className="space-y-1">
+                        <p className="font-semibold">{fmt(item.preco_robo)}</p>
+                        {item.robo_fontes?.slice(0, 2).map((f, i) => (
+                          <div key={i} className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
+                            <span>{f.loja}: {fmt(f.preco)}</span>
+                            {f.url && <a href={f.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-2.5 h-2.5" /></a>}
+                          </div>
+                        ))}
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1" onClick={() => handleCancelarRobo(item)}>
+                          <X className="w-2.5 h-2.5 mr-0.5" /> limpar
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => cotar.mutate(item)} disabled={cotar.isPending}>
+                        {cotar.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Sparkles className="w-3 h-3 mr-1" />Cotar</>}
+                      </Button>
+                    )}
+                  </td>
+                  <td className="p-2 border-r text-right bg-amber-500/5">
+                    {item.preco_manual != null && item.modo_cotacao === 'manual' && (
+                      <p className="font-semibold mb-1">{fmt(item.preco_manual)}</p>
+                    )}
+                    <div className="flex gap-1 justify-end">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="R$ /un"
+                        className="h-7 text-xs w-24 text-right"
+                        value={editing[item.id] || ''}
+                        onChange={(e) => setEditing((s) => ({ ...s, [item.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleManual(item); }}
+                      />
+                      <Button size="sm" variant="secondary" className="h-7 px-2" onClick={() => handleManual(item)}>
+                        <Edit3 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </td>
+                  <td className="p-2 border-r text-right font-medium">{custo != null ? fmt(subCusto) : '—'}</td>
+                  <td className="p-2 border-r text-right font-medium text-primary">{fmt(subRef)}</td>
+                  <td className={`p-2 text-right font-bold ${margemOk ? 'text-success' : item.margem_lucro != null ? 'text-destructive' : ''}`}>
+                    {item.margem_lucro != null ? `${item.margem_lucro.toFixed(1)}%` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="bg-secondary font-bold">
+              <td colSpan={7} className="p-2 border-r text-right">TOTAIS</td>
+              <td className="p-2 border-r text-right">{fmt(totalCusto)}</td>
+              <td className="p-2 border-r text-right text-primary">{fmt(totalRef)}</td>
+              <td className={`p-2 text-right ${(totalRef - totalCusto) > 0 ? 'text-success' : 'text-destructive'}`}>
+                {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
 
       {margemMedia != null && margemMedia < 0 && (
