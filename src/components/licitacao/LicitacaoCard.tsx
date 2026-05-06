@@ -12,7 +12,8 @@ import {
   Bot,
   Check,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +21,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface LicitacaoCardProps {
   licitacao: Licitacao & { editalUrl?: string; enviadoParaCotacao?: boolean };
@@ -27,6 +39,8 @@ interface LicitacaoCardProps {
   delay?: number;
   onEnviarParaCotacao?: () => void;
   enviarPending?: boolean;
+  onDescartar?: () => void;
+  descartarPending?: boolean;
 }
 
 // Generate portal URL based on portal type and tender number
@@ -66,7 +80,7 @@ const statusColors = {
 };
 
 export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
-  ({ licitacao, onClick, delay = 0, onEnviarParaCotacao, enviarPending }, ref) => {
+  ({ licitacao, onClick, delay = 0, onEnviarParaCotacao, enviarPending, onDescartar, descartarPending }, ref) => {
   const queryClient = useQueryClient();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
@@ -229,7 +243,41 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
                 Autorizar
               </Button>
             )}
-            
+
+            {onDescartar && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={descartarPending}
+                  >
+                    {descartarPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    Não tenho interesse
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza que não tem interesse?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      A licitação <strong>{licitacao.numero}</strong> será removida do painel e marcada como descartada. Esta ação ficará registrada na auditoria.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={(e) => { e.stopPropagation(); onDescartar(); }}
+                    >
+                      Sim, descartar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
               <ChevronRight className="w-5 h-5" />
             </Button>

@@ -201,6 +201,9 @@ const Licitacoes = () => {
     // Filtrar apenas licitações dentro do prazo (data_limite > agora)
     result = result.filter(l => new Date(l.data_limite) > agora);
 
+    // Excluir descartadas (Cancelada) de todas as abas
+    result = result.filter(l => l.status !== 'Cancelada');
+
     // Filtrar apenas estados prioritários do usuário
     if (ufsPrioritarias.length > 0) {
       result = result.filter(l => ufsPrioritarias.includes(l.uf));
@@ -296,6 +299,21 @@ const Licitacoes = () => {
       queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const descartarLicitacao = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke('licitacao-actions', {
+        body: { action: 'descartar', licitacao_id: id, motivo: 'Sem interesse (captação)' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao descartar');
+    },
+    onSuccess: () => {
+      toast.success('Licitação descartada', { description: 'Removida do painel. Registro salvo na auditoria.' });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error('Erro ao descartar', { description: e.message }),
   });
 
   return (
@@ -398,6 +416,8 @@ const Licitacoes = () => {
                     delay={index * 50}
                     onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
                     enviarPending={enviarParaCotacao.isPending}
+                    onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
+                    descartarPending={descartarLicitacao.isPending}
                   />
                 ))}
               </div>
