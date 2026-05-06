@@ -200,6 +200,19 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
               </Button>
             )}
             
+            {onEnviarParaCotacao && !licitacao.enviadoParaCotacao && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={(e) => { e.stopPropagation(); onEnviarParaCotacao(); }}
+                disabled={enviarPending}
+              >
+                {enviarPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                Enviar p/ Cotação
+              </Button>
+            )}
+
             {isAutorizada ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 text-success text-xs font-medium">
                 <Check className="w-3.5 h-3.5" />
