@@ -587,6 +587,74 @@ export type Database = {
           },
         ]
       }
+      licitacao_itens: {
+        Row: {
+          created_at: string
+          custo_estimado: number | null
+          descricao: string
+          id: string
+          licitacao_id: string
+          margem_lucro: number | null
+          modo_cotacao: string
+          numero_item: number
+          observacoes: string | null
+          preco_final: number | null
+          preco_manual: number | null
+          preco_referencia: number | null
+          preco_robo: number | null
+          quantidade: number
+          robo_fontes: Json | null
+          unidade: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custo_estimado?: number | null
+          descricao: string
+          id?: string
+          licitacao_id: string
+          margem_lucro?: number | null
+          modo_cotacao?: string
+          numero_item: number
+          observacoes?: string | null
+          preco_final?: number | null
+          preco_manual?: number | null
+          preco_referencia?: number | null
+          preco_robo?: number | null
+          quantidade?: number
+          robo_fontes?: Json | null
+          unidade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custo_estimado?: number | null
+          descricao?: string
+          id?: string
+          licitacao_id?: string
+          margem_lucro?: number | null
+          modo_cotacao?: string
+          numero_item?: number
+          observacoes?: string | null
+          preco_final?: number | null
+          preco_manual?: number | null
+          preco_referencia?: number | null
+          preco_robo?: number | null
+          quantidade?: number
+          robo_fontes?: Json | null
+          unidade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licitacao_itens_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       licitacoes: {
         Row: {
           created_at: string
@@ -595,7 +663,9 @@ export type Database = {
           edital_analisado: boolean | null
           edital_url: string | null
           email_destino: string | null
+          enviado_para_cotacao: boolean
           id: string
+          itens_extraidos: boolean
           metodo_envio: string | null
           modalidade: Database["public"]["Enums"]["modalidade_type"]
           municipio: string
@@ -620,7 +690,9 @@ export type Database = {
           edital_analisado?: boolean | null
           edital_url?: string | null
           email_destino?: string | null
+          enviado_para_cotacao?: boolean
           id?: string
+          itens_extraidos?: boolean
           metodo_envio?: string | null
           modalidade: Database["public"]["Enums"]["modalidade_type"]
           municipio: string
@@ -645,7 +717,9 @@ export type Database = {
           edital_analisado?: boolean | null
           edital_url?: string | null
           email_destino?: string | null
+          enviado_para_cotacao?: boolean
           id?: string
+          itens_extraidos?: boolean
           metodo_envio?: string | null
           modalidade?: Database["public"]["Enums"]["modalidade_type"]
           municipio?: string

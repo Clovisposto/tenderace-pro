@@ -207,10 +207,11 @@ const Licitacoes = () => {
     }
 
     if (activeTab === 'todas') {
-      // Captação: todas no prazo (já filtradas acima)
+      // Captação: tudo que ainda NÃO foi enviado para cotação
+      result = result.filter(l => !(l as any).enviado_para_cotacao);
     } else if (activeTab === 'aguardando') {
-      // Cotação: novas, em análise e aguardando autorização
-      result = result.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização');
+      // Cotação: somente as que o operador enviou para cotação
+      result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
     } else if (activeTab === 'disputa') {
       result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
     }
@@ -253,8 +254,8 @@ const Licitacoes = () => {
     const agora = new Date();
     const noPrazo = licitacoes?.filter(l => new Date(l.data_limite) > agora && ufsPrioritarias.includes(l.uf)) || [];
     return {
-      todas: noPrazo.length,
-      aguardando: noPrazo.filter(l => l.status === 'Nova' || l.status === 'Em Análise' || l.status === 'Aguardando Autorização').length,
+      todas: noPrazo.filter(l => !(l as any).enviado_para_cotacao).length,
+      aguardando: noPrazo.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada').length,
       disputa: noPrazo.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
     };
   }, [licitacoes, ufsPrioritarias]);
@@ -280,8 +281,21 @@ const Licitacoes = () => {
     riscoScore: l.risco_score || 20,
     metodoEnvio: (l as any).metodo_envio || 'portal',
     emailDestino: (l as any).email_destino || undefined,
+    enviadoParaCotacao: (l as any).enviado_para_cotacao || false,
     createdAt: new Date(l.created_at),
     updatedAt: new Date(l.updated_at),
+  });
+
+  const enviarParaCotacao = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('licitacoes').update({ enviado_para_cotacao: true } as any).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Enviada para Cotação', { description: 'Abra a aba 2. Cotação para montar a planilha.' });
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
@@ -382,6 +396,8 @@ const Licitacoes = () => {
                     licitacao={mapToLegacyFormat(licitacao)}
                     onClick={() => setSelectedLicitacao(licitacao)}
                     delay={index * 50}
+                    onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
+                    enviarPending={enviarParaCotacao.isPending}
                   />
                 ))}
               </div>

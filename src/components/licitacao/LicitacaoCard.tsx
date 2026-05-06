@@ -22,9 +22,11 @@ import { toast } from '@/hooks/use-toast';
 import { AutorizacaoConfirmDialog } from './AutorizacaoConfirmDialog';
 
 interface LicitacaoCardProps {
-  licitacao: Licitacao & { editalUrl?: string };
+  licitacao: Licitacao & { editalUrl?: string; enviadoParaCotacao?: boolean };
   onClick?: () => void;
   delay?: number;
+  onEnviarParaCotacao?: () => void;
+  enviarPending?: boolean;
 }
 
 // Generate portal URL based on portal type and tender number
@@ -64,7 +66,7 @@ const statusColors = {
 };
 
 export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
-  ({ licitacao, onClick, delay = 0 }, ref) => {
+  ({ licitacao, onClick, delay = 0, onEnviarParaCotacao, enviarPending }, ref) => {
   const queryClient = useQueryClient();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
@@ -198,6 +200,19 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
               </Button>
             )}
             
+            {onEnviarParaCotacao && !licitacao.enviadoParaCotacao && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={(e) => { e.stopPropagation(); onEnviarParaCotacao(); }}
+                disabled={enviarPending}
+              >
+                {enviarPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                Enviar p/ Cotação
+              </Button>
+            )}
+
             {isAutorizada ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 text-success text-xs font-medium">
                 <Check className="w-3.5 h-3.5" />
