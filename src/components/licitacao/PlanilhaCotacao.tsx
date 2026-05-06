@@ -60,19 +60,43 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
     }
   }, [itensJaExtraidos, itens.length, isLoading, licitacaoId, extrair]);
 
+  const callAction = async (action: 'autorizar' | 'descartar', motivo?: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/licitacao-actions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
+        action,
+        licitacao_id: licitacaoId,
+        motivo,
+        frase: action === 'autorizar' ? 'AUTORIZAR_PARTICIPACAO' : undefined,
+        metadata: { origem: 'planilha-cotacao', total_itens: itens.length },
+      }),
+    });
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Falha');
+  };
+
   const autorizarDisputa = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('licitacoes')
-        .update({ status: 'Autorizada' })
-        .eq('id', licitacaoId);
-      if (error) throw error;
-    },
+    mutationFn: () => callAction('autorizar'),
     onSuccess: () => {
-      toast.success('🤖 Autorizado para Disputa', { description: 'O robô vai participar conforme planilha aprovada.' });
+      toast.success('🤖 Autorizado para Disputa', { description: 'Auditoria registrada. O robô vai participar.' });
       qc.invalidateQueries({ queryKey: ['licitacoes'] });
     },
     onError: (e: Error) => toast.error('Falha ao autorizar', { description: e.message }),
+  });
+
+  const descartar = useMutation({
+    mutationFn: (motivo: string) => callAction('descartar', motivo),
+    onSuccess: () => {
+      toast.success('Licitação descartada', { description: 'Removida da cotação. Auditoria registrada.' });
+      qc.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+    onError: (e: Error) => toast.error('Falha ao descartar', { description: e.message }),
   });
 
   const handleManual = (item: LicitacaoItem) => {
