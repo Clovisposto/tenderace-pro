@@ -187,7 +187,8 @@ Extraia a relação completa e fiel de itens da tabela do edital acima. Use SOME
     const { error: insErr } = await supabase.from('licitacao_itens').insert(rows);
     if (insErr) return json({ success: false, error: insErr.message }, 500);
 
-    await supabase.from('licitacoes').update({ itens_extraidos: true, enviado_para_cotacao: true }).eq('id', licitacao_id);
+    // Apenas marca itens_extraidos. NÃO move para Cotação aqui — isso só acontece via "Autorizar" (GATE_LEGAL).
+    await supabase.from('licitacoes').update({ itens_extraidos: true }).eq('id', licitacao_id);
 
     return json({ success: true, total_itens: rows.length, source: 'pdf-text+groq' });
   } catch (e: any) {
