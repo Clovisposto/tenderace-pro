@@ -66,7 +66,7 @@ const statusColors = {
 };
 
 export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
-  ({ licitacao, onClick, delay = 0 }, ref) => {
+  ({ licitacao, onClick, delay = 0, onEnviarParaCotacao, enviarPending }, ref) => {
   const queryClient = useQueryClient();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
