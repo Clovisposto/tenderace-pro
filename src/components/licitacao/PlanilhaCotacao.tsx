@@ -281,6 +281,27 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
             <RotateCw className={`w-3 h-3 mr-1 ${extrair.isPending ? 'animate-spin' : ''}`} />
             Re-extrair
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="destructive">
+                <Trash2 className="w-3 h-3 mr-1" /> Descartar licitação
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Descartar esta licitação?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A licitação <strong>{licitacaoNumero}</strong> será marcada como Cancelada e sairá da aba de Cotação. A ação fica registrada no log de auditoria.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => descartar.mutate('Sem interesse comercial')}>
+                  {descartar.isPending ? 'Descartando…' : 'Confirmar descarte'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
