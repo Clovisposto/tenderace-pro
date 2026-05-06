@@ -400,37 +400,65 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </div>
       </div>
 
-      {/* Visão resumida — estilo Edital (Número / Descrição / Qtde / Valor unit. / Valor total) */}
+      {/* Visão resumida — estilo Edital + cotação manual e margem por item */}
       <Card className="overflow-hidden">
         <div className="px-4 py-3 border-b bg-secondary/40">
-          <h4 className="font-semibold text-sm">Itens do Edital</h4>
+          <h4 className="font-semibold text-sm">Itens do Edital — Cotação por item</h4>
           <p className="text-[11px] text-muted-foreground">
-            Quantidades e valores conforme publicado. {itens.length} item(ns).
+            Preço de referência conforme publicado. Informe o seu custo unitário para ver a margem de lucro por item. {itens.length} item(ns).
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary/60">
               <tr className="text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium w-24">Número</th>
-                <th className="px-4 py-3 font-medium">Descrição</th>
-                <th className="px-4 py-3 font-medium w-28">Quantidade</th>
-                <th className="px-4 py-3 font-medium w-44">Valor unitário estimado</th>
-                <th className="px-4 py-3 font-medium w-44">Valor total estimado</th>
-                <th className="px-4 py-3 font-medium w-20 text-center">Detalhar</th>
+                <th className="px-3 py-3 font-medium w-16">Nº</th>
+                <th className="px-3 py-3 font-medium">Descrição</th>
+                <th className="px-3 py-3 font-medium w-24">Qtde</th>
+                <th className="px-3 py-3 font-medium w-32">Valor unit. ref.</th>
+                <th className="px-3 py-3 font-medium w-36">Valor total ref.</th>
+                <th className="px-3 py-3 font-medium w-44 bg-amber-500/5">Cotação manual (un.)</th>
+                <th className="px-3 py-3 font-medium w-24 text-right bg-success/5">Margem</th>
+                <th className="px-3 py-3 font-medium w-16 text-center">Detalhar</th>
               </tr>
             </thead>
             <tbody>
               {itens.map((item) => {
                 const subRef = (item.preco_referencia || 0) * item.quantidade;
+                const custoLinha = item.modo_cotacao === 'manual' ? item.preco_manual : item.modo_cotacao === 'robo' ? item.preco_robo : null;
+                const margemLinha = (item.preco_referencia && custoLinha)
+                  ? ((item.preco_referencia - custoLinha) / item.preco_referencia) * 100
+                  : null;
                 return (
                   <tr key={`resumo-${item.id}`} className="border-t hover:bg-muted/20 align-top">
-                    <td className="px-4 py-3 text-primary font-mono">{item.numero_item}</td>
-                    <td className="px-4 py-3 text-foreground/90 leading-snug">{item.descricao}</td>
-                    <td className="px-4 py-3">{item.quantidade} {item.unidade}</td>
-                    <td className="px-4 py-3">{fmt(item.preco_referencia)}</td>
-                    <td className="px-4 py-3">{fmt(subRef)}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-3 text-primary font-mono">{item.numero_item}</td>
+                    <td className="px-3 py-3 text-foreground/90 leading-snug">{item.descricao}</td>
+                    <td className="px-3 py-3">{item.quantidade} {item.unidade}</td>
+                    <td className="px-3 py-3">{fmt(item.preco_referencia)}</td>
+                    <td className="px-3 py-3">{fmt(subRef)}</td>
+                    <td className="px-3 py-3 bg-amber-500/5">
+                      {item.preco_manual != null && item.modo_cotacao === 'manual' && (
+                        <p className="text-xs font-semibold mb-1">{fmt(item.preco_manual)}</p>
+                      )}
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="R$ /un"
+                          className="h-8 text-xs"
+                          value={editing[item.id] || ''}
+                          onChange={(e) => setEditing((s) => ({ ...s, [item.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleManual(item); }}
+                        />
+                        <Button size="sm" variant="secondary" className="h-8 px-2" onClick={() => handleManual(item)}>
+                          <Edit3 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className={`px-3 py-3 text-right font-bold bg-success/5 ${margemLinha == null ? 'text-muted-foreground' : margemLinha > 0 ? 'text-success' : 'text-destructive'}`}>
+                      {margemLinha != null ? `${margemLinha.toFixed(1)}%` : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-center">
                       <button
                         type="button"
                         title="Ver detalhes da cotação"
@@ -448,8 +476,13 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
             </tbody>
             <tfoot>
               <tr className="border-t bg-secondary/40 font-semibold">
-                <td className="px-4 py-3" colSpan={4}>Total estimado do edital</td>
-                <td className="px-4 py-3 text-primary">{fmt(totalRef)}</td>
+                <td className="px-3 py-3" colSpan={4}>Total estimado do edital</td>
+                <td className="px-3 py-3 text-primary">{fmt(totalRef)}</td>
+                <td className="px-3 py-3 text-right" colSpan={2}>
+                  Margem média: <span className={margemMedia && margemMedia > 0 ? 'text-success' : 'text-destructive'}>
+                    {margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}
+                  </span>
+                </td>
                 <td></td>
               </tr>
             </tfoot>
@@ -584,15 +617,17 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </Card>
       )}
 
-      {/* Autorização para Disputa */}
+      {/* Termo de Autorização para Disputa — Lei 14.133/2021 */}
       {itens.length > 0 && (
         <Card className="p-4 border-2 border-primary/30 bg-primary/5 space-y-3">
           <div className="flex items-start gap-3">
             <ShieldCheck className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-bold">Autorização para Disputa</h4>
+              <h4 className="font-bold">Termo de Autorização para Participação</h4>
               <p className="text-xs text-muted-foreground">
-                Após revisar a planilha, autorize a participação. O robô vai usar exatamente os preços aprovados.
+                Ao autorizar, você declara que revisou os preços por item, que a proposta atende ao edital e às condições da
+                <strong> Lei nº 14.133/2021</strong> (arts. 17, 59 e 63), e autoriza o robô a enviar a proposta nos exatos valores aprovados.
+                A ação é registrada no log de auditoria com data, hora e usuário.
               </p>
             </div>
           </div>
@@ -601,32 +636,16 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
               <ShieldCheck className="w-4 h-4 mr-2" /> Já autorizada — em Disputa
             </Badge>
           ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="authorize"
-                  className="w-full"
-                  disabled={!todosCotados || (margemMedia != null && margemMedia < 0)}
-                >
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  AUTORIZAR PARA DISPUTA
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Autorizar participação na disputa?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Você está autorizando o robô a participar da licitação <strong>{licitacaoNumero}</strong> com {itens.length} item(ns), custo total estimado de <strong>{fmt(totalCusto)}</strong> e margem média de <strong>{margemMedia?.toFixed(1)}%</strong>. Esta ação fica registrada no log de auditoria.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => autorizarDisputa.mutate()}>
-                    {autorizarDisputa.isPending ? 'Autorizando…' : 'Confirmar autorização'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <AutorizacaoTermo
+              licitacaoNumero={licitacaoNumero}
+              totalItens={itens.length}
+              totalCusto={totalCusto}
+              totalRef={totalRef}
+              margemMedia={margemMedia}
+              disabled={!todosCotados || (margemMedia != null && margemMedia < 0)}
+              loading={autorizarDisputa.isPending}
+              onConfirm={() => autorizarDisputa.mutate()}
+            />
           )}
           {!todosCotados && !jaAutorizada && (
             <p className="text-xs text-muted-foreground text-center">
@@ -636,5 +655,64 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
         </Card>
       )}
     </div>
+  );
+};
+
+interface TermoProps {
+  licitacaoNumero?: string;
+  totalItens: number;
+  totalCusto: number;
+  totalRef: number;
+  margemMedia: number | null;
+  disabled: boolean;
+  loading: boolean;
+  onConfirm: () => void;
+}
+
+const AutorizacaoTermo = ({ licitacaoNumero, totalItens, totalCusto, totalRef, margemMedia, disabled, loading, onConfirm }: TermoProps) => {
+  const [frase, setFrase] = useState('');
+  const ok = frase.trim().toUpperCase() === 'AUTORIZAR_PARTICIPACAO';
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="authorize" className="w-full" disabled={disabled}>
+          <ShieldCheck className="w-4 h-4 mr-2" />
+          AUTORIZAR PARA DISPUTA
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Termo de Autorização — Lei 14.133/2021</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-xs">
+              <p>
+                Eu autorizo o envio da proposta na licitação <strong>{licitacaoNumero}</strong>, com <strong>{totalItens} item(ns)</strong>,
+                custo total estimado de <strong>{fmt(totalCusto)}</strong>, valor de referência de <strong>{fmt(totalRef)}</strong> e margem média
+                de <strong>{margemMedia != null ? `${margemMedia.toFixed(1)}%` : '—'}</strong>.
+              </p>
+              <p>
+                Declaro que a proposta atende às exigências do edital e à Lei nº 14.133/2021 (arts. 17, 59 e 63),
+                respeitando os preços máximos e a vedação de proposta inexequível.
+              </p>
+              <p className="font-medium">
+                Para confirmar, digite: <code className="bg-muted px-1 rounded">AUTORIZAR_PARTICIPACAO</code>
+              </p>
+              <Input
+                value={frase}
+                onChange={(e) => setFrase(e.target.value)}
+                placeholder="Digite a frase exata"
+                className="h-9"
+              />
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction disabled={!ok || loading} onClick={onConfirm}>
+            {loading ? 'Autorizando…' : 'Confirmar autorização'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
