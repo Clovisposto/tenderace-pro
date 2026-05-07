@@ -396,17 +396,30 @@ const Licitacoes = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
+          {(() => null)()}
           <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4">
             <TabsTrigger value="todas">
               1. Captação <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
             </TabsTrigger>
-            <TabsTrigger value="aguardando">
+            <TabsTrigger
+              value="aguardando"
+              disabled={counts.aguardando + counts.disputa + counts.sala === 0}
+              title={counts.aguardando + counts.disputa + counts.sala === 0 ? 'Envie uma licitação para Cotação na aba 1. Captação' : undefined}
+            >
               2. Cotação <span className="ml-2 text-xs opacity-70">({counts.aguardando})</span>
             </TabsTrigger>
-            <TabsTrigger value="disputa">
+            <TabsTrigger
+              value="disputa"
+              disabled={counts.disputa + counts.sala === 0}
+              title={counts.disputa + counts.sala === 0 ? 'Autorize uma cotação para liberar a Disputa' : undefined}
+            >
               3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
             </TabsTrigger>
-            <TabsTrigger value="sala">
+            <TabsTrigger
+              value="sala"
+              disabled={counts.sala === 0}
+              title={counts.sala === 0 ? 'A Sala abre quando o pregão começar' : undefined}
+            >
               4. Sala de Disputa <span className="ml-2 text-xs opacity-70">({counts.sala})</span>
             </TabsTrigger>
           </TabsList>

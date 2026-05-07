@@ -227,21 +227,11 @@ export const LicitacaoCard = forwardRef<HTMLDivElement, LicitacaoCardProps>(
               </Button>
             )}
 
-            {isAutorizada ? (
+            {isAutorizada && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-success/20 text-success text-xs font-medium">
                 <Check className="w-3.5 h-3.5" />
                 Robô Ativo
               </div>
-            ) : (
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={handleOpenConfirmDialog}
-                className="gap-1.5"
-              >
-                <Bot className="w-3.5 h-3.5" />
-                Autorizar
-              </Button>
             )}
 
             {onDescartar && (
