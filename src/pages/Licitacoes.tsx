@@ -45,11 +45,33 @@ const Licitacoes = () => {
     setSearchParams({ stage: TAB_TO_STAGE[t] || 'captacao' }, { replace: true });
   };
 
+  // GATE_LEGAL: confirmação explícita antes de enviar para cotação
+  const [confirmarEnvio, setConfirmarEnvio] = useState<Licitacao | null>(null);
+  const [bloqueioCompliance, setBloqueioCompliance] = useState<{ motivo: string } | null>(null);
+
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { data: configuracoes } = useConfiguracoes();
+  const { data: empresas } = useEmpresas();
   const { setupRealtime } = useLicitacoesRealtime();
   const capturarPNCP = useCapturarPNCP();
   const queryClient = useQueryClient();
+
+  // Empresa ativa = primeira cadastrada (compliance reference)
+  const empresaAtiva = useMemo(() => empresas?.[0], [empresas]);
+
+  // Verifica compliance SICAF + certidões antes de avançar etapa
+  const verificarCompliance = (): { ok: boolean; motivo?: string } => {
+    if (!empresaAtiva) return { ok: false, motivo: 'Nenhuma empresa cadastrada. Cadastre sua empresa em "Empresas" antes de participar.' };
+    const sicafOk = (empresaAtiva.sicaf_status || '').toLowerCase() === 'apta' || (empresaAtiva.sicaf_status || '').toLowerCase() === 'ativo';
+    if (!sicafOk) return { ok: false, motivo: `SICAF: status "${empresaAtiva.sicaf_status || 'pendente'}". Lei 14.133/2021 exige cadastro regular antes da participação.` };
+    if (empresaAtiva.sicaf_validade && new Date(empresaAtiva.sicaf_validade) < new Date()) {
+      return { ok: false, motivo: 'SICAF vencido. Renove o cadastro antes de enviar para cotação.' };
+    }
+    if (empresaAtiva.certidoes_validas === false) {
+      return { ok: false, motivo: 'Certidões negativas vencidas. Atualize as certidões da empresa.' };
+    }
+    return { ok: true };
+  };
 
   // Estados prioritários do usuário ou padrão
   const ufsPrioritarias = useMemo(() => {
