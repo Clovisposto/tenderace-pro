@@ -484,6 +484,26 @@ const Licitacoes = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
+            {activeTab === 'todas' && (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-primary" />
+                  <p className="font-semibold text-primary text-sm">Política da empresa aplicada (Etapa 1 — Captação)</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Badge variant="outline">Valor: R$ {Number(configuracoes?.valor_minimo ?? 0).toLocaleString('pt-BR')} – R$ {Number(configuracoes?.valor_maximo ?? 0).toLocaleString('pt-BR')}</Badge>
+                  <Badge variant="outline">UFs: {ufsPrioritarias.join(', ')}</Badge>
+                  {empresaAtiva?.segmento && <Badge variant="outline">Segmento: {empresaAtiva.segmento}</Badge>}
+                  {(configuracoes?.modalidades_permitidas as string[] | undefined)?.map(m => (
+                    <Badge key={m} variant="secondary">{m}</Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Apenas licitações dentro destes critérios aparecem aqui. Para enviar à Cotação é exigida sua autorização explícita
+                  (GATE_LEGAL — Lei 14.133/2021) e empresa regular no SICAF.
+                </p>
+              </div>
+            )}
             {activeTab === 'sala' && (
               <div className="mb-4 rounded-lg border-2 border-success/40 bg-success/10 p-4 flex items-center gap-3">
                 <Zap className="w-5 h-5 text-success animate-pulse" />
