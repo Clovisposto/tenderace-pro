@@ -217,10 +217,14 @@ const Licitacoes = () => {
       // Captação: tudo que ainda NÃO foi enviado para cotação
       result = result.filter(l => !(l as any).enviado_para_cotacao);
     } else if (activeTab === 'aguardando') {
-      // Cotação: somente as que o operador enviou para cotação
+      // Cotação: enviadas para cotação, aguardando autorização
       result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
     } else if (activeTab === 'disputa') {
-      result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
+      // Disputa: autorizadas, robô preparando/aguardando horário
+      result = result.filter(l => l.status === 'Autorizada');
+    } else if (activeTab === 'sala') {
+      // Sala de Disputa: disputa ativa em tempo real
+      result = result.filter(l => l.status === 'Em Disputa');
     }
 
     if (filtros.busca) {
