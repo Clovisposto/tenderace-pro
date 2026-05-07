@@ -10,7 +10,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain } from 'lucide-react';
+import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
