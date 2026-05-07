@@ -397,37 +397,50 @@ const Licitacoes = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {(() => null)()}
-          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4 h-auto gap-1 p-1">
-            <TabsTrigger
-              value="todas"
-              className="!bg-blue-600 !text-white data-[state=active]:!bg-blue-700 hover:!bg-blue-700 font-semibold"
-            >
-              1. Captação <span className="ml-2 text-xs opacity-80">({counts.todas})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="aguardando"
-              disabled={counts.aguardando === 0}
-              title={counts.aguardando === 0 ? 'Bloqueada — envie uma licitação para Cotação na aba 1. Captação para liberar' : undefined}
-              className={`font-semibold !text-white data-[state=active]:!bg-blue-700 ${counts.aguardando === 0 ? '!bg-red-600 !opacity-100 cursor-not-allowed' : '!bg-blue-600 hover:!bg-blue-700'}`}
-            >
-              2. Cotação <span className="ml-2 text-xs opacity-80">({counts.aguardando})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="disputa"
-              disabled={counts.disputa === 0}
-              title={counts.disputa === 0 ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar' : undefined}
-              className={`font-semibold !text-white data-[state=active]:!bg-blue-700 ${counts.disputa === 0 ? '!bg-red-600 !opacity-100 cursor-not-allowed' : '!bg-blue-600 hover:!bg-blue-700'}`}
-            >
-              3. Disputa <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="sala"
-              disabled={counts.sala === 0}
-              title={counts.sala === 0 ? 'Bloqueada — abre quando a disputa for cadastrada' : undefined}
-              className={`font-semibold !text-white data-[state=active]:!bg-blue-700 ${counts.sala === 0 ? '!bg-red-600 !opacity-100 cursor-not-allowed' : '!bg-blue-600 hover:!bg-blue-700'}`}
-            >
-              4. Sala de Disputa <span className="ml-2 text-xs opacity-80">({counts.sala})</span>
-            </TabsTrigger>
+          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4 h-auto gap-1.5 p-1.5 rounded-lg">
+            {(() => {
+              const baseCls = "font-semibold text-white shadow-sm rounded-md py-2.5 transition-all";
+              const enabledCls = "!bg-primary hover:!bg-primary/90 data-[state=active]:!bg-primary data-[state=active]:ring-2 data-[state=active]:ring-primary/40 data-[state=active]:ring-offset-1";
+              const blockedCls = "!bg-destructive !opacity-100 cursor-not-allowed";
+              const cotacaoBlocked = counts.aguardando === 0;
+              const disputaBlocked = counts.disputa === 0;
+              const salaBlocked = counts.sala === 0;
+              return (
+                <>
+                  <TabsTrigger
+                    value="todas"
+                    className={`${baseCls} ${enabledCls}`}
+                    title="Etapa 1 — Captação de licitações"
+                  >
+                    1. Captação <span className="ml-2 text-xs opacity-80">({counts.todas})</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="aguardando"
+                    disabled={cotacaoBlocked}
+                    title={cotacaoBlocked ? 'Bloqueada — autorize o envio de uma licitação para Cotação na aba 1. Captação' : 'Etapa 2 — Cotação e formação de preços'}
+                    className={`${baseCls} ${cotacaoBlocked ? blockedCls : enabledCls}`}
+                  >
+                    2. Cotação <span className="ml-2 text-xs opacity-80">({counts.aguardando})</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="disputa"
+                    disabled={disputaBlocked}
+                    title={disputaBlocked ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar a Disputa' : 'Etapa 3 — Preparação para a disputa'}
+                    className={`${baseCls} ${disputaBlocked ? blockedCls : enabledCls}`}
+                  >
+                    3. Disputa <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="sala"
+                    disabled={salaBlocked}
+                    title={salaBlocked ? 'Bloqueada — abre automaticamente quando o pregão entrar em sessão' : 'Etapa 4 — Sala de Disputa ao vivo'}
+                    className={`${baseCls} ${salaBlocked ? blockedCls : enabledCls}`}
+                  >
+                    4. Sala de Disputa <span className="ml-2 text-xs opacity-80">({counts.sala})</span>
+                  </TabsTrigger>
+                </>
+              );
+            })()}
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
