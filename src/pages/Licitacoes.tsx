@@ -7,10 +7,15 @@ import { PlanilhaCotacao } from '@/components/licitacao/PlanilhaCotacao';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useEmpresas } from '@/hooks/useEmpresas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck, ShieldAlert, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
