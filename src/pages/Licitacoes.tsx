@@ -21,11 +21,13 @@ const STAGE_TO_TAB: Record<string, string> = {
   captacao: 'todas',
   cotacao: 'aguardando',
   disputa: 'disputa',
+  sala: 'sala',
 };
 const TAB_TO_STAGE: Record<string, string> = {
   todas: 'captacao',
   aguardando: 'cotacao',
   disputa: 'disputa',
+  sala: 'sala',
 };
 
 const Licitacoes = () => {
