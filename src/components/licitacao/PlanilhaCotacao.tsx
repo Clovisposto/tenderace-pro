@@ -45,7 +45,7 @@ interface Props {
 const fmt = (v: number | null | undefined) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero, licitacaoStatus }: Props) => {
+export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero, licitacaoStatus, onAutorizado }: Props) => {
   const { data: itens = [], isLoading } = useLicitacaoItens(licitacaoId);
   const extrair = useExtrairItens();
   const cotar = useCotarItemRobo();
