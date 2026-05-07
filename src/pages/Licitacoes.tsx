@@ -243,6 +243,19 @@ const Licitacoes = () => {
     if (activeTab === 'todas') {
       // Captação: tudo que ainda NÃO foi enviado para cotação
       result = result.filter(l => !(l as any).enviado_para_cotacao);
+
+      // POLÍTICA DA EMPRESA (Configurações): aplica filtros automáticos
+      const valorMin = configuracoes?.valor_minimo ?? 0;
+      const valorMax = configuracoes?.valor_maximo ?? Number.MAX_SAFE_INTEGER;
+      const modalidadesPermitidas = configuracoes?.modalidades_permitidas as string[] | undefined;
+      result = result.filter(l => Number(l.valor) >= Number(valorMin) && Number(l.valor) <= Number(valorMax));
+      if (modalidadesPermitidas && modalidadesPermitidas.length > 0) {
+        result = result.filter(l => modalidadesPermitidas.includes(l.modalidade as any));
+      }
+      // Segmento da empresa ativa (Medicamentos / Empreendimentos)
+      if (empresaAtiva?.segmento) {
+        result = result.filter(l => !l.segmento || l.segmento === empresaAtiva.segmento);
+      }
     } else if (activeTab === 'aguardando') {
       // Cotação: enviadas para cotação, aguardando autorização
       result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
