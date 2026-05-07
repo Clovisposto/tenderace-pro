@@ -289,7 +289,7 @@ const Licitacoes = () => {
     }
 
     return result;
-  }, [activeTab, filtros, licitacoes, ufsPrioritarias]);
+  }, [activeTab, filtros, licitacoes, ufsPrioritarias, configuracoes, empresaAtiva]);
 
   // Contagem por estado prioritário
   const countsPorUF = useMemo(() => {
