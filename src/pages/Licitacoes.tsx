@@ -603,6 +603,74 @@ const Licitacoes = () => {
           onAutorizar={() => setSelectedLicitacao(null)}
         />
       )}
+
+      {/* GATE_LEGAL — Confirmação explícita antes de enviar para Cotação */}
+      <AlertDialog open={!!confirmarEnvio} onOpenChange={(o) => !o && setConfirmarEnvio(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              Autorizar envio para Cotação
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Você está autorizando o envio desta licitação para a etapa <b>2. Cotação</b>.
+                  Nenhuma proposta será submetida sem nova autorização sua (Lei 14.133/2021 — princípio da legalidade).
+                </p>
+                {confirmarEnvio && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-xs">
+                    <div><b>Nº:</b> {confirmarEnvio.numero}</div>
+                    <div><b>Órgão:</b> {confirmarEnvio.orgao}</div>
+                    <div><b>Local:</b> {confirmarEnvio.municipio}/{confirmarEnvio.uf}</div>
+                    <div><b>Valor estimado:</b> R$ {Number(confirmarEnvio.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Empresa: <b>{empresaAtiva?.nome || '—'}</b> • SICAF: <b>{empresaAtiva?.sicaf_status || '—'}</b>
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmarEnvio) enviarParaCotacao.mutate(confirmarEnvio.id);
+                setConfirmarEnvio(null);
+              }}
+            >
+              Autorizar e enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bloqueio por compliance (SICAF / certidões) */}
+      <AlertDialog open={!!bloqueioCompliance} onOpenChange={(o) => !o && setBloqueioCompliance(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="w-5 h-5" />
+              Envio bloqueado — compliance
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>{bloqueioCompliance?.motivo}</p>
+                <p className="text-xs text-muted-foreground">
+                  A Lei 14.133/2021 exige regularidade fiscal e cadastral antes da participação em qualquer fase do certame.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Entendi</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Link to="/empresas">Atualizar empresa</Link>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
