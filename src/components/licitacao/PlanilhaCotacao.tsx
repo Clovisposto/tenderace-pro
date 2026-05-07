@@ -39,6 +39,7 @@ interface Props {
   itensJaExtraidos: boolean;
   licitacaoNumero?: string;
   licitacaoStatus?: string;
+  onAutorizado?: () => void;
 }
 
 const fmt = (v: number | null | undefined) =>
