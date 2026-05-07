@@ -39,12 +39,13 @@ interface Props {
   itensJaExtraidos: boolean;
   licitacaoNumero?: string;
   licitacaoStatus?: string;
+  onAutorizado?: () => void;
 }
 
 const fmt = (v: number | null | undefined) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero, licitacaoStatus }: Props) => {
+export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero, licitacaoStatus, onAutorizado }: Props) => {
   const { data: itens = [], isLoading } = useLicitacaoItens(licitacaoId);
   const extrair = useExtrairItens();
   const cotar = useCotarItemRobo();
@@ -89,8 +90,9 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const autorizarDisputa = useMutation({
     mutationFn: () => callAction('autorizar'),
     onSuccess: () => {
-      toast.success('🤖 Autorizado para Disputa', { description: 'Auditoria registrada. O robô vai participar.' });
+      toast.success('🤖 Autorizado para Disputa', { description: 'Abrindo a aba 3. Disputa...' });
       qc.invalidateQueries({ queryKey: ['licitacoes'] });
+      onAutorizado?.();
     },
     onError: (e: Error) => toast.error('Falha ao autorizar', { description: e.message }),
   });

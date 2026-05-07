@@ -10,7 +10,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain } from 'lucide-react';
+import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,11 +21,13 @@ const STAGE_TO_TAB: Record<string, string> = {
   captacao: 'todas',
   cotacao: 'aguardando',
   disputa: 'disputa',
+  sala: 'sala',
 };
 const TAB_TO_STAGE: Record<string, string> = {
   todas: 'captacao',
   aguardando: 'cotacao',
   disputa: 'disputa',
+  sala: 'sala',
 };
 
 const Licitacoes = () => {
@@ -215,10 +217,14 @@ const Licitacoes = () => {
       // Captação: tudo que ainda NÃO foi enviado para cotação
       result = result.filter(l => !(l as any).enviado_para_cotacao);
     } else if (activeTab === 'aguardando') {
-      // Cotação: somente as que o operador enviou para cotação
+      // Cotação: enviadas para cotação, aguardando autorização
       result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
     } else if (activeTab === 'disputa') {
-      result = result.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada');
+      // Disputa: autorizadas, robô preparando/aguardando horário
+      result = result.filter(l => l.status === 'Autorizada');
+    } else if (activeTab === 'sala') {
+      // Sala de Disputa: disputa ativa em tempo real
+      result = result.filter(l => l.status === 'Em Disputa');
     }
 
     if (filtros.busca) {
@@ -261,7 +267,8 @@ const Licitacoes = () => {
     return {
       todas: noPrazo.filter(l => !(l as any).enviado_para_cotacao).length,
       aguardando: noPrazo.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada').length,
-      disputa: noPrazo.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
+      disputa: noPrazo.filter(l => l.status === 'Autorizada').length,
+      sala: noPrazo.filter(l => l.status === 'Em Disputa').length,
     };
   }, [licitacoes, ufsPrioritarias]);
 
@@ -389,7 +396,7 @@ const Licitacoes = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-secondary/50 grid w-full max-w-2xl grid-cols-3">
+          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4">
             <TabsTrigger value="todas">
               1. Captação <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
             </TabsTrigger>
@@ -399,9 +406,36 @@ const Licitacoes = () => {
             <TabsTrigger value="disputa">
               3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
             </TabsTrigger>
+            <TabsTrigger value="sala">
+              4. Sala de Disputa <span className="ml-2 text-xs opacity-70">({counts.sala})</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
+            {activeTab === 'sala' && (
+              <div className="mb-4 rounded-lg border-2 border-success/40 bg-success/10 p-4 flex items-center gap-3">
+                <Zap className="w-5 h-5 text-success animate-pulse" />
+                <div className="flex-1">
+                  <p className="font-semibold text-success">Sala de Disputa ao vivo</p>
+                  <p className="text-xs text-muted-foreground">
+                    Licitações em disputa neste momento. O robô envia lances, anexa documentação de habilitação e
+                    acompanha a sessão em tempo real conforme a Lei 14.133/2021.
+                  </p>
+                </div>
+                <Link to="/minhas-participacoes">
+                  <Button size="sm" variant="default">Abrir painel completo</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'disputa' && (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <p className="font-semibold text-primary text-sm">Autorizadas — aguardando horário</p>
+                <p className="text-xs text-muted-foreground">
+                  Você autorizou a participação. O robô entra automaticamente no horário da abertura.
+                  Quando começar, aparece em <b>4. Sala de Disputa</b>.
+                </p>
+              </div>
+            )}
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -439,6 +473,7 @@ const Licitacoes = () => {
                           itensJaExtraidos={(licitacao as any).itens_extraidos || false}
                           licitacaoNumero={licitacao.numero}
                           licitacaoStatus={licitacao.status}
+                          onAutorizado={() => setActiveTab('disputa')}
                         />
                       </AccordionContent>
                     </AccordionItem>
