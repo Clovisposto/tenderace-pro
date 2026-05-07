@@ -90,8 +90,9 @@ export const PlanilhaCotacao = ({ licitacaoId, itensJaExtraidos, licitacaoNumero
   const autorizarDisputa = useMutation({
     mutationFn: () => callAction('autorizar'),
     onSuccess: () => {
-      toast.success('🤖 Autorizado para Disputa', { description: 'Auditoria registrada. O robô vai participar.' });
+      toast.success('🤖 Autorizado para Disputa', { description: 'Abrindo a aba 3. Disputa...' });
       qc.invalidateQueries({ queryKey: ['licitacoes'] });
+      onAutorizado?.();
     },
     onError: (e: Error) => toast.error('Falha ao autorizar', { description: e.message }),
   });
