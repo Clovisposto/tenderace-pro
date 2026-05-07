@@ -7,10 +7,15 @@ import { PlanilhaCotacao } from '@/components/licitacao/PlanilhaCotacao';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useEmpresas } from '@/hooks/useEmpresas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { RefreshCw, Download, MapPin, Zap, Globe, Settings, Brain, ShieldCheck, ShieldAlert, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,11 +45,33 @@ const Licitacoes = () => {
     setSearchParams({ stage: TAB_TO_STAGE[t] || 'captacao' }, { replace: true });
   };
 
+  // GATE_LEGAL: confirmação explícita antes de enviar para cotação
+  const [confirmarEnvio, setConfirmarEnvio] = useState<Licitacao | null>(null);
+  const [bloqueioCompliance, setBloqueioCompliance] = useState<{ motivo: string } | null>(null);
+
   const { data: licitacoes, isLoading, refetch } = useLicitacoes();
   const { data: configuracoes } = useConfiguracoes();
+  const { data: empresas } = useEmpresas();
   const { setupRealtime } = useLicitacoesRealtime();
   const capturarPNCP = useCapturarPNCP();
   const queryClient = useQueryClient();
+
+  // Empresa ativa = primeira cadastrada (compliance reference)
+  const empresaAtiva = useMemo(() => empresas?.[0], [empresas]);
+
+  // Verifica compliance SICAF + certidões antes de avançar etapa
+  const verificarCompliance = (): { ok: boolean; motivo?: string } => {
+    if (!empresaAtiva) return { ok: false, motivo: 'Nenhuma empresa cadastrada. Cadastre sua empresa em "Empresas" antes de participar.' };
+    const sicafOk = (empresaAtiva.sicaf_status || '').toLowerCase() === 'apta' || (empresaAtiva.sicaf_status || '').toLowerCase() === 'ativo';
+    if (!sicafOk) return { ok: false, motivo: `SICAF: status "${empresaAtiva.sicaf_status || 'pendente'}". Lei 14.133/2021 exige cadastro regular antes da participação.` };
+    if (empresaAtiva.sicaf_validade && new Date(empresaAtiva.sicaf_validade) < new Date()) {
+      return { ok: false, motivo: 'SICAF vencido. Renove o cadastro antes de enviar para cotação.' };
+    }
+    if (empresaAtiva.certidoes_validas === false) {
+      return { ok: false, motivo: 'Certidões negativas vencidas. Atualize as certidões da empresa.' };
+    }
+    return { ok: true };
+  };
 
   // Estados prioritários do usuário ou padrão
   const ufsPrioritarias = useMemo(() => {
@@ -216,6 +243,19 @@ const Licitacoes = () => {
     if (activeTab === 'todas') {
       // Captação: tudo que ainda NÃO foi enviado para cotação
       result = result.filter(l => !(l as any).enviado_para_cotacao);
+
+      // POLÍTICA DA EMPRESA (Configurações): aplica filtros automáticos
+      const valorMin = configuracoes?.valor_minimo ?? 0;
+      const valorMax = configuracoes?.valor_maximo ?? Number.MAX_SAFE_INTEGER;
+      const modalidadesPermitidas = configuracoes?.modalidades_permitidas as string[] | undefined;
+      result = result.filter(l => Number(l.valor) >= Number(valorMin) && Number(l.valor) <= Number(valorMax));
+      if (modalidadesPermitidas && modalidadesPermitidas.length > 0) {
+        result = result.filter(l => modalidadesPermitidas.includes(l.modalidade as any));
+      }
+      // Segmento da empresa ativa (Medicamentos / Empreendimentos)
+      if (empresaAtiva?.segmento) {
+        result = result.filter(l => !l.segmento || l.segmento === empresaAtiva.segmento);
+      }
     } else if (activeTab === 'aguardando') {
       // Cotação: enviadas para cotação, aguardando autorização
       result = result.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada');
@@ -249,7 +289,7 @@ const Licitacoes = () => {
     }
 
     return result;
-  }, [activeTab, filtros, licitacoes, ufsPrioritarias]);
+  }, [activeTab, filtros, licitacoes, ufsPrioritarias, configuracoes, empresaAtiva]);
 
   // Contagem por estado prioritário
   const countsPorUF = useMemo(() => {
@@ -444,6 +484,26 @@ const Licitacoes = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
+            {activeTab === 'todas' && (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-primary" />
+                  <p className="font-semibold text-primary text-sm">Política da empresa aplicada (Etapa 1 — Captação)</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Badge variant="outline">Valor: R$ {Number(configuracoes?.valor_minimo ?? 0).toLocaleString('pt-BR')} – R$ {Number(configuracoes?.valor_maximo ?? 0).toLocaleString('pt-BR')}</Badge>
+                  <Badge variant="outline">UFs: {ufsPrioritarias.join(', ')}</Badge>
+                  {empresaAtiva?.segmento && <Badge variant="outline">Segmento: {empresaAtiva.segmento}</Badge>}
+                  {(configuracoes?.modalidades_permitidas as string[] | undefined)?.map(m => (
+                    <Badge key={m} variant="secondary">{m}</Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Apenas licitações dentro destes critérios aparecem aqui. Para enviar à Cotação é exigida sua autorização explícita
+                  (GATE_LEGAL — Lei 14.133/2021) e empresa regular no SICAF.
+                </p>
+              </div>
+            )}
             {activeTab === 'sala' && (
               <div className="mb-4 rounded-lg border-2 border-success/40 bg-success/10 p-4 flex items-center gap-3">
                 <Zap className="w-5 h-5 text-success animate-pulse" />
@@ -519,7 +579,11 @@ const Licitacoes = () => {
                       licitacao={mapToLegacyFormat(licitacao)}
                       onClick={() => setSelectedLicitacao(licitacao)}
                       delay={index * 50}
-                      onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
+                      onEnviarParaCotacao={activeTab === 'todas' ? () => {
+                        const c = verificarCompliance();
+                        if (!c.ok) { setBloqueioCompliance({ motivo: c.motivo! }); return; }
+                        setConfirmarEnvio(licitacao);
+                      } : undefined}
                       enviarPending={enviarParaCotacao.isPending}
                       onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
                       descartarPending={descartarLicitacao.isPending}
@@ -559,6 +623,74 @@ const Licitacoes = () => {
           onAutorizar={() => setSelectedLicitacao(null)}
         />
       )}
+
+      {/* GATE_LEGAL — Confirmação explícita antes de enviar para Cotação */}
+      <AlertDialog open={!!confirmarEnvio} onOpenChange={(o) => !o && setConfirmarEnvio(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              Autorizar envio para Cotação
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Você está autorizando o envio desta licitação para a etapa <b>2. Cotação</b>.
+                  Nenhuma proposta será submetida sem nova autorização sua (Lei 14.133/2021 — princípio da legalidade).
+                </p>
+                {confirmarEnvio && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-xs">
+                    <div><b>Nº:</b> {confirmarEnvio.numero}</div>
+                    <div><b>Órgão:</b> {confirmarEnvio.orgao}</div>
+                    <div><b>Local:</b> {confirmarEnvio.municipio}/{confirmarEnvio.uf}</div>
+                    <div><b>Valor estimado:</b> R$ {Number(confirmarEnvio.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Empresa: <b>{empresaAtiva?.nome || '—'}</b> • SICAF: <b>{empresaAtiva?.sicaf_status || '—'}</b>
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmarEnvio) enviarParaCotacao.mutate(confirmarEnvio.id);
+                setConfirmarEnvio(null);
+              }}
+            >
+              Autorizar e enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bloqueio por compliance (SICAF / certidões) */}
+      <AlertDialog open={!!bloqueioCompliance} onOpenChange={(o) => !o && setBloqueioCompliance(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="w-5 h-5" />
+              Envio bloqueado — compliance
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>{bloqueioCompliance?.motivo}</p>
+                <p className="text-xs text-muted-foreground">
+                  A Lei 14.133/2021 exige regularidade fiscal e cadastral antes da participação em qualquer fase do certame.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Entendi</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Link to="/empresas">Atualizar empresa</Link>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
