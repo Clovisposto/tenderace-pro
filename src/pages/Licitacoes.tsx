@@ -412,6 +412,30 @@ const Licitacoes = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
+            {activeTab === 'sala' && (
+              <div className="mb-4 rounded-lg border-2 border-success/40 bg-success/10 p-4 flex items-center gap-3">
+                <Zap className="w-5 h-5 text-success animate-pulse" />
+                <div className="flex-1">
+                  <p className="font-semibold text-success">Sala de Disputa ao vivo</p>
+                  <p className="text-xs text-muted-foreground">
+                    Licitações em disputa neste momento. O robô envia lances, anexa documentação de habilitação e
+                    acompanha a sessão em tempo real conforme a Lei 14.133/2021.
+                  </p>
+                </div>
+                <Link to="/minhas-participacoes">
+                  <Button size="sm" variant="default">Abrir painel completo</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'disputa' && (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <p className="font-semibold text-primary text-sm">Autorizadas — aguardando horário</p>
+                <p className="text-xs text-muted-foreground">
+                  Você autorizou a participação. O robô entra automaticamente no horário da abertura.
+                  Quando começar, aparece em <b>4. Sala de Disputa</b>.
+                </p>
+              </div>
+            )}
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
