@@ -403,22 +403,22 @@ const Licitacoes = () => {
             </TabsTrigger>
             <TabsTrigger
               value="aguardando"
-              disabled={counts.aguardando + counts.disputa + counts.sala === 0}
-              title={counts.aguardando + counts.disputa + counts.sala === 0 ? 'Envie uma licitação para Cotação na aba 1. Captação' : undefined}
+              disabled={counts.aguardando === 0}
+              title={counts.aguardando === 0 ? 'Bloqueada — envie uma licitação para Cotação na aba 1. Captação para liberar' : undefined}
             >
               2. Cotação <span className="ml-2 text-xs opacity-70">({counts.aguardando})</span>
             </TabsTrigger>
             <TabsTrigger
               value="disputa"
-              disabled={counts.disputa + counts.sala === 0}
-              title={counts.disputa + counts.sala === 0 ? 'Autorize uma cotação para liberar a Disputa' : undefined}
+              disabled={counts.disputa === 0}
+              title={counts.disputa === 0 ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar' : undefined}
             >
               3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
             </TabsTrigger>
             <TabsTrigger
               value="sala"
               disabled={counts.sala === 0}
-              title={counts.sala === 0 ? 'A Sala abre quando o pregão começar' : undefined}
+              title={counts.sala === 0 ? 'Bloqueada — abre automaticamente quando o pregão iniciar' : undefined}
             >
               4. Sala de Disputa <span className="ml-2 text-xs opacity-70">({counts.sala})</span>
             </TabsTrigger>
