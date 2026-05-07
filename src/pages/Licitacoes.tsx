@@ -396,7 +396,7 @@ const Licitacoes = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-secondary/50 grid w-full max-w-2xl grid-cols-3">
+          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4">
             <TabsTrigger value="todas">
               1. Captação <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
             </TabsTrigger>
@@ -405,6 +405,9 @@ const Licitacoes = () => {
             </TabsTrigger>
             <TabsTrigger value="disputa">
               3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
+            </TabsTrigger>
+            <TabsTrigger value="sala">
+              4. Sala de Disputa <span className="ml-2 text-xs opacity-70">({counts.sala})</span>
             </TabsTrigger>
           </TabsList>
 
