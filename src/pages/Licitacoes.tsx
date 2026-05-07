@@ -267,7 +267,8 @@ const Licitacoes = () => {
     return {
       todas: noPrazo.filter(l => !(l as any).enviado_para_cotacao).length,
       aguardando: noPrazo.filter(l => (l as any).enviado_para_cotacao && l.status !== 'Em Disputa' && l.status !== 'Autorizada').length,
-      disputa: noPrazo.filter(l => l.status === 'Em Disputa' || l.status === 'Autorizada').length,
+      disputa: noPrazo.filter(l => l.status === 'Autorizada').length,
+      sala: noPrazo.filter(l => l.status === 'Em Disputa').length,
     };
   }, [licitacoes, ufsPrioritarias]);
 
