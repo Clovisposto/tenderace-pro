@@ -559,7 +559,11 @@ const Licitacoes = () => {
                       licitacao={mapToLegacyFormat(licitacao)}
                       onClick={() => setSelectedLicitacao(licitacao)}
                       delay={index * 50}
-                      onEnviarParaCotacao={activeTab === 'todas' ? () => enviarParaCotacao.mutate(licitacao.id) : undefined}
+                      onEnviarParaCotacao={activeTab === 'todas' ? () => {
+                        const c = verificarCompliance();
+                        if (!c.ok) { setBloqueioCompliance({ motivo: c.motivo! }); return; }
+                        setConfirmarEnvio(licitacao);
+                      } : undefined}
                       enviarPending={enviarParaCotacao.isPending}
                       onDescartar={activeTab !== 'disputa' ? () => descartarLicitacao.mutate(licitacao.id) : undefined}
                       descartarPending={descartarLicitacao.isPending}
