@@ -449,6 +449,7 @@ const Licitacoes = () => {
                           itensJaExtraidos={(licitacao as any).itens_extraidos || false}
                           licitacaoNumero={licitacao.numero}
                           licitacaoStatus={licitacao.status}
+                          onAutorizado={() => setActiveTab('disputa')}
                         />
                       </AccordionContent>
                     </AccordionItem>
