@@ -397,30 +397,36 @@ const Licitacoes = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {(() => null)()}
-          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4">
-            <TabsTrigger value="todas">
-              1. Captação <span className="ml-2 text-xs opacity-70">({counts.todas})</span>
+          <TabsList className="bg-secondary/50 grid w-full max-w-3xl grid-cols-4 h-auto gap-1 p-1">
+            <TabsTrigger
+              value="todas"
+              className="bg-blue-600 text-white data-[state=active]:bg-blue-700 data-[state=active]:text-white hover:bg-blue-700"
+            >
+              1. Captação <span className="ml-2 text-xs opacity-80">({counts.todas})</span>
             </TabsTrigger>
             <TabsTrigger
               value="aguardando"
               disabled={counts.aguardando === 0}
               title={counts.aguardando === 0 ? 'Bloqueada — envie uma licitação para Cotação na aba 1. Captação para liberar' : undefined}
+              className={`${counts.aguardando === 0 ? 'bg-red-600 text-white opacity-100 disabled:opacity-100' : 'bg-blue-600 text-white hover:bg-blue-700'} data-[state=active]:bg-blue-700 data-[state=active]:text-white`}
             >
-              2. Cotação <span className="ml-2 text-xs opacity-70">({counts.aguardando})</span>
+              2. Cotação <span className="ml-2 text-xs opacity-80">({counts.aguardando})</span>
             </TabsTrigger>
             <TabsTrigger
               value="disputa"
               disabled={counts.disputa === 0}
               title={counts.disputa === 0 ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar' : undefined}
+              className={`${counts.disputa === 0 ? 'bg-red-600 text-white opacity-100 disabled:opacity-100' : 'bg-blue-600 text-white hover:bg-blue-700'} data-[state=active]:bg-blue-700 data-[state=active]:text-white`}
             >
-              3. Disputa <span className="ml-2 text-xs opacity-70">({counts.disputa})</span>
+              3. Disputa <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
             </TabsTrigger>
             <TabsTrigger
               value="sala"
               disabled={counts.sala === 0}
-              title={counts.sala === 0 ? 'Bloqueada — abre automaticamente quando o pregão iniciar' : undefined}
+              title={counts.sala === 0 ? 'Bloqueada — abre quando a disputa for cadastrada' : undefined}
+              className={`${counts.sala === 0 ? 'bg-red-600 text-white opacity-100 disabled:opacity-100' : 'bg-blue-600 text-white hover:bg-blue-700'} data-[state=active]:bg-blue-700 data-[state=active]:text-white`}
             >
-              4. Sala de Disputa <span className="ml-2 text-xs opacity-70">({counts.sala})</span>
+              4. Sala de Disputa <span className="ml-2 text-xs opacity-80">({counts.sala})</span>
             </TabsTrigger>
           </TabsList>
 
