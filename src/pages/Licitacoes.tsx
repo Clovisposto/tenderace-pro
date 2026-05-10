@@ -427,23 +427,6 @@ const Licitacoes = () => {
 
         <div className="flex items-center justify-between flex-wrap gap-4">
           <FiltrosLicitacao onFilterChange={setFiltros} />
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => capturarMultiportal.mutate()}
-              disabled={capturarMultiportal.isPending}
-              className="bg-primary"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${capturarMultiportal.isPending ? 'animate-spin' : ''}`} />
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5">
               <Building2 className="w-4 h-4 text-primary" />
