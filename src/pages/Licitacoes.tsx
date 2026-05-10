@@ -60,8 +60,27 @@ const Licitacoes = () => {
   const capturarPNCP = useCapturarPNCP();
   const queryClient = useQueryClient();
 
-  // Empresa ativa = primeira cadastrada (compliance reference)
-  const empresaAtiva = useMemo(() => empresas?.[0], [empresas]);
+  // Empresa ativa selecionada pelo usuário (CNPJ/SICAF de referência para compliance e envio)
+  const [empresaAtivaId, setEmpresaAtivaId] = useState<string | null>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(EMPRESA_ATIVA_KEY) : null)
+  );
+  const empresaAtiva = useMemo(() => {
+    if (!empresas || empresas.length === 0) return undefined;
+    return empresas.find(e => e.id === empresaAtivaId) ?? empresas[0];
+  }, [empresas, empresaAtivaId]);
+  useEffect(() => {
+    if (empresas && empresas.length > 0 && !empresas.find(e => e.id === empresaAtivaId)) {
+      const id = empresas[0].id;
+      setEmpresaAtivaId(id);
+      try { localStorage.setItem(EMPRESA_ATIVA_KEY, id); } catch {}
+    }
+  }, [empresas, empresaAtivaId]);
+  const selecionarEmpresa = (id: string) => {
+    setEmpresaAtivaId(id);
+    try { localStorage.setItem(EMPRESA_ATIVA_KEY, id); } catch {}
+    const nome = empresas?.find(e => e.id === id)?.nome;
+    if (nome) toast.success(`Empresa ativa: ${nome}`);
+  };
 
   // Verifica compliance SICAF + certidões antes de avançar etapa
   const verificarCompliance = (): { ok: boolean; motivo?: string } => {
