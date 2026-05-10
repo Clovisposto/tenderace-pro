@@ -4,6 +4,7 @@ import { FiltrosLicitacao } from '@/components/licitacao/FiltrosLicitacao';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
 import { LicitacaoDetalheCompleto } from '@/components/licitacao/LicitacaoDetalheCompleto';
 import { PlanilhaCotacao } from '@/components/licitacao/PlanilhaCotacao';
+import { HabilitacaoDocsPanel } from '@/components/licitacao/HabilitacaoDocsPanel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
