@@ -623,6 +623,44 @@ const Licitacoes = () => {
                     </AccordionItem>
                   ))}
                 </Accordion>
+              ) : activeTab === 'disputa' ? (
+                <Accordion type="multiple" className="space-y-3">
+                  {licitacoesFiltradas.map((licitacao) => (
+                    <AccordionItem
+                      key={licitacao.id}
+                      value={licitacao.id}
+                      className="glass-card border rounded-lg px-4"
+                    >
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-col items-start text-left gap-1">
+                          <div className="font-semibold">
+                            {licitacao.numero} — {licitacao.orgao}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {licitacao.municipio}/{licitacao.uf} • Habilitação: jurídica, técnica, econômica, fiscal, trabalhista, contrato, catálogo
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex justify-end mb-3">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedLicitacao(licitacao)}>
+                            Abrir detalhes completos
+                          </Button>
+                        </div>
+                        {empresaAtiva ? (
+                          <HabilitacaoDocsPanel
+                            licitacaoId={licitacao.id}
+                            empresaId={empresaAtiva.id}
+                          />
+                        ) : (
+                          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                            Selecione uma empresa ativa no topo para analisar a habilitação.
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               ) : (
                 <div className="space-y-4">
                   {licitacoesFiltradas.map((licitacao, index) => (
