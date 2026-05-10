@@ -4,6 +4,7 @@ import { FiltrosLicitacao } from '@/components/licitacao/FiltrosLicitacao';
 import { LicitacaoCard } from '@/components/licitacao/LicitacaoCard';
 import { LicitacaoDetalheCompleto } from '@/components/licitacao/LicitacaoDetalheCompleto';
 import { PlanilhaCotacao } from '@/components/licitacao/PlanilhaCotacao';
+import { HabilitacaoDocsPanel } from '@/components/licitacao/HabilitacaoDocsPanel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useLicitacoes, useLicitacoesRealtime, useCapturarPNCP, type Licitacao } from '@/hooks/useLicitacoes';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -515,10 +516,10 @@ const Licitacoes = () => {
                   <TabsTrigger
                     value="disputa"
                     disabled={disputaBlocked}
-                    title={disputaBlocked ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar a Disputa' : 'Etapa 3 — Preparação para a disputa'}
+                    title={disputaBlocked ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar a Habilitação' : 'Etapa 3 — Habilitação: análise de documentos jurídica, técnica, econômica, fiscal, trabalhista, contrato e catálogo'}
                     className={`${baseCls} ${disputaBlocked ? blockedCls : enabledCls}`}
                   >
-                    3. Disputa <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
+                    3. Habilitação <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="sala"
@@ -571,10 +572,11 @@ const Licitacoes = () => {
             )}
             {activeTab === 'disputa' && (
               <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <p className="font-semibold text-primary text-sm">Autorizadas — aguardando horário</p>
+                <p className="font-semibold text-primary text-sm">Etapa 3 — Habilitação</p>
                 <p className="text-xs text-muted-foreground">
-                  Você autorizou a participação. O robô entra automaticamente no horário da abertura.
-                  Quando começar, aparece em <b>4. Sala de Disputa</b>.
+                  Análise de documentos conforme política da empresa e Lei 14.133/2021: habilitação <b>jurídica</b>,
+                  <b> técnica</b>, <b>econômico-financeira</b>, <b>fiscal e trabalhista</b>, <b>contrato</b> e <b>catálogo</b>.
+                  Quando a sessão abrir, a licitação aparece em <b>4. Sala de Disputa</b>.
                 </p>
               </div>
             )}
@@ -617,6 +619,44 @@ const Licitacoes = () => {
                           licitacaoStatus={licitacao.status}
                           onAutorizado={() => setActiveTab('disputa')}
                         />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              ) : activeTab === 'disputa' ? (
+                <Accordion type="multiple" className="space-y-3">
+                  {licitacoesFiltradas.map((licitacao) => (
+                    <AccordionItem
+                      key={licitacao.id}
+                      value={licitacao.id}
+                      className="glass-card border rounded-lg px-4"
+                    >
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-col items-start text-left gap-1">
+                          <div className="font-semibold">
+                            {licitacao.numero} — {licitacao.orgao}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {licitacao.municipio}/{licitacao.uf} • Habilitação: jurídica, técnica, econômica, fiscal, trabalhista, contrato, catálogo
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex justify-end mb-3">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedLicitacao(licitacao)}>
+                            Abrir detalhes completos
+                          </Button>
+                        </div>
+                        {empresaAtiva ? (
+                          <HabilitacaoDocsPanel
+                            licitacaoId={licitacao.id}
+                            empresaId={empresaAtiva.id}
+                          />
+                        ) : (
+                          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                            Selecione uma empresa ativa no topo para analisar a habilitação.
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
