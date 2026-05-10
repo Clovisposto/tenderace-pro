@@ -516,10 +516,10 @@ const Licitacoes = () => {
                   <TabsTrigger
                     value="disputa"
                     disabled={disputaBlocked}
-                    title={disputaBlocked ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar a Disputa' : 'Etapa 3 — Preparação para a disputa'}
+                    title={disputaBlocked ? 'Bloqueada — autorize uma cotação na aba 2. Cotação para liberar a Habilitação' : 'Etapa 3 — Habilitação: análise de documentos jurídica, técnica, econômica, fiscal, trabalhista, contrato e catálogo'}
                     className={`${baseCls} ${disputaBlocked ? blockedCls : enabledCls}`}
                   >
-                    3. Disputa <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
+                    3. Habilitação <span className="ml-2 text-xs opacity-80">({counts.disputa})</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="sala"
