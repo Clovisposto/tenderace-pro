@@ -21,6 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building2 } from 'lucide-react';
+
+const EMPRESA_ATIVA_KEY = 'licitacoes:empresa_ativa_id';
 
 const STAGE_TO_TAB: Record<string, string> = {
   captacao: 'todas',
@@ -56,8 +60,27 @@ const Licitacoes = () => {
   const capturarPNCP = useCapturarPNCP();
   const queryClient = useQueryClient();
 
-  // Empresa ativa = primeira cadastrada (compliance reference)
-  const empresaAtiva = useMemo(() => empresas?.[0], [empresas]);
+  // Empresa ativa selecionada pelo usuário (CNPJ/SICAF de referência para compliance e envio)
+  const [empresaAtivaId, setEmpresaAtivaId] = useState<string | null>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(EMPRESA_ATIVA_KEY) : null)
+  );
+  const empresaAtiva = useMemo(() => {
+    if (!empresas || empresas.length === 0) return undefined;
+    return empresas.find(e => e.id === empresaAtivaId) ?? empresas[0];
+  }, [empresas, empresaAtivaId]);
+  useEffect(() => {
+    if (empresas && empresas.length > 0 && !empresas.find(e => e.id === empresaAtivaId)) {
+      const id = empresas[0].id;
+      setEmpresaAtivaId(id);
+      try { localStorage.setItem(EMPRESA_ATIVA_KEY, id); } catch {}
+    }
+  }, [empresas, empresaAtivaId]);
+  const selecionarEmpresa = (id: string) => {
+    setEmpresaAtivaId(id);
+    try { localStorage.setItem(EMPRESA_ATIVA_KEY, id); } catch {}
+    const nome = empresas?.find(e => e.id === id)?.nome;
+    if (nome) toast.success(`Empresa ativa: ${nome}`);
+  };
 
   // Verifica compliance SICAF + certidões antes de avançar etapa
   const verificarCompliance = (): { ok: boolean; motivo?: string } => {
@@ -404,7 +427,34 @@ const Licitacoes = () => {
 
         <div className="flex items-center justify-between flex-wrap gap-4">
           <FiltrosLicitacao onFilterChange={setFiltros} />
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5">
+              <Building2 className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Empresa ativa:</span>
+              <Select
+                value={empresaAtiva?.id ?? ''}
+                onValueChange={selecionarEmpresa}
+                disabled={!empresas || empresas.length === 0}
+              >
+                <SelectTrigger className="h-8 w-[260px] border-0 bg-transparent focus:ring-0 px-1">
+                  <SelectValue placeholder={empresas?.length ? 'Selecione a empresa' : 'Nenhuma empresa cadastrada'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresas?.map(e => {
+                    const sicafOk = ['apta', 'ativo'].includes((e.sicaf_status || '').toLowerCase());
+                    return (
+                      <SelectItem key={e.id} value={e.id}>
+                        <div className="flex items-center gap-2">
+                          {sicafOk ? <ShieldCheck className="w-3.5 h-3.5 text-success" /> : <ShieldAlert className="w-3.5 h-3.5 text-destructive" />}
+                          <span className="font-medium">{e.nome}</span>
+                          <span className="text-xs text-muted-foreground">• {e.cnpj}</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               variant="outline"
               size="sm"
