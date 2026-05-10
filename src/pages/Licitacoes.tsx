@@ -572,10 +572,11 @@ const Licitacoes = () => {
             )}
             {activeTab === 'disputa' && (
               <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <p className="font-semibold text-primary text-sm">Autorizadas — aguardando horário</p>
+                <p className="font-semibold text-primary text-sm">Etapa 3 — Habilitação</p>
                 <p className="text-xs text-muted-foreground">
-                  Você autorizou a participação. O robô entra automaticamente no horário da abertura.
-                  Quando começar, aparece em <b>4. Sala de Disputa</b>.
+                  Análise de documentos conforme política da empresa e Lei 14.133/2021: habilitação <b>jurídica</b>,
+                  <b> técnica</b>, <b>econômico-financeira</b>, <b>fiscal e trabalhista</b>, <b>contrato</b> e <b>catálogo</b>.
+                  Quando a sessão abrir, a licitação aparece em <b>4. Sala de Disputa</b>.
                 </p>
               </div>
             )}
