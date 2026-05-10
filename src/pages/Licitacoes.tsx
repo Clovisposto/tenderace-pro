@@ -21,6 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building2 } from 'lucide-react';
+
+const EMPRESA_ATIVA_KEY = 'licitacoes:empresa_ativa_id';
 
 const STAGE_TO_TAB: Record<string, string> = {
   captacao: 'todas',
