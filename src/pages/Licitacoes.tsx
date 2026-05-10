@@ -444,6 +444,50 @@ const Licitacoes = () => {
               className="bg-primary"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${capturarMultiportal.isPending ? 'animate-spin' : ''}`} />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5">
+              <Building2 className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Empresa ativa:</span>
+              <Select
+                value={empresaAtiva?.id ?? ''}
+                onValueChange={selecionarEmpresa}
+                disabled={!empresas || empresas.length === 0}
+              >
+                <SelectTrigger className="h-8 w-[260px] border-0 bg-transparent focus:ring-0 px-1">
+                  <SelectValue placeholder={empresas?.length ? 'Selecione a empresa' : 'Nenhuma empresa cadastrada'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresas?.map(e => {
+                    const sicafOk = ['apta', 'ativo'].includes((e.sicaf_status || '').toLowerCase());
+                    return (
+                      <SelectItem key={e.id} value={e.id}>
+                        <div className="flex items-center gap-2">
+                          {sicafOk ? <ShieldCheck className="w-3.5 h-3.5 text-success" /> : <ShieldAlert className="w-3.5 h-3.5 text-destructive" />}
+                          <span className="font-medium">{e.nome}</span>
+                          <span className="text-xs text-muted-foreground">• {e.cnpj}</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => capturarMultiportal.mutate()}
+              disabled={capturarMultiportal.isPending}
+              className="bg-primary"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${capturarMultiportal.isPending ? 'animate-spin' : ''}`} />
               Capturar Portais ({ufsPrioritarias.length} UFs)
             </Button>
             <Button
